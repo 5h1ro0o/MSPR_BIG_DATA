@@ -56,7 +56,6 @@ jobs:
           pytest tests/unit/ \
             --cov=etl \
             --cov=config \
-            --cov-omit="etl/extract/datagouv.py,ml/*,ml/**/*" \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
             -v
