@@ -3,6 +3,7 @@ Fonctions utilitaires partagées par tous les modules ETL.
 """
 
 import unicodedata
+
 import numpy as np
 import pandas as pd
 

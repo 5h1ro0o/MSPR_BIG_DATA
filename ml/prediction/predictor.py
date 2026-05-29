@@ -12,7 +12,7 @@ from typing import Optional
 import pandas as pd
 
 from ml.config import ARTIFACTS
-from ml.preprocessing import load_dataset, build_X_y, get_commune_info
+from ml.preprocessing import build_X_y, get_commune_info, load_dataset
 
 
 class Predictor:

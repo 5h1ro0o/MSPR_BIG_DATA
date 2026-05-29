@@ -3,9 +3,8 @@ Configuration ML — features, cibles, hyperparamètres pour tous les modèles.
 Source : dataset_elections_2022_idf.csv (1268 communes × 113 colonnes)
 """
 
-from pathlib import Path
-
 import os as _os
+from pathlib import Path
 
 ML_DIR = Path(__file__).parent
 ARTIFACTS = ML_DIR / "artifacts"

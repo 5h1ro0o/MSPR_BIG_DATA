@@ -18,8 +18,8 @@ Modèles :
     mlp  → MLP            (squelette)
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -107,10 +107,10 @@ def main():
     print(f"{'='*60}\n")
 
     from ml.training.trainer import (
-        train_random_forest,
+        compare_all_models,
         train_gradient_boosting,
         train_lstm,
-        compare_all_models,
+        train_random_forest,
     )
 
     results = {}

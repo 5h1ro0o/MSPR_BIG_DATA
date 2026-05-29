@@ -4,6 +4,7 @@ Lit les valeurs depuis .env ou les variables d'environnement.
 """
 
 from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

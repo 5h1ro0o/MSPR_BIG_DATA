@@ -7,8 +7,9 @@ Ils s'appuient sur les données réelles dans DATA_ROOT.
 """
 
 import os
-import pytest
 from pathlib import Path
+
+import pytest
 
 DATA_ROOT = Path(os.environ.get("DATA_ROOT", "C:/Users/matte/Desktop/dataset_mspr"))
 SKIP_IF_NO_DATA = pytest.mark.skipif(

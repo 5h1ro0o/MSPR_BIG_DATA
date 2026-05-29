@@ -4,8 +4,9 @@ Fournit un context manager et un engine singleton.
 """
 
 from contextlib import contextmanager
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from config.settings import settings
 from monitoring.logger import get_logger

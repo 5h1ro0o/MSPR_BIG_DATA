@@ -23,30 +23,29 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     accuracy_score,
+    classification_report,
+    confusion_matrix,
     f1_score,
     roc_auc_score,
-    confusion_matrix,
-    classification_report,
 )
+from sklearn.preprocessing import StandardScaler
 
-from ml.models.base import BaseModel
 from ml.config import (
+    ARTIFACTS,
+    FEATURES_SOCIO_LSTM,
     LSTM_CONFIG,
     LSTM_PERIOD_FEATURES,
-    FEATURES_SOCIO_LSTM,
     RANDOM_STATE,
-    ARTIFACTS,
 )
+from ml.models.base import BaseModel
 
 try:
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -54,27 +53,27 @@ try:
     import tensorflow as tf
 
     try:
-        from keras import Model, Input
-        from keras.layers import (
-            LSTM as KerasLSTM,
-            Dense,
-            Dropout,
-            BatchNormalization,
-            Concatenate,
-        )
+        from keras import Input, Model
         from keras.callbacks import EarlyStopping, ReduceLROnPlateau
-        from keras.optimizers import Adam
-        from keras.metrics import AUC as KerasAUC
-    except Exception:
-        from tensorflow.keras import Model, Input
-        from tensorflow.keras.layers import (
-            LSTM as KerasLSTM,
-            Dense,
-            Dropout,
+        from keras.layers import LSTM as KerasLSTM
+        from keras.layers import (
             BatchNormalization,
             Concatenate,
+            Dense,
+            Dropout,
         )
+        from keras.metrics import AUC as KerasAUC
+        from keras.optimizers import Adam
+    except Exception:
+        from tensorflow.keras import Input, Model
         from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+        from tensorflow.keras.layers import LSTM as KerasLSTM
+        from tensorflow.keras.layers import (
+            BatchNormalization,
+            Concatenate,
+            Dense,
+            Dropout,
+        )
         from tensorflow.keras.optimizers import Adam
 
         KerasAUC = tf.keras.metrics.AUC

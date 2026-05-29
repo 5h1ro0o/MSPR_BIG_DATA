@@ -6,9 +6,9 @@ Lancement :
     streamlit run ml/visualization/dashboard.py
 """
 
-import sys
-import json
 import glob
+import json
+import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -18,9 +18,9 @@ import numpy as np
 import pandas as pd
 
 try:
-    import streamlit as st
     import plotly.express as px
     import plotly.graph_objects as go
+    import streamlit as st
 except ImportError:
     print("pip install streamlit plotly")
     sys.exit(1)
@@ -1354,11 +1354,11 @@ elif page == "Stats":
     with tab5:
         st.markdown("#### Configuration ML")
         from ml.config import (
+            CV_FOLDS,
             FEATURE_SETS,
-            TARGETS,
             GB_BEST_PARAMS,
             LSTM_CONFIG,
-            CV_FOLDS,
+            TARGETS,
             TEST_SIZE,
         )
 

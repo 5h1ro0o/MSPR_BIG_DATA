@@ -7,25 +7,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from sklearn.metrics import (
     accuracy_score,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
-    confusion_matrix,
-    roc_curve,
     auc,
+    confusion_matrix,
+    f1_score,
     mean_absolute_error,
     mean_squared_error,
+    precision_score,
     r2_score,
+    recall_score,
+    roc_auc_score,
+    roc_curve,
 )
 
 

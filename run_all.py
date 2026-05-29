@@ -72,10 +72,10 @@ def step_train() -> bool:
     t0 = time.time()
     try:
         from ml.training.trainer import (
-            train_random_forest,
+            compare_all_models,
             train_gradient_boosting,
             train_lstm,
-            compare_all_models,
+            train_random_forest,
         )
 
         results: dict = {}

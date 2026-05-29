@@ -32,8 +32,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from ml.models.base import BaseModel
 from ml.config import ARTIFACTS
+from ml.models.base import BaseModel
 
 MLP_PARAM_GRID_SKLEARN = {
     "mlp__hidden_layer_sizes": [(64, 32), (128, 64), (128, 64, 32), (256, 128, 64)],

@@ -21,30 +21,29 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.settings import settings
-from monitoring.logger import setup_logger, get_logger
-from monitoring.metrics import PipelineMetrics
-
 from etl.extract import (
-    extract_elections,
     extract_candidats_raw,
-    extract_demographique,
     extract_chomage_historique,
+    extract_demographique,
+    extract_elections,
     extract_emploi_2022,
     extract_pauvrete,
 )
-from etl.transform import (
-    transform_participation,
-    transform_historique,
-    transform_cibles,
-    transform_demographique,
-    transform_chomage_hist,
-    transform_emploi_2022,
-    transform_pauvrete,
-    assemble_dataset,
-)
-from etl.load import write_gold_csv, load_to_db
+from etl.load import load_to_db, write_gold_csv
 from etl.load.db_loader import check_db_connection
 from etl.quality import run_quality_checks
+from etl.transform import (
+    assemble_dataset,
+    transform_chomage_hist,
+    transform_cibles,
+    transform_demographique,
+    transform_emploi_2022,
+    transform_historique,
+    transform_participation,
+    transform_pauvrete,
+)
+from monitoring.logger import get_logger, setup_logger
+from monitoring.metrics import PipelineMetrics
 
 setup_logger(settings.log_level, settings.log_dir)
 log = get_logger(__name__)

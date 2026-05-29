@@ -28,8 +28,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from ml.models.base import BaseModel
 from ml.config import ARTIFACTS
+from ml.models.base import BaseModel
 
 DT_PARAM_GRID = {
     "dt__max_depth": [3, 5, 7, 10, None],

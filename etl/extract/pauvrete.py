@@ -3,6 +3,7 @@ Extraction — base-cc-filosofi-2017.xlsx (revenus, pauvreté Filosofi 2017).
 """
 
 from pathlib import Path
+
 import pandas as pd
 
 from etl.helpers import norm_code

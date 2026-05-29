@@ -4,9 +4,9 @@ Tests unitaires — couches de transformation.
 
 import numpy as np
 
-from etl.transform.participation import transform_participation
-from etl.transform.candidats import pivot_candidats
 from etl.quality.checks import run_quality_checks
+from etl.transform.candidats import pivot_candidats
+from etl.transform.participation import transform_participation
 
 
 class TestTransformParticipation:

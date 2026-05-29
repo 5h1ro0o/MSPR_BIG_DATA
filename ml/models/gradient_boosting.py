@@ -17,47 +17,46 @@ from pathlib import Path
 from typing import Optional
 
 import joblib
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.model_selection import (
-    RandomizedSearchCV,
-    cross_val_score,
-    StratifiedKFold,
-    KFold,
-)
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
-    accuracy_score,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
-    confusion_matrix,
-    classification_report,
-    roc_curve,
     ConfusionMatrixDisplay,
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
     mean_absolute_error,
     mean_squared_error,
+    precision_score,
     r2_score,
+    recall_score,
+    roc_auc_score,
+    roc_curve,
+)
+from sklearn.model_selection import (
+    KFold,
+    RandomizedSearchCV,
+    StratifiedKFold,
+    cross_val_score,
 )
 from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
-from ml.models.base import BaseModel
 from ml.config import (
+    ARTIFACTS,
+    CV_FOLDS,
     GB_BEST_PARAMS,
     GB_PARAM_GRID,
-    RANDOM_STATE,
-    CV_FOLDS,
-    ARTIFACTS,
     LEAKAGE_KEYWORDS,
+    RANDOM_STATE,
 )
+from ml.models.base import BaseModel
 
 
 class GradientBoostingModel(BaseModel):

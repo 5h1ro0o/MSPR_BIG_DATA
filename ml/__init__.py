@@ -9,6 +9,6 @@ Modèles disponibles :
     mlp  → MLP (à implémenter)
 """
 
-from ml.config import ARTIFACTS, TARGETS, FEATURE_SETS, RANDOM_STATE
+from ml.config import ARTIFACTS, FEATURE_SETS, RANDOM_STATE, TARGETS
 
 __all__ = ["ARTIFACTS", "TARGETS", "FEATURE_SETS", "RANDOM_STATE"]

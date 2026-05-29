@@ -10,12 +10,11 @@ Tables cibles :
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import pandas as pd
 from sqlalchemy import create_engine, text
-
-import logging
 
 log = logging.getLogger(__name__)
 

@@ -6,25 +6,24 @@ Chaque fonction `train_XXX()` est autonome et produit artefacts + métriques.
 from __future__ import annotations
 
 import json
+import os
 
 import numpy as np
 import pandas as pd
 
-import os
-
 from ml.config import ARTIFACTS, RANDOM_STATE
 from ml.preprocessing import (
-    load_dataset,
     build_X_y,
-    split_data,
     get_commune_info,
+    load_dataset,
+    split_data,
 )
 from ml.training.evaluate import (
     plot_confusion_matrix,
-    plot_roc_curve,
     plot_feature_importance,
-    plot_predictions_vs_actual,
     plot_model_comparison,
+    plot_predictions_vs_actual,
+    plot_roc_curve,
 )
 
 
@@ -163,7 +162,7 @@ def train_lstm(
     feature_set forcé à "lstm" (contient toutes les colonnes nécessaires
     aux séquences temporelles + socio-économiques).
     """
-    from ml.models.lstm import LSTMModel, TF_AVAILABLE
+    from ml.models.lstm import TF_AVAILABLE, LSTMModel
 
     if not TF_AVAILABLE:
         print("  [SKIP] TensorFlow non disponible. Installez : pip install tensorflow")
@@ -284,8 +283,9 @@ def _store_to_db(
             return
         db_url = f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
 
-    from ml.training.db_store import store_predictions, store_metrics
     import datetime
+
+    from ml.training.db_store import store_metrics, store_predictions
 
     run_id = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S") + f"_{model_name}"
 

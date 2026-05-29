@@ -5,6 +5,7 @@ Extraction — données chômage :
 """
 
 from pathlib import Path
+
 import pandas as pd
 
 from etl.helpers import norm_code

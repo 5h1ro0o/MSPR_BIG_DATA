@@ -1,8 +1,8 @@
-from .random_forest import RandomForestModel
-from .gradient_boosting import GradientBoostingModel
 from .decision_tree import DecisionTreeModel
-from .mlp import MLPModel
+from .gradient_boosting import GradientBoostingModel
 from .lstm import LSTMModel
+from .mlp import MLPModel
+from .random_forest import RandomForestModel
 
 __all__ = [
     "RandomForestModel",

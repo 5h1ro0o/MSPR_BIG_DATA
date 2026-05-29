@@ -5,6 +5,7 @@ laisse l'orchestrateur décider de la criticité.
 """
 
 from dataclasses import dataclass, field
+
 import pandas as pd
 
 from monitoring.logger import get_logger

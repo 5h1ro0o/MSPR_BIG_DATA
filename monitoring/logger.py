@@ -5,6 +5,7 @@ Rotation quotidienne, rétention 30 jours, compression gzip.
 
 import sys
 from pathlib import Path
+
 from loguru import logger
 
 

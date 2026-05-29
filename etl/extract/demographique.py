@@ -4,6 +4,7 @@ Sélectionne uniquement les colonnes nécessaires pour économiser la mémoire.
 """
 
 from pathlib import Path
+
 import pandas as pd
 
 from etl.helpers import norm_code
