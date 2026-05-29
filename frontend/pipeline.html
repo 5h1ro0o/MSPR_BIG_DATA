@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Pipeline ETL — Electoral Observatory</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+<link rel="stylesheet" href="styles/components.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="components/data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="components/shared.jsx"></script>
+<script type="text/babel">
+function Header() {
+  return (
+    <section className="page-header">
+      <div className="meta-row">
+        <span className="eyebrow">04 \u00b7 Pipeline ETL</span>
+        <span className="chip ok"><span className="live-dot"></span>Run termin\u00e9 \u00b7 06:12:04</span>
+      </div>
+      <h1 className="headline-1">Le pipeline de donn\u00e9es, pas \u00e0 pas.</h1>
+      <p className="dek">Architecture Medallion bronze\u202f/\u202fsilver\u202f/\u202fgold orchestr\u00e9e via Python. Quality gates, m\u00e9triques par \u00e9tape, traceback complet.</p>
+    </section>
+  );
+}
+
+function RunSummary() {
+  return (
+    <div className="kpi-row" style={{marginBottom: 56}}>
+      {[
+        { lbl: 'Dur\u00e9e totale',   val: '4:18',   unit:'min', delta: '\u22120:13 vs moy.', up: true },
+        { lbl: 'Lignes en gold',      val: '1 268',  unit:'',    delta: '113 colonnes' },
+        { lbl: 'Quality checks',      val: '14/14',  unit:'',    delta: 'Tous OK', up: true },
+        { lbl: 'Nulls d\u00e9tect\u00e9s', val: '0', unit:'',   delta: 'Aucune anomalie' },
+      ].map(k => (
+        <div key={k.lbl} className="kpi">
+          <div className="kpi-hd"><span className="label">{k.lbl}</span></div>
+          <div className="kpi-value tnum">{k.val}{k.unit && <span className="unit">{k.unit}</span>}</div>
+          <div className="kpi-foot">
+            <span className={k.up ? 'kpi-delta up' : ''} style={{color: k.up ? 'var(--status-ok)' : 'var(--ink-4)'}}>{k.delta}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Steps() {
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">D\u00e9roul\u00e9</span>
+          <h2>14 \u00e9tapes \u00b7 du fichier brut au dataset ML</h2>
+        </div>
+        <span className="chip">run_id\u202f\u00b7\u202f<span className="mono" style={{marginLeft: 4}}>20260505T0612_a3f1c2</span></span>
+      </div>
+      <div className="pipeline" style={{overflowX: 'auto'}}>
+        {MOCK.steps.map((s, i) => (
+          <div key={s.name} className="step" style={{flex: 1, minWidth: 110}}>
+            <span className="num">step.{String(i+1).padStart(2,'0')}</span>
+            <span className="nm">{s.name}</span>
+            <span className="dur">{s.dur.toFixed(1)}s</span>
+            <span className="st"></span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HistoryAndLogs() {
+  const colorOf = (s) => s === 'SUCCESS' ? 'ok' : s === 'WARN' ? 'warn' : 'err';
+  return (
+    <section className="section">
+      <div className="grid-12">
+        <div className="panel" style={{padding: 0, overflow:'hidden'}}>
+          <div className="panel-hd" style={{padding: '20px 24px 0'}}>
+            <h3>Historique des runs</h3>
+            <button className="btn ghost" style={{padding:'6px 10px', fontSize: 11.5}}>Voir tout \u2192</button>
+          </div>
+          <table className="tbl" style={{marginTop: 12}}>
+            <thead>
+              <tr>
+                <th>Run</th><th>Lanc\u00e9</th><th>Dur\u00e9e</th>
+                <th className="num">Lignes</th><th className="num">Nulls</th>
+                <th>QC</th><th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MOCK.runs.map(r => (
+                <tr key={r.id}>
+                  <td className="mono" style={{color:'var(--ink-4)', fontSize: 11.5}}>{r.id.slice(0,18)}</td>
+                  <td>{r.start}</td>
+                  <td className="mono tnum">{r.dur}</td>
+                  <td className="num tnum">{typeof r.communes === 'number' ? r.communes.toLocaleString('fr-FR') : r.communes}</td>
+                  <td className="num tnum">{r.nulls}</td>
+                  <td><span className={'chip '+(r.qc==='OK'?'ok':r.qc==='WARN'?'warn':'err')}><span className="dot"></span>{r.qc}</span></td>
+                  <td><span className={'chip '+colorOf(r.status)}><span className="dot"></span>{r.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="panel">
+          <div className="panel-hd"><h3>Logs</h3><span className="chip ok"><span className="live-dot"></span>tail -f</span></div>
+          <div className="logblock">
+            <div><span className="ts">06:12:04</span> <span className="info">INFO</span>  pipeline.py    === PIPELINE START | run_id=20260505T0612_a3f1c2 ===</div>
+            <div><span className="ts">06:12:04</span> <span className="info">INFO</span>  extract.elections    Reading /data/elections/*.csv (8 files)</div>
+            <div><span className="ts">06:12:13</span> <span className="ok">OK</span>    extract.elections    rows_out=12 680  duration=9.4s</div>
+            <div><span className="ts">06:12:19</span> <span className="ok">OK</span>    extract.demographique  rows_out=1 268</div>
+            <div><span className="ts">06:12:23</span> <span className="ok">OK</span>    extract.pauvrete     rows_out=1 268</div>
+            <div><span className="ts">06:13:05</span> <span className="ok">OK</span>    extract.candidats   rows_out=506 720</div>
+            <div><span className="ts">06:13:43</span> <span className="info">INFO</span>  transform.assemble   Joining 7 silver tables...</div>
+            <div><span className="ts">06:14:21</span> <span className="ok">OK</span>    transform.assemble   gold_dataset shape=(1 268, 113)</div>
+            <div><span className="ts">06:14:28</span> <span className="info">INFO</span>  quality.checks       Running 14 checks...</div>
+            <div><span className="ts">06:14:34</span> <span className="ok">OK</span>    quality.checks       PASSED (14/14)</div>
+            <div><span className="ts">06:14:36</span> <span className="ok">OK</span>    load.csv             Wrote /out/dataset_2022_idf.csv</div>
+            <div><span className="ts">06:14:54</span> <span className="ok">OK</span>    load.db              Inserted 1 268 rows in gold.ml_features</div>
+            <div><span className="ts">06:16:22</span> <span className="ok">OK</span>    pipeline.py    === PIPELINE END | duration=4m 18s | QC=OK ===</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Topbar active="pipeline" />
+      <main className="shell">
+        <Header />
+        <RunSummary />
+        <Steps />
+        <HistoryAndLogs />
+      </main>
+      <Footer />
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

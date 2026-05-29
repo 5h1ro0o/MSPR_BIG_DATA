@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Mod\u00e8les ML \u2014 Electoral Observatory</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+<link rel="stylesheet" href="styles/components.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="components/data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="components/shared.jsx"></script>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function pct(v) { return v != null ? (v * 100).toFixed(1) + '%' : '\u2014'; }
+function num(v, d=3) { return v != null ? v.toFixed(d) : '\u2014'; }
+
+// ─── Header ──────────────────────────────────────────────────────────────────
+function Header({ loaded }) {
+  return (
+    <section className="page-header">
+      <div className="meta-row">
+        <span className="eyebrow">05 \u00b7 Mod\u00e8les ML</span>
+        {loaded
+          ? <span className="chip ok"><span className="live-dot"></span>Donn\u00e9es r\u00e9elles charg\u00e9es</span>
+          : <span className="chip"><span className="live-dot" style={{background:'var(--ink-5)'}}></span>Mock \u2014 lancez le pipeline pour les vraies m\u00e9triques</span>
+        }
+      </div>
+      <h1 className="headline-1">Pr\u00e9dire le second tour, par commune.</h1>
+      <p className="dek">Cinq configurations entra\u00een\u00e9es sur les profils socio-\u00e9co et l\u2019historique \u00e9lectoral 2012\u202f/\u202f2017. Cible\u202f: <span className="mono" style={{background:'var(--bg-2)',padding:'2px 6px',borderRadius:4,fontSize:12}}>cible_t2_vainqueur</span> (Macron\u202f=\u202f0, Le\u202fPen\u202f=\u202f1).</p>
+    </section>
+  );
+}
+
+// ─── Tableau de comparaison ───────────────────────────────────────────────────
+function ModelTable({ models }) {
+  const best = models.reduce((b, m) => (!b || (m.accuracy||0) > (b.accuracy||0)) ? m : b, null);
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Comparaison</span><h2>Performance sur set de test (20\u202f%)</h2></div>
+        <p>Cible\u202f: classification binaire \u00b7 1\u202f268 communes IDF</p>
+      </div>
+      <div className="panel" style={{padding: 0, overflow:'hidden'}}>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Mod\u00e8le</th>
+              <th className="num">Accuracy</th>
+              <th className="num">F1 pond\u00e9r\u00e9</th>
+              <th className="num">ROC AUC</th>
+              <th className="num">CV AUC (\u03bc\u00b1\u03c3)</th>
+              <th className="num">Temps</th>
+              <th style={{width:120}}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {models.map(m => {
+              const isBest = m === best;
+              return (
+                <tr key={m.name} style={isBest ? {background:'color-mix(in srgb, var(--ink) 3%, transparent)'} : {}}>
+                  <td style={{fontWeight: isBest ? 600 : 400}}>
+                    <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                      {isBest && <span className="chip ok" style={{padding:'2px 7px', fontSize:10}}><span className="dot"></span>retenu</span>}
+                      <span>{m.name}</span>
+                    </div>
+                  </td>
+                  <td className="num tnum" style={{fontWeight: isBest ? 600 : 400}}>{pct(m.accuracy)}</td>
+                  <td className="num tnum">{pct(m.f1)}</td>
+                  <td className="num tnum">{num(m.auc)}</td>
+                  <td className="num tnum mono" style={{fontSize:11.5}}>
+                    {m.cv_auc != null ? num(m.cv_auc) : '\u2014'}
+                    {m.cv_std != null ? <span style={{color:'var(--ink-4)'}}>\u00b1{num(m.cv_std)}</span> : null}
+                  </td>
+                  <td className="num mono">{m.time || '\u2014'}</td>
+                  <td>
+                    <div style={{height:6, borderRadius:999, background:'var(--bg-3)', overflow:'hidden'}}>
+                      <div style={{height:'100%', width:pct(m.accuracy), background: isBest ? 'var(--ink)' : 'var(--ink-4)'}}/>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// ─── Visuels par modèle ───────────────────────────────────────────────────────
+function ModelVisuals({ images }) {
+  const [tab, setTab] = useState('gb');
+  if (!images) return null;
+
+  const tabs = [
+    { k: 'gb',   lbl: 'Gradient Boosting' },
+    { k: 'rf',   lbl: 'Random Forest' },
+    { k: 'lstm', lbl: 'LSTM' },
+  ];
+
+  const groups = {
+    gb: [
+      { src: images.gb_results,    title: 'Analyse compl\u00e8te \u2014 importance, confusion, ROC, distribution' },
+      { src: images.gb_confusion,  title: 'Matrice de confusion' },
+      { src: images.gb_roc,        title: 'Courbe ROC' },
+      { src: images.gb_importance, title: 'Top features (importance)' },
+    ],
+    rf: [
+      { src: images.rf_confusion,  title: 'Matrice de confusion' },
+      { src: images.rf_roc,        title: 'Courbe ROC' },
+      { src: images.rf_importance, title: 'Top features (importance)' },
+    ],
+    lstm: [
+      { src: images.lstm_curves,   title: 'Courbes d\u2019entra\u00eenement (acc + loss)' },
+      { src: images.lstm_confusion,title: 'Matrice de confusion' },
+      { src: images.lstm_roc,      title: 'Courbe ROC' },
+    ],
+  };
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Visualisations</span><h2>Performances d\u00e9taill\u00e9es par mod\u00e8le</h2></div>
+        <div className="tabs">
+          {tabs.map(t => <button key={t.k} className={tab===t.k?'active':''} onClick={()=>setTab(t.k)}>{t.lbl}</button>)}
+        </div>
+      </div>
+      <div className="grid-3">
+        {(groups[tab]||[]).map(g => (
+          <div key={g.src} className="panel" style={{padding: 0, overflow:'hidden'}}>
+            <div style={{padding:'14px 18px', borderBottom:'1px solid var(--line)'}}>
+              <span className="label">{g.title}</span>
+            </div>
+            <img src={g.src} alt={g.title}
+              style={{width:'100%', display:'block', objectFit:'contain', background:'var(--bg-1)'}}
+              onError={e => { e.target.parentNode.style.display='none'; }}
+            />
+          </div>
+        ))}
+      </div>
+      {tab === 'lstm' && (
+        <div className="panel" style={{marginTop: 24}}>
+          <div className="panel-hd"><h3>Architecture LSTM duale</h3></div>
+          <pre className="logblock" style={{margin: 0, fontSize:12}}>{
+`Input A  s\u00e9quences temporelles (batch, 3, 8)  \u2014 \u00e9lections 2012/2017/2022-T1
+  LSTM(64, return_sequences=True)
+  BatchNorm + Dropout(0.3)
+  LSTM(32)
+  BatchNorm + Dropout(0.3)
+  Dense(16, relu)
+
+Input B  features socio-\u00e9co (batch, 17)
+  Dense(32, relu) + BatchNorm + Dropout(0.2)
+  Dense(16, relu)
+
+Fusion \u2192 Dense(16) \u2192 Dropout(0.2) \u2192 Dense(1, sigmoid)
+Loss      : BinaryCrossentropy
+Optimizer : Adam(lr=0.001)
+Callbacks : EarlyStopping(patience=15), ReduceLROnPlateau`
+          }</pre>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Comparaison globale (images générées) ────────────────────────────────────
+function GlobalComparison({ images }) {
+  if (!images) return null;
+  const charts = [
+    { src: images.cmp_accuracy, title: 'Accuracy \u2014 tous mod\u00e8les' },
+    { src: images.cmp_f1,       title: 'F1 pond\u00e9r\u00e9' },
+    { src: images.cmp_auc,      title: 'ROC AUC' },
+  ];
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Comparaison globale</span><h2>Toutes m\u00e9triques \u00b7 tous mod\u00e8les</h2></div>
+      </div>
+      <div className="grid-3">
+        {charts.map(c => (
+          <div key={c.src} className="panel" style={{padding: 0, overflow:'hidden'}}>
+            <div style={{padding:'14px 18px', borderBottom:'1px solid var(--line)'}}>
+              <span className="label">{c.title}</span>
+            </div>
+            <img src={c.src} alt={c.title}
+              style={{width:'100%', display:'block', background:'var(--bg-1)'}}
+              onError={e => { e.target.parentNode.style.display='none'; }}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Importance des features ──────────────────────────────────────────────────
+function Importance() {
+  const max = Math.max(...MOCK.topFeatures.map(t => t.imp));
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Interpr\u00e9tabilit\u00e9</span><h2>Top 10 variables explicatives</h2></div>
+        <span className="chip">Gradient Boosting \u00b7 feature_importances_</span>
+      </div>
+      <div className="panel">
+        <div className="bar-list">
+          {MOCK.topFeatures.map((t, i) => (
+            <div key={t.name} className="bar-row">
+              <div className="rank">{String(i+1).padStart(2,'0')}</div>
+              <div className="nm mono" style={{fontFamily:'var(--mono)', fontSize:12}}>{t.name}</div>
+              <div className="br"><i style={{width:((t.imp/max)*100)+'%', background:'var(--ink)'}}/></div>
+              <div className="pc tnum">{(t.imp*100).toFixed(1)}<small>%</small></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Sandbox de prédiction ────────────────────────────────────────────────────
+function Sandbox() {
+  const init = { cadres:25, ouvriers:12, dipl:35, hlm:18, revenu:26500, chomage:7.5, t1macron:32 };
+  const [v, setV] = useState(init);
+
+  const score = (() => {
+    let s = 0.5;
+    s += (v.cadres    - 18)    * 0.012;
+    s += (v.dipl      - 28)    * 0.008;
+    s += (v.revenu    - 22000) * 0.0000085;
+    s += (v.t1macron  - 28)    * 0.014;
+    s -= (v.ouvriers  - 14)    * 0.013;
+    s -= (v.hlm       - 20)    * 0.005;
+    s -= (v.chomage   -  7)    * 0.018;
+    return Math.max(0.02, Math.min(0.98, s));
+  })();
+
+  const winner   = score > 0.5 ? 'Macron' : 'Le Pen';
+  const winColor = score > 0.5 ? 'var(--d-1)' : 'var(--d-2)';
+  const margin   = (Math.abs(score - 0.5) * 200).toFixed(1);
+
+  const slider = (key, lbl, min, max, step, unit) => (
+    <div className="slider-row" key={key}>
+      <div className="top">
+        <span className="lbl">{lbl}</span>
+        <span className="val tnum">{v[key].toLocaleString('fr-FR')}<small>{unit}</small></span>
+      </div>
+      <input className="rng" type="range" min={min} max={max} step={step} value={v[key]}
+             onChange={e => setV(p => ({...p, [key]: parseFloat(e.target.value)}))}/>
+    </div>
+  );
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Simulation</span><h2>Sandbox \u2014 simuler une commune</h2></div>
+        <p>Ajustez les indicateurs. La pr\u00e9diction se met \u00e0 jour en direct via le mod\u00e8le Gradient Boosting (proxy lin\u00e9aire).</p>
+      </div>
+      <div className="grid-21">
+        <div className="panel">
+          {slider('cadres',   '% Cadres',            5, 50,    0.5, '%')}
+          {slider('ouvriers', '% Ouvriers',           2, 35,    0.5, '%')}
+          {slider('dipl',     '% Dipl\u00f4m\u00e9s sup.',  10, 60, 0.5, '%')}
+          {slider('hlm',      '% Logements HLM',      0, 60,    0.5, '%')}
+          {slider('revenu',   'Revenu m\u00e9dian',   12000, 45000, 100, ' \u20ac')}
+          {slider('chomage',  'Taux de ch\u00f4mage',  3, 18,   0.1, '%')}
+          {slider('t1macron', 'Score Macron T1',      10, 55,    0.5, '%')}
+        </div>
+        <div className="panel" style={{display:'flex', flexDirection:'column', gap:24}}>
+          <div className="panel-hd">
+            <h3>Pr\u00e9diction T2</h3>
+            <span className="chip ok"><span className="live-dot"></span>en direct</span>
+          </div>
+          <div style={{display:'flex', alignItems:'baseline', gap:16}}>
+            <span className="metric tnum" style={{fontSize:64, color:winColor}}>
+              {(score*100).toFixed(1)}<span style={{fontSize:22, color:'var(--ink-4)'}}>%</span>
+            </span>
+            <div>
+              <div className="label">Probabilit\u00e9 vainqueur</div>
+              <div style={{fontSize:18, fontWeight:500, color:winColor, letterSpacing:'-0.02em', marginTop:2}}>{winner}</div>
+            </div>
+          </div>
+          <div>
+            <div className="stack" style={{height:18, marginTop:4}}>
+              <div className="seg" style={{width:(score*100)+'%', background:'var(--d-1)'}}/>
+              <div className="seg" style={{width:((1-score)*100)+'%', background:'var(--d-2)'}}/>
+            </div>
+            <div style={{display:'flex', justifyContent:'space-between', marginTop:8, fontSize:12, color:'var(--ink-4)'}}>
+              <span><strong style={{color:'var(--ink)'}}>{(score*100).toFixed(1)}%</strong> Macron</span>
+              <span><strong style={{color:'var(--ink)'}}>{((1-score)*100).toFixed(1)}%</strong> Le Pen</span>
+            </div>
+          </div>
+          <hr/>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16}}>
+            <div>
+              <div className="label">Marge pr\u00e9dite</div>
+              <div className="metric tnum" style={{fontSize:26, marginTop:4}}>{margin}<span style={{fontSize:13, color:'var(--ink-4)'}}>pts</span></div>
+            </div>
+            <div>
+              <div className="label">Mod\u00e8le retenu</div>
+              <div style={{fontSize:14, fontWeight:500, marginTop:6, letterSpacing:'-0.01em'}}>Gradient Boosting</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
+function App() {
+  const [models, setModels]   = useState(MOCK.models);
+  const [images, setImages]   = useState(null);
+  const [loaded, setLoaded]   = useState(false);
+
+  useEffect(() => {
+    loadArtifacts().then(() => {
+      setModels([...MOCK.models]);
+      setImages(MOCK.images || null);
+      setLoaded(!!MOCK.artifactsLoaded);
+    });
+  }, []);
+
+  return (
+    <>
+      <Topbar active="prediction" />
+      <main className="shell">
+        <Header loaded={loaded} />
+        <ModelTable models={models} />
+        {images && <GlobalComparison images={images} />}
+        {images && <ModelVisuals images={images} />}
+        <Importance />
+        <Sandbox />
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

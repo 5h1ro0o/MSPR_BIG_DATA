@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Vue d&apos;ensemble — Electoral Observatory</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+<link rel="stylesheet" href="styles/components.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="components/data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="components/shared.jsx"></script>
+<script type="text/babel">
+function Header() {
+  return (
+    <section className="page-header">
+      <div className="meta-row">
+        <span className="eyebrow">01 \u00b7 Vue d&apos;ensemble</span>
+      </div>
+      <h1 className="headline-1">L&apos;\u00cele-de-France en chiffres.</h1>
+      <p className="dek">Indicateurs cl\u00e9s consolid\u00e9s sur 1\u202f268 communes, 113 colonnes, deux tours \u00e9lectoraux. Source\u202f: pipeline ETL Medallion, run du 5 mai 2026.</p>
+    </section>
+  );
+}
+
+const Icon = ({d}) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d}/>
+  </svg>
+);
+
+function KPIs() {
+  const kpis = [
+    { lbl: 'Communes',          val: '1 268', spark: [1200,1240,1255,1260,1265,1268,1268], note: 'Couverture int\u00e9grale IDF', icn: 'M3 3h18v18H3zM9 3v18M3 9h18' },
+    { lbl: 'Inscrits',          val: '8.42',  unit: 'M', spark: [7.8,7.9,8.0,8.1,8.2,8.3,8.42], delta: '+1.4%', icn: 'M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+    { lbl: 'Participation T1',  val: '71.2',  unit: '%', spark: [68,67,70,69,71,71,71.2],   delta: '+0.8 pt', icn: 'M3 3v18h18M7 14l4-4 4 4 5-5' },
+    { lbl: 'Marge T2',          val: '28.4',  unit: 'pts', spark: [10,18,22,24,26,28,28.4], delta: 'Macron +28.4', icn: 'M22 12L13 12M22 12l-4-4M22 12l-4 4' },
+  ];
+  return (
+    <div className="kpi-row" style={{marginBottom: 56}}>
+      {kpis.map(k => (
+        <div key={k.lbl} className="kpi">
+          <div className="kpi-hd">
+            <span className="label">{k.lbl}</span>
+            <span className="kpi-icon"><Icon d={k.icn}/></span>
+          </div>
+          <div className="kpi-value tnum">{k.val}{k.unit && <span className="unit">{k.unit}</span>}</div>
+          <Sparkline data={k.spark} height={32} />
+          {k.delta && <div className="kpi-foot"><span className="kpi-delta up">\u25b2 {k.delta}</span><span>vs 2017</span></div>}
+          {k.note && !k.delta && <div className="kpi-foot"><span>{k.note}</span></div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TopCandidates() {
+  return (
+    <div className="grid-12" style={{marginBottom: 56}}>
+      <div className="panel">
+        <div className="panel-hd">
+          <h3>Top candidats au premier tour</h3>
+          <div className="tabs">
+            <button className="active">T1</button>
+            <button>T2</button>
+          </div>
+        </div>
+        <BarList rows={MOCK.candidatesT1} />
+      </div>
+      <div className="panel">
+        <div className="panel-hd">
+          <h3>Second tour</h3>
+          <span className="chip">Macron vs Le Pen</span>
+        </div>
+        <BarList rows={MOCK.t2} />
+        <div style={{marginTop: 24}}>
+          <div className="label">R\u00e9partition globale</div>
+          <StackBar segments={MOCK.t2}/>
+        </div>
+        <div className="callout" style={{marginTop: 28, fontSize: 18}}>
+          \u00ab Macron consolide une avance de 28,4 points en \u00cele-de-France, tir\u00e9e par Paris intra-muros et les Hauts-de-Seine. \u00bb
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Participation() {
+  const years = [2002, 2007, 2012, 2017, 2022];
+  const part  = [72.0, 84.5, 80.4, 78.9, 73.7];
+  const abst  = part.map(v => 100 - v);
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">\u00c9volution</span>
+          <h2>Participation et abstention au fil des scrutins</h2>
+        </div>
+        <p>L&apos;abstention progresse depuis 2007 dans toutes les zones except\u00e9 Paris centre.</p>
+      </div>
+      <div className="panel">
+        <svg viewBox="0 0 800 280" style={{width: '100%', height: 280, display: 'block'}}>
+          {[60, 70, 80, 90, 100].map((y, i) => (
+            <g key={y}>
+              <line x1="40" x2="780" y1={260-(y-50)*4.2} y2={260-(y-50)*4.2} stroke="var(--line)" strokeDasharray={i===4?'':'2 4'}/>
+              <text x="0" y={260-(y-50)*4.2+4} fill="var(--ink-5)" fontSize="10" fontFamily="var(--mono)">{y}%</text>
+            </g>
+          ))}
+          {(() => {
+            const xs = years.map((_, i) => 60 + i * 180);
+            const path = (vs) => vs.map((v, i) => (i?'L':'M')+xs[i]+' '+(260-(v-50)*4.2)).join(' ');
+            return (
+              <>
+                <path d={path(part)+' L '+xs[xs.length-1]+' 260 L '+xs[0]+' 260 Z'} fill="var(--d-1)" opacity="0.08"/>
+                <path d={path(part)} fill="none" stroke="var(--d-1)" strokeWidth="2"/>
+                <path d={path(abst)} fill="none" stroke="var(--d-2)" strokeWidth="2" strokeDasharray="4 4"/>
+                {xs.map((x, i) => (
+                  <g key={i}>
+                    <circle cx={x} cy={260-(part[i]-50)*4.2} r="4" fill="var(--surface-solid)" stroke="var(--d-1)" strokeWidth="2"/>
+                    <circle cx={x} cy={260-(abst[i]-50)*4.2} r="3" fill="var(--surface-solid)" stroke="var(--d-2)" strokeWidth="1.5"/>
+                    <text x={x} y="278" fill="var(--ink-4)" fontSize="11" fontFamily="var(--sans)" textAnchor="middle">{years[i]}</text>
+                    <text x={x} y={260-(part[i]-50)*4.2-10} fill="var(--ink)" fontSize="11" fontFamily="var(--mono)" textAnchor="middle" fontWeight="600">{part[i].toFixed(1)}</text>
+                  </g>
+                ))}
+              </>
+            );
+          })()}
+        </svg>
+        <div style={{display:'flex', gap: 20, marginTop: 12}}>
+          <span className="chip" style={{borderColor:'var(--d-1)', color:'var(--d-1)'}}><span className="dot" style={{background:'var(--d-1)'}}></span>Participation T1</span>
+          <span className="chip" style={{borderColor:'var(--d-2)', color:'var(--d-2)'}}><span className="dot" style={{background:'var(--d-2)'}}></span>Abstention T1</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Heatmap() {
+  const cols = ['Cadres', 'Ouvriers', 'Dipl. sup.', 'Senior 60+', 'HLM', 'Pauvret\u00e9', 'Ch\u00f4mage'];
+  const rows = ['Macron T2', 'Le Pen T2', 'M\u00e9lenchon T1', 'Zemmour T1', 'P\u00e9cresse T1'];
+  const data = [
+    [ 0.72,-0.61, 0.78, 0.18,-0.42,-0.55,-0.39],
+    [-0.71, 0.62,-0.78,-0.18, 0.42, 0.55, 0.41],
+    [-0.18, 0.34,-0.12,-0.28, 0.51, 0.48, 0.37],
+    [ 0.11, 0.04,-0.05, 0.08,-0.32,-0.21,-0.16],
+    [ 0.62,-0.32, 0.51, 0.34,-0.42,-0.41,-0.31],
+  ];
+  const cell = (v) => {
+    const a = Math.abs(v);
+    const c = v >= 0 ? 'var(--d-1)' : 'var(--d-2)';
+    return { background: 'color-mix(in srgb, '+c+' '+(a*70).toFixed(0)+'%, var(--surface-solid))', color: a > 0.5 ? '#fff' : 'var(--ink)' };
+  };
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">Corr\u00e9lations</span>
+          <h2>Profils socio-\u00e9conomiques et vote</h2>
+        </div>
+        <p>Coefficients de Pearson entre indicateurs INSEE et r\u00e9sultats par commune.</p>
+      </div>
+      <div className="heatmap" style={{gridTemplateColumns: '160px repeat('+cols.length+', 1fr)'}}>
+        <div className="hcell head"></div>
+        {cols.map(c => <div key={c} className="hcell head">{c}</div>)}
+        {rows.map((r, ri) => (
+          <React.Fragment key={r}>
+            <div className="hcell head" style={{aspectRatio:'auto', justifyContent:'flex-start', padding:'0 14px'}}>{r}</div>
+            {data[ri].map((v, ci) => (
+              <div key={ci} className="hcell tnum" style={cell(v)}>{(v>=0?'+':'')+v.toFixed(2)}</div>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{display:'flex', gap: 18, marginTop: 16, fontSize: 12, color:'var(--ink-4)'}}>
+        <span style={{display:'inline-flex', alignItems:'center', gap: 6}}>
+          <i style={{display:'inline-block', width: 32, height: 8, background:'linear-gradient(90deg, var(--d-2), var(--bg-2), var(--d-1))', borderRadius: 2}}/>
+          {' '}\u22121.0 \u00b7 0 \u00b7 +1.0
+        </span>
+        <span>Pearson r \u00b7 n = 1\u202f268 communes</span>
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Topbar active="overview" />
+      <main className="shell">
+        <Header />
+        <KPIs />
+        <TopCandidates />
+        <Participation />
+        <Heatmap />
+      </main>
+      <Footer />
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

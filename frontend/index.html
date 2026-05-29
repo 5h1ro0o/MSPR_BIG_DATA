@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Electoral Observatory</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+<link rel="stylesheet" href="styles/components.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="components/data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="components/shared.jsx"></script>
+<script type="text/babel">
+function Hero() {
+  return (
+    <section className="page-header">
+      <div className="meta-row">
+        <span className="chip"><span className="dot"></span>Pr\u00e9sidentielle 2022 \u00b7 \u00cele-de-France</span>
+        <span className="chip">1&nbsp;268 communes</span>
+        <span className="chip">113 indicateurs</span>
+        <span className="chip"><span className="live-dot" style={{width: 6, height: 6}}></span>Donn\u00e9es \u00e0 jour</span>
+      </div>
+      <h1 className="headline-1">
+        Une lecture <em style={{fontStyle:'italic', fontWeight:400, color:'var(--ink-3)'}}>granulaire</em> de l&apos;\u00e9lection pr\u00e9sidentielle fran\u00e7aise, commune par commune.
+      </h1>
+      <p className="dek">
+        L&apos;Observatory consolide donn\u00e9es publiques, indicateurs socio-\u00e9conomiques et mod\u00e8les pr\u00e9dictifs
+        en une plateforme unique d&apos;exploration et de monitoring.
+      </p>
+      <div style={{display:'flex', gap: 10, marginTop: 28}}>
+        <a href="overview.html" className="btn primary">
+          Explorer la vue d&apos;ensemble
+          <span className="arrow">\u2192</span>
+        </a>
+        <a href="prediction.html" className="btn secondary">Tester un mod\u00e8le ML</a>
+      </div>
+    </section>
+  );
+}
+
+function HeroVisual() {
+  const sparks = {
+    a: [62, 64, 61, 67, 70, 68, 71, 73, 76, 74, 79],
+    b: [40, 38, 42, 44, 47, 45, 48, 50, 52, 49, 51],
+    c: [34, 32, 33, 35, 38, 41, 39, 42, 45, 44, 47],
+  };
+  return (
+    <div className="glass" style={{padding: 28, marginBottom: 56}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 24}}>
+        <div>
+          <div className="eyebrow">Dernier run pipeline</div>
+          <div style={{display:'flex', alignItems:'baseline', gap: 12, marginTop: 8}}>
+            <span className="metric" style={{fontSize: 28}}>06:12:04</span>
+            <span style={{color:'var(--ink-4)', fontSize: 14}}>\u00b7 4 min 18 s \u00b7 1 268 communes \u00b7 quality gates OK</span>
+          </div>
+        </div>
+        <a href="pipeline.html" className="btn ghost">Voir d\u00e9tails <span className="arrow">\u2192</span></a>
+      </div>
+      <div style={{display: 'grid', gridTemplateColumns:'repeat(3, 1fr)', gap: 20}}>
+        <div style={{padding: '18px 20px', background: 'var(--bg-2)', borderRadius: 'var(--r)', border: '1px solid var(--line)'}}>
+          <div className="label">Participation moyenne T1</div>
+          <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginTop: 6}}>
+            <span className="metric" style={{fontSize: 28}}>71.2<span style={{fontSize: 14, color:'var(--ink-4)'}}>%</span></span>
+            <span style={{fontSize: 12, color:'var(--status-ok)'}}>+1.1 pt</span>
+          </div>
+          <Sparkline data={sparks.a} color="var(--d-1)" height={28} />
+        </div>
+        <div style={{padding: '18px 20px', background: 'var(--bg-2)', borderRadius: 'var(--r)', border: '1px solid var(--line)'}}>
+          <div className="label">Score Macron T2</div>
+          <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginTop: 6}}>
+            <span className="metric" style={{fontSize: 28}}>64.2<span style={{fontSize: 14, color:'var(--ink-4)'}}>%</span></span>
+            <span style={{fontSize: 12, color:'var(--ink-4)'}}>vs 35.8</span>
+          </div>
+          <Sparkline data={sparks.b} color="var(--d-3)" height={28} />
+        </div>
+        <div style={{padding: '18px 20px', background: 'var(--bg-2)', borderRadius: 'var(--r)', border: '1px solid var(--line)'}}>
+          <div className="label">Mod\u00e8le retenu \u00b7 Accuracy</div>
+          <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginTop: 6}}>
+            <span className="metric" style={{fontSize: 28}}>92.7<span style={{fontSize: 14, color:'var(--ink-4)'}}>%</span></span>
+            <span style={{fontSize: 12, color:'var(--ink-4)'}}>Gradient Boosting</span>
+          </div>
+          <Sparkline data={sparks.c} color="var(--d-4)" height={28} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Cards() {
+  const cards = [
+    { num: '01', t: 'Vue d\u2019ensemble',     d: 'Indicateurs cl\u00e9s, top candidats, \u00e9volution participation et corr\u00e9lations majeures.',        href: 'overview.html' },
+    { num: '02', t: 'Candidats & partis',       d: 'Comparaison d\u00e9taill\u00e9e des scores T1\u2009/\u2009T2, profils socio-\u00e9co des \u00e9lectorats.', href: 'comparison.html' },
+    { num: '03', t: 'Carte interactive',        d: 'Cartographie communale d\u2019\u00cele-de-France\u202f: participation, vainqueurs, intensit\u00e9.',         href: 'map.html' },
+    { num: '04', t: 'Pipeline ETL',             d: 'Monitoring temps r\u00e9el des runs Medallion bronze\u202f/\u202fsilver\u202f/\u202fgold et quality gates.',  href: 'pipeline.html' },
+    { num: '05', t: 'Mod\u00e8les ML',          d: 'Random Forest, Gradient Boosting, LSTM. M\u00e9triques, importance, pr\u00e9diction live.',                  href: 'prediction.html' },
+  ];
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">Cinq espaces</span>
+          <h2>Naviguer la plateforme</h2>
+        </div>
+        <p>Chaque espace est con\u00e7u pour une question pr\u00e9cise\u202f: explorer, comparer, surveiller, pr\u00e9dire.</p>
+      </div>
+      <div className="cards">
+        {cards.map(c => (
+          <a key={c.num} href={c.href} className="card">
+            <div className="num">{c.num}</div>
+            <h3>{c.t}</h3>
+            <p>{c.d}</p>
+            <div className="arrow">Ouvrir <span>\u2192</span></div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Stack() {
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">Architecture</span>
+          <h2>De la donn\u00e9e brute \u00e0 la pr\u00e9diction</h2>
+        </div>
+        <p>Architecture Medallion\u202f: ingestion bronze, normalisation silver, dataset ML gold. Quality gates \u00e0 chaque \u00e9tape.</p>
+      </div>
+      <div className="grid-3">
+        {[
+          { tag: 'BRONZE', t: 'Ingestion brute',  items: ['INSEE \u2014 RP 2022', 'Filosofi \u2014 revenus 2017', 'Min. Int\u00e9rieur \u2014 r\u00e9sultats', 'P\u00f4le emploi \u2014 ch\u00f4mage hist.'] },
+          { tag: 'SILVER', t: 'Normalisation',     items: ['silver.communes', 'silver.participation_elections', 'silver.resultats_candidats', 'silver.features_socioeconomiques'] },
+          { tag: 'GOLD',   t: 'Dataset ML',        items: ['gold.ml_features', '1 268 \u00d7 113', 'Cibles T1 / T2', 'Features sans fuite'] },
+        ].map(c => (
+          <div key={c.tag} className="panel">
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 14}}>
+              <span className="chip mono" style={{fontFamily:'var(--mono)', fontSize: 10}}>{c.tag}</span>
+              <span style={{color:'var(--ink-5)', fontFamily:'var(--mono)', fontSize: 11}}>0{['BRONZE','SILVER','GOLD'].indexOf(c.tag)+1}</span>
+            </div>
+            <h3 style={{margin:'0 0 16px', fontSize: 20, fontWeight: 500, letterSpacing:'-0.02em'}}>{c.t}</h3>
+            <ul style={{listStyle:'none', padding: 0, margin: 0, fontSize: 13, color:'var(--ink-3)'}}>
+              {c.items.map(i => (
+                <li key={i} style={{padding: '8px 0', borderBottom: '1px solid var(--line-soft)', fontFamily: 'var(--mono)', fontSize: 11.5}}>{i}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Topbar active="index" />
+      <main className="shell">
+        <Hero />
+        <HeroVisual />
+        <Cards />
+        <Stack />
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
