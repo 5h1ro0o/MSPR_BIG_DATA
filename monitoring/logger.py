@@ -2,9 +2,11 @@
 Logging structuré via Loguru.
 Rotation quotidienne, rétention 30 jours, compression gzip.
 """
+
 import sys
 from pathlib import Path
 from loguru import logger
+
 
 def setup_logger(log_level: str = "INFO", log_dir: Path = Path("logs")) -> None:
     """Configure les sinks loguru : console + fichier rotatif."""
@@ -33,6 +35,7 @@ def setup_logger(log_level: str = "INFO", log_dir: Path = Path("logs")) -> None:
         compression="gz",
         encoding="utf-8",
     )
+
 
 def get_logger(name: str):
     """Retourne un logger contextuel pour un module donné."""

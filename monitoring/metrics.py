@@ -3,6 +3,7 @@ Collecte de métriques légères pour chaque étape du pipeline.
 Pas de dépendance externe — stocké dans un dict en mémoire,
 sérialisable en JSON pour archivage ou envoi à Prometheus/Grafana.
 """
+
 import json
 import time
 from dataclasses import dataclass, field, asdict
@@ -13,6 +14,7 @@ from typing import Optional
 from monitoring.logger import get_logger
 
 log = get_logger(__name__)
+
 
 @dataclass
 class StepMetric:
@@ -39,6 +41,7 @@ class StepMetric:
             f"[{self.step}] {self.rows_out:,} lignes | "
             f"{self.cols_out} cols | {self.duration_s}s"
         )
+
 
 class PipelineMetrics:
     """Agrège les métriques de toutes les étapes d'un run."""

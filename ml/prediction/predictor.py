@@ -2,17 +2,18 @@
 Predictor — interface unifiée pour charger un modèle entraîné et prédire.
 Utilisé par le dashboard et l'API.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
-from ml.config import ARTIFACTS, TARGETS
+from ml.config import ARTIFACTS
 from ml.preprocessing import load_dataset, build_X_y, get_commune_info
+
 
 class Predictor:
     """
@@ -27,16 +28,17 @@ class Predictor:
             tag:        suffixe utilisé lors de la sauvegarde (ex. "pre_vote_classification_t2")
             artifact_dir: répertoire des artefacts
         """
-        self.model_name   = model_name
-        self.tag          = tag
+        self.model_name = model_name
+        self.tag = tag
         self.artifact_dir = Path(artifact_dir)
-        self.model        = None
+        self.model = None
         self._load_model()
 
     def _load_model(self) -> None:
         """Instancie et charge le modèle selon son nom."""
         if self.model_name == "random_forest":
             from ml.models.random_forest import RandomForestModel
+
             meta = self._load_meta()
             task = meta.get("task", "classification")
             self.model = RandomForestModel(task=task, artifact_dir=self.artifact_dir)
@@ -44,27 +46,34 @@ class Predictor:
 
         elif self.model_name == "gradient_boosting":
             from ml.models.gradient_boosting import GradientBoostingModel
+
             meta = self._load_meta()
-            self.model = GradientBoostingModel(task=meta.get("task", "classification"),
-                                               artifact_dir=self.artifact_dir)
+            self.model = GradientBoostingModel(
+                task=meta.get("task", "classification"), artifact_dir=self.artifact_dir
+            )
             self.model.load(tag=self.tag)
 
         elif self.model_name == "decision_tree":
             from ml.models.decision_tree import DecisionTreeModel
+
             meta = self._load_meta()
-            self.model = DecisionTreeModel(task=meta.get("task", "classification"),
-                                           artifact_dir=self.artifact_dir)
+            self.model = DecisionTreeModel(
+                task=meta.get("task", "classification"), artifact_dir=self.artifact_dir
+            )
             self.model.load(tag=self.tag)
 
         elif self.model_name == "mlp":
             from ml.models.mlp import MLPModel
+
             meta = self._load_meta()
-            self.model = MLPModel(task=meta.get("task", "classification"),
-                                  artifact_dir=self.artifact_dir)
+            self.model = MLPModel(
+                task=meta.get("task", "classification"), artifact_dir=self.artifact_dir
+            )
             self.model.load(tag=self.tag)
 
         elif self.model_name == "lstm":
             from ml.models.lstm import LSTMModel
+
             self.model = LSTMModel(artifact_dir=self.artifact_dir)
             self.model.load(tag=self.tag)
 
@@ -134,17 +143,17 @@ class Predictor:
 
         prediction = self.model.predict(X_commune)[0]
         result = {
-            "code_commune":   code_commune,
+            "code_commune": code_commune,
             "libelle_commune": df.loc[mask, "libelle_commune"].values[0],
-            "prediction":     prediction,
-            "ground_truth":   y_commune.values[0],
-            "correct":        prediction == y_commune.values[0],
+            "prediction": prediction,
+            "ground_truth": y_commune.values[0],
+            "correct": prediction == y_commune.values[0],
         }
 
         y_proba = self.model.predict_proba(X_commune)
         if y_proba is not None:
             result["proba_macron"] = round(float(y_proba[0, 0]), 4)
-            result["proba_lepen"]  = round(float(y_proba[0, 1]), 4)
+            result["proba_lepen"] = round(float(y_proba[0, 1]), 4)
 
         return result
 

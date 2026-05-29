@@ -17,6 +17,7 @@ Modèles :
     dt   → Decision Tree  (squelette)
     mlp  → MLP            (squelette)
 """
+
 import sys
 import argparse
 from pathlib import Path
@@ -28,27 +29,38 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 import warnings
+
 warnings.filterwarnings("ignore")
+
 
 def parse_args():
     p = argparse.ArgumentParser(description="Entrainement ML — Elections IDF 2022")
-    p.add_argument("--model",       default="all",
-                   help="rf | gb | lstm | dt | mlp | all")
-    p.add_argument("--target",      default="classification_t2",
-                   help="classification_t2 | regression_macron | regression_marge")
-    p.add_argument("--feature-set", default="pre_vote",
-                   help="pre_vote | post_t1 | full | hist_only")
-    p.add_argument("--search",      action="store_true",
-                   help="Activer RandomizedSearchCV")
-    p.add_argument("--full-search", action="store_true",
-                   help="Grille complete (plus lent)")
-    p.add_argument("--n-iter",      type=int, default=20,
-                   help="Iterations RandomizedSearch")
-    p.add_argument("--no-save",     action="store_true",
-                   help="Ne pas sauvegarder les modeles")
-    p.add_argument("--data-path",   default=None,
-                   help="Chemin explicite vers le dataset CSV (ecrase DATA_PATH)")
+    p.add_argument("--model", default="all", help="rf | gb | lstm | dt | mlp | all")
+    p.add_argument(
+        "--target",
+        default="classification_t2",
+        help="classification_t2 | regression_macron | regression_marge",
+    )
+    p.add_argument(
+        "--feature-set",
+        default="pre_vote",
+        help="pre_vote | post_t1 | full | hist_only",
+    )
+    p.add_argument("--search", action="store_true", help="Activer RandomizedSearchCV")
+    p.add_argument(
+        "--full-search", action="store_true", help="Grille complete (plus lent)"
+    )
+    p.add_argument("--n-iter", type=int, default=20, help="Iterations RandomizedSearch")
+    p.add_argument(
+        "--no-save", action="store_true", help="Ne pas sauvegarder les modeles"
+    )
+    p.add_argument(
+        "--data-path",
+        default=None,
+        help="Chemin explicite vers le dataset CSV (ecrase DATA_PATH)",
+    )
     return p.parse_args()
+
 
 def _resolve_dataset(data_path_arg: str | None) -> Path:
     """
@@ -71,20 +83,22 @@ def _resolve_dataset(data_path_arg: str | None) -> Path:
         )
     return path
 
+
 def main():
-    args  = parse_args()
+    args = parse_args()
     model = args.model.lower()
-    save  = not args.no_save
+    save = not args.no_save
 
     data_path = _resolve_dataset(args.data_path)
 
     if args.data_path:
         import ml.config as _cfg
+
         _cfg.DATA_PATH = data_path
 
     size_mb = data_path.stat().st_size / 1_048_576
     print(f"\n{'='*60}")
-    print(f"  Pipeline ML — Elections IDF 2022")
+    print("  Pipeline ML — Elections IDF 2022")
     print(f"  Modele(s)   : {model}")
     print(f"  Cible       : {args.target}")
     print(f"  Feature set : {args.feature_set}")
@@ -117,7 +131,9 @@ def main():
             print(f"  RF OK — Accuracy: {acc}")
         except Exception as e:
             print(f"  RF ERREUR : {e}")
-            import traceback; traceback.print_exc()
+            import traceback
+
+            traceback.print_exc()
 
     if model in ("all", "gb", "gradient_boosting"):
         print("\n[2/3] Gradient Boosting")
@@ -135,7 +151,9 @@ def main():
             print(f"  GB OK — Accuracy: {acc}")
         except Exception as e:
             print(f"  GB ERREUR : {e}")
-            import traceback; traceback.print_exc()
+            import traceback
+
+            traceback.print_exc()
 
     if model in ("all", "lstm"):
         print("\n[3/3] LSTM")
@@ -147,10 +165,14 @@ def main():
             )
             if metrics:
                 results["lstm"] = metrics
-                print(f"  LSTM OK — Val AUC: {metrics.get('val_auc', metrics.get('best_val_auc', 'N/A'))}")
+                print(
+                    f"  LSTM OK — Val AUC: {metrics.get('val_auc', metrics.get('best_val_auc', 'N/A'))}"
+                )
         except Exception as e:
             print(f"  LSTM ERREUR : {e}")
-            import traceback; traceback.print_exc()
+            import traceback
+
+            traceback.print_exc()
 
     if model in ("dt", "decision_tree"):
         print("\n  [SKIP] Decision Tree — non encore implemente.")
@@ -164,8 +186,9 @@ def main():
         compare_all_models(results)
 
     from ml.config import ARTIFACTS
+
     print(f"\n{'='*60}")
-    print(f"  RESUME FINAL")
+    print("  RESUME FINAL")
     print(f"{'='*60}")
     print(f"  {'Modele':<22} {'Accuracy':>10} {'AUC':>8} {'F1':>8} {'Train(s)':>10}")
     print(f"  {'-'*60}")
@@ -174,16 +197,19 @@ def main():
         return f"{v:.4f}" if isinstance(v, float) else str(v)
 
     for name, m in results.items():
-        acc = m.get("val_accuracy",  m.get("test_accuracy",  "-"))
-        auc = m.get("val_auc",       m.get("test_auc",
-              m.get("test_roc_auc",  m.get("cv_roc_auc",    "-"))))
-        f1  = m.get("val_f1",        m.get("test_f1",        "-"))
-        t   = m.get("training_time_s", "-")
+        acc = m.get("val_accuracy", m.get("test_accuracy", "-"))
+        auc = m.get(
+            "val_auc",
+            m.get("test_auc", m.get("test_roc_auc", m.get("cv_roc_auc", "-"))),
+        )
+        f1 = m.get("val_f1", m.get("test_f1", "-"))
+        t = m.get("training_time_s", "-")
         print(f"  {name:<22} {fmt(acc):>10} {fmt(auc):>8} {fmt(f1):>8} {fmt(t):>10}")
 
     print(f"\n  Artefacts : {ARTIFACTS}")
     print(f"  Dataset   : {data_path}")
-    print(f"\n  Dashboard : streamlit run ml/visualization/dashboard.py")
+    print("\n  Dashboard : streamlit run ml/visualization/dashboard.py")
+
 
 if __name__ == "__main__":
     main()

@@ -3,8 +3,8 @@ Contrôles qualité du dataset gold.
 Retourne un rapport structuré — ne lève pas d'exception,
 laisse l'orchestrateur décider de la criticité.
 """
+
 from dataclasses import dataclass, field
-from typing import Optional
 import pandas as pd
 
 from monitoring.logger import get_logger
@@ -23,6 +23,7 @@ CIBLE_COLS = [
 ]
 T2_PCT_COLS = ["cible_t2_pct_macron", "cible_t2_pct_lepen"]
 
+
 @dataclass
 class QualityReport:
     passed: bool = True
@@ -38,6 +39,7 @@ class QualityReport:
     def warn(self, msg: str) -> None:
         self.warnings.append(msg)
         log.warning(f"[QC WARN] {msg}")
+
 
 def run_quality_checks(df: pd.DataFrame) -> QualityReport:
     """
@@ -85,9 +87,13 @@ def run_quality_checks(df: pd.DataFrame) -> QualityReport:
         if col not in df.columns:
             report.fail(f"Colonne cible manquante : {col}")
 
-    if all(c in df.columns for c in ["cible_t2_vainqueur", "cible_t2_pct_macron", "cible_t2_pct_lepen"]):
-        expected_winner = (df["cible_t2_pct_macron"] >= df["cible_t2_pct_lepen"]).astype(int)
-        expected_label = (~(df["cible_t2_pct_macron"] >= df["cible_t2_pct_lepen"])).astype(int)
+    if all(
+        c in df.columns
+        for c in ["cible_t2_vainqueur", "cible_t2_pct_macron", "cible_t2_pct_lepen"]
+    ):
+        expected_label = (
+            ~(df["cible_t2_pct_macron"] >= df["cible_t2_pct_lepen"])
+        ).astype(int)
         incoherent = (df["cible_t2_vainqueur"] != expected_label).sum()
         if incoherent > 0:
             report.fail(f"{incoherent} incohérences cible_t2_vainqueur vs pourcentages")

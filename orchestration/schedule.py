@@ -7,6 +7,7 @@ Prérequis :
     prefect server start          # démarrer le serveur local
     python orchestration/schedule.py  # enregistrer le déploiement
 """
+
 import sys
 from pathlib import Path
 

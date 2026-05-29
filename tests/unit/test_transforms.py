@@ -1,13 +1,13 @@
 """
 Tests unitaires — couches de transformation.
 """
+
 import numpy as np
-import pandas as pd
-import pytest
 
 from etl.transform.participation import transform_participation
 from etl.transform.candidats import pivot_candidats
 from etl.quality.checks import run_quality_checks
+
 
 class TestTransformParticipation:
     def test_produces_one_row_per_commune(self, sample_elections_raw):
@@ -27,6 +27,7 @@ class TestTransformParticipation:
         result = transform_participation(sample_elections_raw)
         for col in ["code_commune", "code_departement", "libelle_commune"]:
             assert col in result.columns
+
 
 class TestPivotCandidats:
     def test_basic_pivot(self, sample_candidats_raw):
@@ -63,6 +64,7 @@ class TestPivotCandidats:
         )
         assert "code_commune" in result.columns
         assert len(result) == 0
+
 
 class TestQualityChecks:
     def test_passes_valid_dataset(self, sample_gold_df):

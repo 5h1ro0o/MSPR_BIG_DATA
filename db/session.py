@@ -2,6 +2,7 @@
 Gestion de la session SQLAlchemy.
 Fournit un context manager et un engine singleton.
 """
+
 from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session

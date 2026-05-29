@@ -1,6 +1,7 @@
 """
 Extraction — base-cc-filosofi-2017.xlsx (revenus, pauvreté Filosofi 2017).
 """
+
 from pathlib import Path
 import pandas as pd
 
@@ -10,6 +11,7 @@ from monitoring.logger import get_logger
 log = get_logger(__name__)
 
 IDF_DEPTS = frozenset({"75", "77", "78", "91", "92", "93", "94", "95"})
+
 
 def extract_pauvrete(pauvrete_file: Path) -> pd.DataFrame:
     """

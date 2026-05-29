@@ -8,6 +8,7 @@ Modèles disponibles :
     dt   → Decision Tree (à implémenter)
     mlp  → MLP (à implémenter)
 """
+
 from ml.config import ARTIFACTS, TARGETS, FEATURE_SETS, RANDOM_STATE
 
 __all__ = ["ARTIFACTS", "TARGETS", "FEATURE_SETS", "RANDOM_STATE"]

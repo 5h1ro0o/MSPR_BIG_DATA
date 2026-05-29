@@ -12,6 +12,7 @@ Pipeline :
   3. Évaluation      — métriques complètes + matrice de confusion + feature importance
   4. Persistance     — joblib pour le pipeline complet
 """
+
 from __future__ import annotations
 
 import json
@@ -24,12 +25,22 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import (
-    accuracy_score, f1_score, precision_score, recall_score,
-    roc_auc_score, confusion_matrix, classification_report,
-    mean_absolute_error, mean_squared_error, r2_score,
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+    confusion_matrix,
+    classification_report,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
 )
 from sklearn.model_selection import (
-    GridSearchCV, RandomizedSearchCV, cross_validate, StratifiedKFold, KFold,
+    RandomizedSearchCV,
+    cross_validate,
+    StratifiedKFold,
+    KFold,
 )
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -37,9 +48,13 @@ from sklearn.preprocessing import StandardScaler
 
 from ml.models.base import BaseModel
 from ml.config import (
-    RF_PARAM_GRID, RF_PARAM_GRID_FAST,
-    RANDOM_STATE, CV_FOLDS, ARTIFACTS,
+    RF_PARAM_GRID,
+    RF_PARAM_GRID_FAST,
+    RANDOM_STATE,
+    CV_FOLDS,
+    ARTIFACTS,
 )
+
 
 class RandomForestModel(BaseModel):
     """
@@ -63,8 +78,8 @@ class RandomForestModel(BaseModel):
             n_jobs:       nombre de cœurs (-1 = tous)
         """
         super().__init__(artifact_dir)
-        self.task    = task
-        self.n_jobs  = n_jobs
+        self.task = task
+        self.n_jobs = n_jobs
         self.pipeline: Optional[Pipeline] = None
         self.best_params_: dict = {}
         self.cv_results_: dict = {}
@@ -85,11 +100,13 @@ class RandomForestModel(BaseModel):
                 **kwargs,
             )
 
-        pipeline = Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler",  StandardScaler()),
-            ("rf",      estimator),
-        ])
+        pipeline = Pipeline(
+            [
+                ("imputer", SimpleImputer(strategy="median")),
+                ("scaler", StandardScaler()),
+                ("rf", estimator),
+            ]
+        )
         return pipeline
 
     def train(
@@ -127,7 +144,9 @@ class RandomForestModel(BaseModel):
         t0 = time.time()
 
         if use_grid_search:
-            self.pipeline = self._run_search(X_train, y_train, fast_search, n_iter_random)
+            self.pipeline = self._run_search(
+                X_train, y_train, fast_search, n_iter_random
+            )
         else:
             self.pipeline = self.build()
             self.pipeline.fit(X_train, y_train)
@@ -136,14 +155,26 @@ class RandomForestModel(BaseModel):
         print(f"  Entraînement terminé en {elapsed:.1f}s")
 
         y_pred_train = self.pipeline.predict(X_train)
-        y_proba_train = self.pipeline.predict_proba(X_train) if self.task == "classification" else None
-        train_metrics = self._compute_metrics(y_train, y_pred_train, split="train", y_proba=y_proba_train)
+        y_proba_train = (
+            self.pipeline.predict_proba(X_train)
+            if self.task == "classification"
+            else None
+        )
+        train_metrics = self._compute_metrics(
+            y_train, y_pred_train, split="train", y_proba=y_proba_train
+        )
 
         val_metrics = {}
         if X_val is not None and y_val is not None:
             y_pred_val = self.pipeline.predict(X_val)
-            y_proba_val = self.pipeline.predict_proba(X_val) if self.task == "classification" else None
-            val_metrics = self._compute_metrics(y_val, y_pred_val, split="val", y_proba=y_proba_val)
+            y_proba_val = (
+                self.pipeline.predict_proba(X_val)
+                if self.task == "classification"
+                else None
+            )
+            val_metrics = self._compute_metrics(
+                y_val, y_pred_val, split="val", y_proba=y_proba_val
+            )
 
         cv_metrics = self._run_cross_validation(X_train, y_train)
 
@@ -197,11 +228,10 @@ class RandomForestModel(BaseModel):
         search.fit(X_train, y_train)
 
         self.best_params_ = {
-            k.replace("rf__", ""): v
-            for k, v in search.best_params_.items()
+            k.replace("rf__", ""): v for k, v in search.best_params_.items()
         }
         self.cv_results_ = {
-            "best_score":  round(search.best_score_, 4),
+            "best_score": round(search.best_score_, 4),
             "best_params": self.best_params_,
         }
         print(f"  Meilleur score CV ({scoring}) : {search.best_score_:.4f}")
@@ -222,25 +252,28 @@ class RandomForestModel(BaseModel):
 
         if self.task == "classification":
             scoring = {
-                "accuracy":  "accuracy",
-                "f1":        "f1_weighted",
+                "accuracy": "accuracy",
+                "f1": "f1_weighted",
                 "precision": "precision_weighted",
-                "recall":    "recall_weighted",
+                "recall": "recall_weighted",
             }
             y_unique = np.unique(y_train)
             if len(y_unique) == 2:
                 scoring["roc_auc"] = "roc_auc"
         else:
             scoring = {
-                "r2":   "r2",
-                "mae":  "neg_mean_absolute_error",
+                "r2": "r2",
+                "mae": "neg_mean_absolute_error",
                 "rmse": "neg_root_mean_squared_error",
             }
 
         print(f"  Cross-validation finale ({CV_FOLDS} folds)...")
         cv_results = cross_validate(
-            self.pipeline, X_train, y_train,
-            cv=cv, scoring=scoring,
+            self.pipeline,
+            X_train,
+            y_train,
+            cv=cv,
+            scoring=scoring,
             return_train_score=True,
             n_jobs=self.n_jobs,
         )
@@ -251,8 +284,8 @@ class RandomForestModel(BaseModel):
                 name = metric.replace("test_", "cv_")
                 val = abs(np.mean(values))
                 std = abs(np.std(values))
-                result[name]           = round(val, 4)
-                result[f"{name}_std"]  = round(std, 4)
+                result[name] = round(val, 4)
+                result[f"{name}_std"] = round(std, 4)
                 print(f"    {name:25s}: {val:.4f} ± {std:.4f}")
 
         return result
@@ -260,7 +293,9 @@ class RandomForestModel(BaseModel):
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """Retourne les prédictions (labels ou valeurs)."""
         if not self.is_trained:
-            raise RuntimeError("Modèle non entraîné. Appelez train() ou load() d'abord.")
+            raise RuntimeError(
+                "Modèle non entraîné. Appelez train() ou load() d'abord."
+            )
         return self.pipeline.predict(X)
 
     def predict_proba(self, X: pd.DataFrame) -> Optional[np.ndarray]:
@@ -281,23 +316,35 @@ class RandomForestModel(BaseModel):
         prefix = f"{split}_"
 
         if self.task == "classification":
-            result[f"{prefix}accuracy"]  = round(accuracy_score(y_true, y_pred), 4)
-            result[f"{prefix}f1"]        = round(f1_score(y_true, y_pred, average="weighted", zero_division=0), 4)
-            result[f"{prefix}precision"] = round(precision_score(y_true, y_pred, average="weighted", zero_division=0), 4)
-            result[f"{prefix}recall"]    = round(recall_score(y_true, y_pred, average="weighted", zero_division=0), 4)
+            result[f"{prefix}accuracy"] = round(accuracy_score(y_true, y_pred), 4)
+            result[f"{prefix}f1"] = round(
+                f1_score(y_true, y_pred, average="weighted", zero_division=0), 4
+            )
+            result[f"{prefix}precision"] = round(
+                precision_score(y_true, y_pred, average="weighted", zero_division=0), 4
+            )
+            result[f"{prefix}recall"] = round(
+                recall_score(y_true, y_pred, average="weighted", zero_division=0), 4
+            )
 
             if y_proba is not None and len(np.unique(y_true)) == 2:
                 try:
                     proba_pos = y_proba[:, 1] if y_proba.ndim > 1 else y_proba
-                    result[f"{prefix}roc_auc"] = round(roc_auc_score(y_true, proba_pos), 4)
+                    result[f"{prefix}roc_auc"] = round(
+                        roc_auc_score(y_true, proba_pos), 4
+                    )
                 except Exception:
                     pass
 
-            result[f"{prefix}confusion_matrix"] = confusion_matrix(y_true, y_pred).tolist()
+            result[f"{prefix}confusion_matrix"] = confusion_matrix(
+                y_true, y_pred
+            ).tolist()
         else:
-            result[f"{prefix}r2"]   = round(r2_score(y_true, y_pred), 4)
-            result[f"{prefix}mae"]  = round(mean_absolute_error(y_true, y_pred), 4)
-            result[f"{prefix}rmse"] = round(np.sqrt(mean_squared_error(y_true, y_pred)), 4)
+            result[f"{prefix}r2"] = round(r2_score(y_true, y_pred), 4)
+            result[f"{prefix}mae"] = round(mean_absolute_error(y_true, y_pred), 4)
+            result[f"{prefix}rmse"] = round(
+                np.sqrt(mean_squared_error(y_true, y_pred)), 4
+            )
 
         return result
 
@@ -323,7 +370,7 @@ class RandomForestModel(BaseModel):
             print(f"  Recall    : {metrics.get('test_recall', 'N/A'):.4f}")
             if "test_roc_auc" in metrics:
                 print(f"  ROC-AUC   : {metrics['test_roc_auc']:.4f}")
-            print(f"\n  Classification Report :")
+            print("\n  Classification Report :")
             print(classification_report(y_test, y_pred, zero_division=0))
         else:
             print(f"  R²   : {metrics.get('test_r2', 'N/A'):.4f}")
@@ -348,11 +395,17 @@ class RandomForestModel(BaseModel):
             [tree.feature_importances_ for tree in rf_step.estimators_], axis=0
         )
 
-        df_imp = pd.DataFrame({
-            "feature":    self.feature_names,
-            "importance": importances,
-            "std":        std,
-        }).sort_values("importance", ascending=False).reset_index(drop=True)
+        df_imp = (
+            pd.DataFrame(
+                {
+                    "feature": self.feature_names,
+                    "importance": importances,
+                    "std": std,
+                }
+            )
+            .sort_values("importance", ascending=False)
+            .reset_index(drop=True)
+        )
 
         return df_imp.head(top_n)
 
@@ -383,47 +436,54 @@ class RandomForestModel(BaseModel):
         """Sauvegarde via joblib (plus efficace que pickle pour sklearn)."""
         suffix = f"_{tag}" if tag else ""
         model_path = self.artifact_dir / f"{self.name}{suffix}.joblib"
-        meta_path  = self.artifact_dir / f"{self.name}{suffix}_meta.json"
+        meta_path = self.artifact_dir / f"{self.name}{suffix}_meta.json"
 
         joblib.dump(self.pipeline, model_path, compress=3)
 
         meta = {
-            "name":          self.name,
-            "task":          self.task,
+            "name": self.name,
+            "task": self.task,
             "feature_names": self.feature_names,
-            "metrics":       {k: v for k, v in self.metrics.items()
-                              if not isinstance(v, list)},
-            "best_params":   self.best_params_,
-            "is_trained":    self.is_trained,
+            "metrics": {
+                k: v for k, v in self.metrics.items() if not isinstance(v, list)
+            },
+            "best_params": self.best_params_,
+            "is_trained": self.is_trained,
         }
         meta_path.write_text(json.dumps(meta, indent=2, default=str))
-        print(f"  Sauvegardé : {model_path} ({model_path.stat().st_size / 1024:.0f} KB)")
+        print(
+            f"  Sauvegardé : {model_path} ({model_path.stat().st_size / 1024:.0f} KB)"
+        )
         return model_path
 
     def load(self, tag: str = "") -> "RandomForestModel":
         """Charge le modèle joblib + métadonnées."""
         suffix = f"_{tag}" if tag else ""
         model_path = self.artifact_dir / f"{self.name}{suffix}.joblib"
-        meta_path  = self.artifact_dir / f"{self.name}{suffix}_meta.json"
+        meta_path = self.artifact_dir / f"{self.name}{suffix}_meta.json"
 
         if not model_path.exists():
             raise FileNotFoundError(f"Modèle non trouvé : {model_path}")
 
         self.pipeline = joblib.load(model_path)
-        self.model    = self.pipeline
+        self.model = self.pipeline
 
         if meta_path.exists():
             meta = json.loads(meta_path.read_text())
             self.feature_names = meta.get("feature_names", [])
-            self.metrics       = meta.get("metrics", {})
-            self.best_params_  = meta.get("best_params", {})
-            self.is_trained    = True
+            self.metrics = meta.get("metrics", {})
+            self.best_params_ = meta.get("best_params", {})
+            self.is_trained = True
 
         print(f"  Chargé : {model_path}")
         return self
 
     def _print_metrics_summary(self) -> None:
-        print(f"\n  Résumé des métriques :")
+        print("\n  Résumé des métriques :")
         for k, v in self.metrics.items():
             if isinstance(v, (int, float)):
-                print(f"    {k:35s}: {v:.4f}" if isinstance(v, float) else f"    {k:35s}: {v}")
+                print(
+                    f"    {k:35s}: {v:.4f}"
+                    if isinstance(v, float)
+                    else f"    {k:35s}: {v}"
+                )

@@ -3,6 +3,7 @@ Extraction — données chômage :
   1. Historique IDF par commune (2007-2020)
   2. DS_RP_EMPLOI 2022 (niveau commune, toutes CSP)
 """
+
 from pathlib import Path
 import pandas as pd
 
@@ -12,6 +13,7 @@ from monitoring.logger import get_logger
 log = get_logger(__name__)
 
 IDF_DEPTS = frozenset({"75", "77", "78", "91", "92", "93", "94", "95"})
+
 
 def extract_chomage_historique(chomage_hist_file: Path) -> pd.DataFrame:
     """
@@ -28,6 +30,7 @@ def extract_chomage_historique(chomage_hist_file: Path) -> pd.DataFrame:
 
     log.info(f"Chomage historique brut : {len(df):,} lignes")
     return df
+
 
 def extract_emploi_2022(emploi_file: Path) -> pd.DataFrame:
     """

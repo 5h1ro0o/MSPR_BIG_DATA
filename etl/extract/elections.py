@@ -2,6 +2,7 @@
 Extraction — Fichiers de participation électorale par département IDF.
 Retourne les données BRUTES (Bronze) : concaténation + filtrage minimal.
 """
+
 from pathlib import Path
 import pandas as pd
 
@@ -21,6 +22,7 @@ DEPT_FILES = {
     "94": "elections_94.csv",
     "95": "elections_95.csv",
 }
+
 
 def extract_elections(elections_dir: Path) -> pd.DataFrame:
     """
@@ -47,5 +49,7 @@ def extract_elections(elections_dir: Path) -> pd.DataFrame:
         raise FileNotFoundError(f"Aucun fichier trouvé dans {elections_dir}")
 
     result = pd.concat(frames, ignore_index=True)
-    log.info(f"Elections brutes : {len(result):,} lignes, {len(result.columns)} colonnes")
+    log.info(
+        f"Elections brutes : {len(result):,} lignes, {len(result.columns)} colonnes"
+    )
     return result

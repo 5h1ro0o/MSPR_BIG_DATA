@@ -2,6 +2,7 @@
 Transformation — résultats par candidat.
 Produit les features historiques (2012/2017) et les variables cibles (2022).
 """
+
 import pandas as pd
 
 from etl.helpers import pct
@@ -37,6 +38,7 @@ CANDS_2022_T1 = {
 }
 CANDS_2022_T2 = {"MACRON": "macron", "LE PEN": "lepen"}
 
+
 def pivot_candidats(
     df: pd.DataFrame,
     election: str,
@@ -71,17 +73,16 @@ def pivot_candidats(
     result = pd.DataFrame({"code_commune": communes})
 
     for nom_norm, label in candidates.items():
-        sub_cand = (
-            agg[agg["nom_norm"] == nom_norm][["code_commune", "pct_val"]]
-            .rename(columns={"pct_val": f"{prefix}_pct_{label}"})
+        sub_cand = agg[agg["nom_norm"] == nom_norm][["code_commune", "pct_val"]].rename(
+            columns={"pct_val": f"{prefix}_pct_{label}"}
         )
         result = result.merge(sub_cand, on="code_commune", how="left")
 
     named_cols = [f"{prefix}_pct_{lbl}" for lbl in candidates.values()]
     existing = [c for c in named_cols if c in result.columns]
     result[f"{prefix}_pct_autres"] = (
-        100 - result[existing].fillna(0).sum(axis=1)
-    ).clip(lower=0).round(2)
+        (100 - result[existing].fillna(0).sum(axis=1)).clip(lower=0).round(2)
+    )
 
     for col in named_cols:
         if col in result.columns:
@@ -89,6 +90,7 @@ def pivot_candidats(
 
     log.debug(f"pivot_candidats [{election}] : {len(result):,} communes")
     return result
+
 
 def transform_historique(df_raw: pd.DataFrame) -> pd.DataFrame:
     """
@@ -117,8 +119,11 @@ def transform_historique(df_raw: pd.DataFrame) -> pd.DataFrame:
         inplace=True,
     )
 
-    log.info(f"Historique silver : {len(hist):,} communes, {len(hist.columns)} colonnes")
+    log.info(
+        f"Historique silver : {len(hist):,} communes, {len(hist.columns)} colonnes"
+    )
     return hist
+
 
 def transform_cibles(df_raw: pd.DataFrame) -> pd.DataFrame:
     """
@@ -143,5 +148,7 @@ def transform_cibles(df_raw: pd.DataFrame) -> pd.DataFrame:
     c22_t2.drop(columns=["cible_t2_pct_autres"], errors="ignore", inplace=True)
 
     cibles = c22_t1.merge(c22_t2, on="code_commune", how="outer")
-    log.info(f"Cibles silver : {len(cibles):,} communes, {len(cibles.columns)} colonnes")
+    log.info(
+        f"Cibles silver : {len(cibles):,} communes, {len(cibles.columns)} colonnes"
+    )
     return cibles

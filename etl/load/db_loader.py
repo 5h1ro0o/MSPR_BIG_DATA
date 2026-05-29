@@ -3,15 +3,16 @@ Chargement Gold → PostgreSQL.
 Upsert idempotent via ON CONFLICT DO UPDATE (SQLAlchemy Core).
 Utilisé optionnellement si DATABASE_URL est configuré.
 """
+
 import pandas as pd
 from sqlalchemy import create_engine, text
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from monitoring.logger import get_logger
 
 log = get_logger(__name__)
 
 GOLD_TABLE = "gold.ml_features"
+
 
 def load_to_db(df: pd.DataFrame, database_url: str) -> None:
     """
@@ -42,6 +43,7 @@ def load_to_db(df: pd.DataFrame, database_url: str) -> None:
         )
 
     log.info(f"Chargé {len(df_out):,} lignes dans {GOLD_TABLE}")
+
 
 def check_db_connection(database_url: str) -> bool:
     """Vérifie la connexion à la base de données."""

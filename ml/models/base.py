@@ -2,6 +2,7 @@
 Classe de base abstraite pour tous les modèles ML du projet.
 Définit l'interface commune : fit, predict, evaluate, save, load.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,6 +13,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
+
 
 class BaseModel(ABC):
     """Interface commune pour tous les modèles du projet."""
@@ -53,17 +55,17 @@ class BaseModel(ABC):
         """Sérialise le modèle entraîné + métadonnées."""
         suffix = f"_{tag}" if tag else ""
         model_path = self.artifact_dir / f"{self.name}{suffix}.pkl"
-        meta_path  = self.artifact_dir / f"{self.name}{suffix}_meta.json"
+        meta_path = self.artifact_dir / f"{self.name}{suffix}_meta.json"
 
         with open(model_path, "wb") as f:
             pickle.dump(self.model, f)
 
         meta = {
-            "name":          self.name,
-            "task":          self.task,
+            "name": self.name,
+            "task": self.task,
             "feature_names": self.feature_names,
-            "metrics":       self.metrics,
-            "is_trained":    self.is_trained,
+            "metrics": self.metrics,
+            "is_trained": self.is_trained,
         }
         meta_path.write_text(json.dumps(meta, indent=2, default=str))
         print(f"  Modèle sauvegardé : {model_path}")
@@ -73,7 +75,7 @@ class BaseModel(ABC):
         """Charge un modèle persisté."""
         suffix = f"_{tag}" if tag else ""
         model_path = self.artifact_dir / f"{self.name}{suffix}.pkl"
-        meta_path  = self.artifact_dir / f"{self.name}{suffix}_meta.json"
+        meta_path = self.artifact_dir / f"{self.name}{suffix}_meta.json"
 
         if not model_path.exists():
             raise FileNotFoundError(f"Modèle non trouvé : {model_path}")
@@ -84,8 +86,8 @@ class BaseModel(ABC):
         if meta_path.exists():
             meta = json.loads(meta_path.read_text())
             self.feature_names = meta.get("feature_names", [])
-            self.metrics       = meta.get("metrics", {})
-            self.is_trained    = meta.get("is_trained", True)
+            self.metrics = meta.get("metrics", {})
+            self.is_trained = meta.get("is_trained", True)
 
         print(f"  Modèle chargé : {model_path}")
         return self
@@ -96,7 +98,7 @@ class BaseModel(ABC):
             f"Tâche       : {self.task}",
             f"Entraîné    : {self.is_trained}",
             f"Nb features : {len(self.feature_names)}",
-            f"Métriques   :",
+            "Métriques   :",
         ]
         for k, v in self.metrics.items():
             lines.append(f"  {k:30s}: {v}")

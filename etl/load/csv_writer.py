@@ -2,6 +2,7 @@
 Chargement Gold — export CSV.
 Écriture idempotente avec backup de l'ancienne version.
 """
+
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
@@ -9,6 +10,7 @@ import pandas as pd
 from monitoring.logger import get_logger
 
 log = get_logger(__name__)
+
 
 def write_gold_csv(df: pd.DataFrame, output_path: Path) -> None:
     """

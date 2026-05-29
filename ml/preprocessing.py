@@ -2,6 +2,7 @@
 Préprocessing ML — chargement, sélection de features, scaling, split.
 Utilisé par tous les modèles.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -15,9 +16,10 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
-from ml.config import DATA_PATH, FEATURE_SETS, TARGETS, RANDOM_STATE, TEST_SIZE
+from ml.config import FEATURE_SETS, TARGETS, RANDOM_STATE, TEST_SIZE
 
 warnings.filterwarnings("ignore")
+
 
 def load_dataset(path: Path = None) -> pd.DataFrame:
     """
@@ -28,6 +30,7 @@ def load_dataset(path: Path = None) -> pd.DataFrame:
     """
     if path is None:
         from ml.config import DATA_PATH as _DP
+
         path = _DP
 
     path = Path(path)
@@ -38,9 +41,12 @@ def load_dataset(path: Path = None) -> pd.DataFrame:
         )
     df = pd.read_csv(path, low_memory=False)
     size_mb = path.stat().st_size / 1_048_576
-    print(f"  Dataset : {path.name}  ({size_mb:.1f} Mo) — "
-          f"{len(df):,} communes x {len(df.columns)} colonnes")
+    print(
+        f"  Dataset : {path.name}  ({size_mb:.1f} Mo) — "
+        f"{len(df):,} communes x {len(df.columns)} colonnes"
+    )
     return df
+
 
 def select_features(
     df: pd.DataFrame,
@@ -63,8 +69,11 @@ def select_features(
     available = [f for f in candidates_dedup if f in df.columns]
     missing = [f for f in candidates_dedup if f not in df.columns]
     if missing:
-        print(f"  [WARN] {len(missing)} features absentes du dataset : {missing[:5]}...")
+        print(
+            f"  [WARN] {len(missing)} features absentes du dataset : {missing[:5]}..."
+        )
     return available
+
 
 def build_X_y(
     df: pd.DataFrame,
@@ -92,6 +101,7 @@ def build_X_y(
     print(f"  X : {X.shape} | y : {y.shape} | cible : {target_col}")
     return X, y, features
 
+
 def get_preprocessing_pipeline(task: str = "classification") -> Pipeline:
     """
     Retourne un pipeline sklearn de préprocessing :
@@ -101,10 +111,13 @@ def get_preprocessing_pipeline(task: str = "classification") -> Pipeline:
     Args:
         task: "classification" ou "regression"
     """
-    return Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
-    ])
+    return Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]
+    )
+
 
 def split_data(
     X: pd.DataFrame,
@@ -121,13 +134,15 @@ def split_data(
     """
     strat = y if stratify and y.dtype in ["int64", "int32", "object"] else None
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
+        X,
+        y,
         test_size=test_size,
         random_state=random_state,
         stratify=strat,
     )
     print(f"  Train : {len(X_train):,} | Test : {len(X_test):,}")
     return X_train, X_test, y_train, y_test
+
 
 def encode_labels(y: pd.Series) -> tuple[np.ndarray, LabelEncoder]:
     """Encode les labels texte en entiers (pour classification multiclasse)."""
@@ -136,7 +151,13 @@ def encode_labels(y: pd.Series) -> tuple[np.ndarray, LabelEncoder]:
     print(f"  Classes : {list(le.classes_)}")
     return y_enc, le
 
+
 def get_commune_info(df: pd.DataFrame) -> pd.DataFrame:
     """Retourne les colonnes identifiantes pour l'affichage des prédictions."""
-    id_cols = ["code_commune", "code_departement", "libelle_departement", "libelle_commune"]
+    id_cols = [
+        "code_commune",
+        "code_departement",
+        "libelle_departement",
+        "libelle_commune",
+    ]
     return df[[c for c in id_cols if c in df.columns]].copy()

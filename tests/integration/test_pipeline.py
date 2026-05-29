@@ -5,6 +5,7 @@ explicitement avec : pytest tests/integration/ -v
 
 Ils s'appuient sur les données réelles dans DATA_ROOT.
 """
+
 import os
 import pytest
 from pathlib import Path
@@ -15,14 +16,17 @@ SKIP_IF_NO_DATA = pytest.mark.skipif(
     reason="Données réelles non disponibles (DATA_ROOT non configuré)",
 )
 
+
 @SKIP_IF_NO_DATA
 def test_extract_elections():
     """Vérifie que l'extraction des elections retourne des données IDF valides."""
     from etl.extract.elections import extract_elections
+
     df = extract_elections(DATA_ROOT / "elections")
     assert len(df) > 0
     assert "code_commune" in df.columns
     assert "id_election" in df.columns
+
 
 @SKIP_IF_NO_DATA
 def test_transform_participation():
@@ -37,6 +41,7 @@ def test_transform_participation():
     assert silver["taux_participation_t1"].between(0, 100).all()
     assert silver["code_commune"].nunique() == len(silver)
 
+
 @SKIP_IF_NO_DATA
 def test_full_pipeline_smoke():
     """
@@ -44,12 +49,10 @@ def test_full_pipeline_smoke():
     Vérifie que le dataset final a le bon format sans valeurs nulles.
     """
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
     from orchestration.pipeline import run_pipeline
-
-    import tempfile
-    from config import settings
 
     metrics = run_pipeline()
 

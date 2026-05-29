@@ -2,6 +2,7 @@
 Extraction — candidats_results.csv (2.2 GB, ~27M lignes).
 Lecture en chunks avec filtre précoce pour économiser la mémoire.
 """
+
 from pathlib import Path
 import pandas as pd
 
@@ -13,6 +14,7 @@ log = get_logger(__name__)
 IDF_DEPTS = frozenset({"75", "77", "78", "91", "92", "93", "94", "95"})
 
 USECOLS = ["id_election", "code_departement", "code_commune", "voix", "nom", "prenom"]
+
 
 def extract_candidats_raw(
     candidats_file: Path,
@@ -56,10 +58,9 @@ def extract_candidats_raw(
     for chunk in reader:
         total_read += len(chunk)
         chunk["code_departement"] = chunk["code_departement"].str.zfill(2)
-        mask = (
-            chunk["id_election"].isin(elections_set) &
-            chunk["code_departement"].isin(IDF_DEPTS)
-        )
+        mask = chunk["id_election"].isin(elections_set) & chunk[
+            "code_departement"
+        ].isin(IDF_DEPTS)
         filtered = chunk[mask].copy()
         if not filtered.empty:
             filtered["code_commune"] = norm_code(filtered["code_commune"])

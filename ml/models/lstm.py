@@ -13,6 +13,7 @@ Séquence de formation des inputs :
   (définies dans FEATURE_SETS["lstm"]).
   _prepare_inputs() sépare séquences et socio, normalise, reshape.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,20 +26,26 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
-    accuracy_score, f1_score, roc_auc_score,
-    confusion_matrix, classification_report,
+    accuracy_score,
+    f1_score,
+    roc_auc_score,
+    confusion_matrix,
+    classification_report,
 )
 
 from ml.models.base import BaseModel
 from ml.config import (
-    LSTM_CONFIG, LSTM_PERIOD_FEATURES,
-    FEATURES_SOCIO_LSTM, RANDOM_STATE, ARTIFACTS,
+    LSTM_CONFIG,
+    LSTM_PERIOD_FEATURES,
+    FEATURES_SOCIO_LSTM,
+    RANDOM_STATE,
+    ARTIFACTS,
 )
 
 try:
@@ -47,11 +54,13 @@ try:
     import tensorflow as tf
 
     try:
-        import keras
         from keras import Model, Input
         from keras.layers import (
-            LSTM as KerasLSTM, Dense, Dropout,
-            BatchNormalization, Concatenate,
+            LSTM as KerasLSTM,
+            Dense,
+            Dropout,
+            BatchNormalization,
+            Concatenate,
         )
         from keras.callbacks import EarlyStopping, ReduceLROnPlateau
         from keras.optimizers import Adam
@@ -59,11 +68,15 @@ try:
     except Exception:
         from tensorflow.keras import Model, Input
         from tensorflow.keras.layers import (
-            LSTM as KerasLSTM, Dense, Dropout,
-            BatchNormalization, Concatenate,
+            LSTM as KerasLSTM,
+            Dense,
+            Dropout,
+            BatchNormalization,
+            Concatenate,
         )
         from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
         from tensorflow.keras.optimizers import Adam
+
         KerasAUC = tf.keras.metrics.AUC
 
     TF_AVAILABLE = True
@@ -73,37 +86,38 @@ except ImportError:
 
 _PERIOD_MAP = {
     "2012": {
-        "pct_lepen":     "h12_t1_pct_lepen",
-        "pct_gauche":    "h12_t1_pct_hollande",
-        "pct_droite":    "h12_t1_pct_sarkozy",
-        "pct_centre":    "h12_t1_pct_bayrou",
+        "pct_lepen": "h12_t1_pct_lepen",
+        "pct_gauche": "h12_t1_pct_hollande",
+        "pct_droite": "h12_t1_pct_sarkozy",
+        "pct_centre": "h12_t1_pct_bayrou",
         "pct_melenchon": "h12_t1_pct_melenchon",
-        "pct_autres":    "h12_t1_pct_autres",
-        "marge_t2":      "h12_t2_marge",
-        "vainqueur_t2":  "h12_t2_vainqueur",
+        "pct_autres": "h12_t1_pct_autres",
+        "marge_t2": "h12_t2_marge",
+        "vainqueur_t2": "h12_t2_vainqueur",
     },
     "2017": {
-        "pct_lepen":     "h17_t1_pct_lepen",
-        "pct_gauche":    "h17_t1_pct_hamon",
-        "pct_droite":    "h17_t1_pct_fillon",
-        "pct_centre":    "h17_t1_pct_macron",
+        "pct_lepen": "h17_t1_pct_lepen",
+        "pct_gauche": "h17_t1_pct_hamon",
+        "pct_droite": "h17_t1_pct_fillon",
+        "pct_centre": "h17_t1_pct_macron",
         "pct_melenchon": "h17_t1_pct_melenchon",
-        "pct_autres":    "h17_t1_pct_autres",
-        "marge_t2":      "h17_t2_marge",
-        "vainqueur_t2":  "h17_t2_vainqueur",
+        "pct_autres": "h17_t1_pct_autres",
+        "marge_t2": "h17_t2_marge",
+        "vainqueur_t2": "h17_t2_vainqueur",
     },
     "2022_t1": {
-        "pct_lepen":     "cible_t1_pct_lepen",
-        "pct_gauche":    "cible_t1_pct_jadot",
-        "pct_droite":    "cible_t1_pct_pecresse",
-        "pct_centre":    "cible_t1_pct_macron",
+        "pct_lepen": "cible_t1_pct_lepen",
+        "pct_gauche": "cible_t1_pct_jadot",
+        "pct_droite": "cible_t1_pct_pecresse",
+        "pct_centre": "cible_t1_pct_macron",
         "pct_melenchon": "cible_t1_pct_melenchon",
-        "pct_autres":    "cible_t1_pct_zemmour",
-        "marge_t2":      None,
-        "vainqueur_t2":  None,
+        "pct_autres": "cible_t1_pct_zemmour",
+        "marge_t2": None,
+        "vainqueur_t2": None,
     },
 }
 N_ELEC_FEATURES = len(LSTM_PERIOD_FEATURES)
+
 
 class LSTMModel(BaseModel):
     """
@@ -123,12 +137,12 @@ class LSTMModel(BaseModel):
         config: Optional[dict] = None,
     ):
         super().__init__(artifact_dir)
-        self.config      = config or LSTM_CONFIG.copy()
-        self.task        = "classification"
+        self.config = config or LSTM_CONFIG.copy()
+        self.task = "classification"
         self.keras_model = None
-        self.scaler_seq  = StandardScaler()
-        self.scaler_soc  = StandardScaler()
-        self.history_    = {}
+        self.scaler_seq = StandardScaler()
+        self.scaler_soc = StandardScaler()
+        self.history_ = {}
 
     def _require_tf(self):
         if not TF_AVAILABLE:
@@ -167,7 +181,7 @@ class LSTMModel(BaseModel):
         Retourne (X_seq_scaled, X_socio_scaled) prêts pour Keras.
         Si fit_scalers=True, ajuste les scalers sur ces données.
         """
-        X_seq   = self._build_sequences(X)
+        X_seq = self._build_sequences(X)
         X_socio = self._get_socio(X)
         n, seq_len, n_feat = X_seq.shape
 
@@ -176,7 +190,7 @@ class LSTMModel(BaseModel):
             self.scaler_seq.fit(X_seq_flat)
             self.scaler_soc.fit(X_socio)
 
-        X_seq_scaled   = self.scaler_seq.transform(X_seq_flat).reshape(n, seq_len, n_feat)
+        X_seq_scaled = self.scaler_seq.transform(X_seq_flat).reshape(n, seq_len, n_feat)
         X_socio_scaled = self.scaler_soc.transform(X_socio)
         return X_seq_scaled.astype(np.float32), X_socio_scaled.astype(np.float32)
 
@@ -186,14 +200,16 @@ class LSTMModel(BaseModel):
         Architecture identique au script de référence.
         """
         self._require_tf()
-        cfg    = self.config
-        n_soc  = n_socio or len([f for f in FEATURES_SOCIO_LSTM])
+        cfg = self.config
+        n_soc = n_socio or len([f for f in FEATURES_SOCIO_LSTM])
 
         tf.random.set_seed(RANDOM_STATE)
         np.random.seed(RANDOM_STATE)
 
         input_seq = Input(shape=(3, N_ELEC_FEATURES), name="input_sequences")
-        x = KerasLSTM(cfg["lstm_units_1"], return_sequences=True, name="lstm_1")(input_seq)
+        x = KerasLSTM(cfg["lstm_units_1"], return_sequences=True, name="lstm_1")(
+            input_seq
+        )
         x = BatchNormalization()(x)
         x = Dropout(cfg["dropout"])(x)
         x = KerasLSTM(cfg["lstm_units_2"], return_sequences=False, name="lstm_2")(x)
@@ -239,7 +255,7 @@ class LSTMModel(BaseModel):
         cfg = self.config
 
         print(f"\n{'='*60}")
-        print(f"  LSTM — Classification (dual-input)")
+        print("  LSTM — Classification (dual-input)")
         print(f"  Train : {len(X_train):,} communes | Séquences : 2012→2017→2022-T1")
         print(f"{'='*60}")
 
@@ -252,11 +268,11 @@ class LSTMModel(BaseModel):
         validation_data = None
         if X_val is not None and y_val is not None:
             X_seq_v, X_soc_v = self._prepare_inputs(X_val, fit_scalers=False)
-            validation_data   = ([X_seq_v, X_soc_v], y_val.values.astype(np.float32))
+            validation_data = ([X_seq_v, X_soc_v], y_val.values.astype(np.float32))
 
-        n_total  = len(y_tr)
+        n_total = len(y_tr)
         n_macron = (y_tr == 0).sum()
-        n_lepen  = (y_tr == 1).sum()
+        n_lepen = (y_tr == 1).sum()
         class_weight = {
             0: n_total / (2 * n_macron),
             1: n_total / (2 * n_lepen),
@@ -265,7 +281,7 @@ class LSTMModel(BaseModel):
 
         n_socio = X_soc_tr.shape[1]
         self.keras_model = self.build(n_socio=n_socio)
-        print(f"\n  Architecture :")
+        print("\n  Architecture :")
         self.keras_model.summary(print_fn=lambda x: print(f"    {x}"))
 
         callbacks = [
@@ -283,9 +299,12 @@ class LSTMModel(BaseModel):
             ),
         ]
 
-        print(f"\n  Entraînement (max {cfg['epochs']} époques, patience={cfg['patience']})...")
+        print(
+            f"\n  Entraînement (max {cfg['epochs']} époques, patience={cfg['patience']})..."
+        )
         hist = self.keras_model.fit(
-            [X_seq_tr, X_soc_tr], y_tr,
+            [X_seq_tr, X_soc_tr],
+            y_tr,
             validation_data=validation_data,
             epochs=cfg["epochs"],
             batch_size=cfg["batch_size"],
@@ -294,47 +313,62 @@ class LSTMModel(BaseModel):
             verbose=1,
         )
 
-        self.history_   = hist.history
-        elapsed         = round(time.time() - t0, 2)
-        best_epoch      = int(np.argmax(hist.history.get("val_auc", hist.history.get("auc", [0]))))
-        best_val_auc    = max(hist.history.get("val_auc", hist.history.get("auc", [0])))
+        self.history_ = hist.history
+        elapsed = round(time.time() - t0, 2)
+        best_epoch = int(
+            np.argmax(hist.history.get("val_auc", hist.history.get("auc", [0])))
+        )
+        best_val_auc = max(hist.history.get("val_auc", hist.history.get("auc", [0])))
 
         print(f"\n  Terminé en {elapsed}s | {len(hist.history['loss'])} époques")
         print(f"  Meilleur val_AUC : {best_val_auc:.4f} (époque {best_epoch+1})")
 
-        y_pred_prob_tr = self.keras_model.predict([X_seq_tr, X_soc_tr], verbose=0).flatten()
-        y_pred_tr      = (y_pred_prob_tr > 0.5).astype(int)
+        y_pred_prob_tr = self.keras_model.predict(
+            [X_seq_tr, X_soc_tr], verbose=0
+        ).flatten()
+        y_pred_tr = (y_pred_prob_tr > 0.5).astype(int)
 
         self.metrics = {
             "train_accuracy": round(accuracy_score(y_tr, y_pred_tr), 4),
-            "train_auc":      round(roc_auc_score(y_tr, y_pred_prob_tr), 4),
-            "best_val_auc":   round(float(best_val_auc), 4),
+            "train_auc": round(roc_auc_score(y_tr, y_pred_prob_tr), 4),
+            "best_val_auc": round(float(best_val_auc), 4),
             "epochs_trained": len(hist.history["loss"]),
             "training_time_s": elapsed,
         }
 
         if validation_data:
-            y_pred_prob_v = self.keras_model.predict([X_seq_v, X_soc_v], verbose=0).flatten()
-            y_pred_v      = (y_pred_prob_v > 0.5).astype(int)
-            self.metrics.update({
-                "val_accuracy": round(accuracy_score(y_val, y_pred_v), 4),
-                "val_auc":      round(roc_auc_score(y_val, y_pred_prob_v), 4),
-                "val_f1":       round(f1_score(y_val, y_pred_v, zero_division=0), 4),
-            })
+            y_pred_prob_v = self.keras_model.predict(
+                [X_seq_v, X_soc_v], verbose=0
+            ).flatten()
+            y_pred_v = (y_pred_prob_v > 0.5).astype(int)
+            self.metrics.update(
+                {
+                    "val_accuracy": round(accuracy_score(y_val, y_pred_v), 4),
+                    "val_auc": round(roc_auc_score(y_val, y_pred_prob_v), 4),
+                    "val_f1": round(f1_score(y_val, y_pred_v, zero_division=0), 4),
+                }
+            )
             print(f"  Val Accuracy : {self.metrics['val_accuracy']:.4f}")
             print(f"  Val AUC      : {self.metrics['val_auc']:.4f}")
-            print(classification_report(y_val, y_pred_v,
-                                        target_names=["Macron (0)", "Le Pen (1)"],
-                                        zero_division=0))
+            print(
+                classification_report(
+                    y_val,
+                    y_pred_v,
+                    target_names=["Macron (0)", "Le Pen (1)"],
+                    zero_division=0,
+                )
+            )
 
         self.feature_names = list(X_train.columns)
-        self.model         = self.keras_model
-        self.is_trained    = True
+        self.model = self.keras_model
+        self.is_trained = True
         return self.metrics
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         if not self.is_trained:
-            raise RuntimeError("Modèle non entraîné. Appelez train() ou load() d'abord.")
+            raise RuntimeError(
+                "Modèle non entraîné. Appelez train() ou load() d'abord."
+            )
         X_seq, X_soc = self._prepare_inputs(X, fit_scalers=False)
         y_prob = self.keras_model.predict([X_seq, X_soc], verbose=0).flatten()
         return (y_prob > 0.5).astype(int)
@@ -353,17 +387,22 @@ class LSTMModel(BaseModel):
 
         metrics = {
             "test_accuracy": round(accuracy_score(y_test, y_pred), 4),
-            "test_auc":      round(roc_auc_score(y_test, y_prob), 4),
-            "test_f1":       round(f1_score(y_test, y_pred, zero_division=0), 4),
+            "test_auc": round(roc_auc_score(y_test, y_prob), 4),
+            "test_f1": round(f1_score(y_test, y_pred, zero_division=0), 4),
             "test_confusion_matrix": confusion_matrix(y_test, y_pred).tolist(),
         }
         self.metrics.update(metrics)
 
         print(f"\n  Test Accuracy : {metrics['test_accuracy']:.4f}")
         print(f"  Test AUC      : {metrics['test_auc']:.4f}")
-        print(classification_report(y_test, y_pred,
-                                    target_names=["Macron (0)", "Le Pen (1)"],
-                                    zero_division=0))
+        print(
+            classification_report(
+                y_test,
+                y_pred,
+                target_names=["Macron (0)", "Le Pen (1)"],
+                zero_division=0,
+            )
+        )
         return metrics
 
     def plot_training_curves(self) -> Path:
@@ -375,21 +414,27 @@ class LSTMModel(BaseModel):
             raise RuntimeError("Pas d'historique d'entraînement.")
 
         h = self.history_
-        n_plots = sum([
-            "loss" in h,
-            "accuracy" in h,
-            "auc" in h,
-        ])
+        n_plots = sum(
+            [
+                "loss" in h,
+                "accuracy" in h,
+                "auc" in h,
+            ]
+        )
 
         fig, axes = plt.subplots(1, n_plots, figsize=(6 * n_plots, 5))
         if n_plots == 1:
             axes = [axes]
-        fig.suptitle("Entraînement LSTM — Élections 2022 IDF", fontsize=14, fontweight="bold")
+        fig.suptitle(
+            "Entraînement LSTM — Élections 2022 IDF", fontsize=14, fontweight="bold"
+        )
 
         plot_idx = 0
-        for metric, title in [("loss", "Loss (Binary Crossentropy)"),
-                               ("accuracy", "Accuracy"),
-                               ("auc", "AUC-ROC")]:
+        for metric, title in [
+            ("loss", "Loss (Binary Crossentropy)"),
+            ("accuracy", "Accuracy"),
+            ("auc", "AUC-ROC"),
+        ]:
             if metric not in h:
                 continue
             ax = axes[plot_idx]
@@ -410,23 +455,28 @@ class LSTMModel(BaseModel):
         print(f"  Courbes sauvegardées : {path}")
         return path
 
-    def plot_confusion_matrix(
-        self, X_test: pd.DataFrame, y_test: pd.Series
-    ) -> Path:
+    def plot_confusion_matrix(self, X_test: pd.DataFrame, y_test: pd.Series) -> Path:
         """Matrice de confusion sur le jeu de test."""
         y_pred = self.predict(X_test)
         cm = confusion_matrix(y_test, y_pred)
 
         fig, ax = plt.subplots(figsize=(6, 5))
         im = ax.imshow(cm, cmap="Blues")
-        ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
+        ax.set_xticks([0, 1])
+        ax.set_yticks([0, 1])
         ax.set_xticklabels(["Macron prédit", "Le Pen prédit"])
         ax.set_yticklabels(["Macron réel", "Le Pen réel"])
         for i in range(2):
             for j in range(2):
-                ax.text(j, i, str(cm[i, j]), ha="center", va="center",
-                        fontsize=20,
-                        color="white" if cm[i, j] > cm.max() / 2 else "black")
+                ax.text(
+                    j,
+                    i,
+                    str(cm[i, j]),
+                    ha="center",
+                    va="center",
+                    fontsize=20,
+                    color="white" if cm[i, j] > cm.max() / 2 else "black",
+                )
         ax.set_title("Matrice de Confusion — LSTM (Test Set)")
         plt.colorbar(im)
         plt.tight_layout()
@@ -436,7 +486,7 @@ class LSTMModel(BaseModel):
         return path
 
     def save(self, tag: str = "") -> Path:
-        suffix    = f"_{tag}" if tag else ""
+        suffix = f"_{tag}" if tag else ""
         base_path = self.artifact_dir / f"{self.name}{suffix}"
 
         keras_path = Path(str(base_path) + "_model.keras")
@@ -450,13 +500,16 @@ class LSTMModel(BaseModel):
             pickle.dump({"seq": self.scaler_seq, "soc": self.scaler_soc}, f)
 
         meta = {
-            "name":          self.name,
-            "task":          self.task,
+            "name": self.name,
+            "task": self.task,
             "feature_names": self.feature_names,
-            "metrics":       {k: v for k, v in self.metrics.items()
-                              if not isinstance(v, (list, np.ndarray))},
-            "config":        self.config,
-            "is_trained":    self.is_trained,
+            "metrics": {
+                k: v
+                for k, v in self.metrics.items()
+                if not isinstance(v, (list, np.ndarray))
+            },
+            "config": self.config,
+            "is_trained": self.is_trained,
         }
         Path(str(base_path) + "_meta.json").write_text(
             json.dumps(meta, indent=2, default=str)
@@ -466,7 +519,7 @@ class LSTMModel(BaseModel):
 
     def load(self, tag: str = "") -> "LSTMModel":
         self._require_tf()
-        suffix    = f"_{tag}" if tag else ""
+        suffix = f"_{tag}" if tag else ""
         base_path = self.artifact_dir / f"{self.name}{suffix}"
 
         keras_path = None
@@ -480,7 +533,7 @@ class LSTMModel(BaseModel):
                 break
 
         scaler_path = Path(str(base_path) + "_scalers.pkl")
-        meta_path   = Path(str(base_path) + "_meta.json")
+        meta_path = Path(str(base_path) + "_meta.json")
 
         if keras_path is None:
             raise FileNotFoundError(
@@ -488,7 +541,7 @@ class LSTMModel(BaseModel):
             )
 
         self.keras_model = tf.keras.models.load_model(str(keras_path))
-        self.model       = self.keras_model
+        self.model = self.keras_model
 
         if scaler_path.exists():
             with open(scaler_path, "rb") as f:
@@ -499,22 +552,24 @@ class LSTMModel(BaseModel):
         if meta_path.exists():
             meta = json.loads(meta_path.read_text())
             self.feature_names = meta.get("feature_names", [])
-            self.metrics       = meta.get("metrics", {})
-            self.config        = meta.get("config", self.config)
-            self.is_trained    = True
+            self.metrics = meta.get("metrics", {})
+            self.config = meta.get("config", self.config)
+            self.is_trained = True
 
         print(f"  LSTM chargé depuis : {keras_path}")
         return self
 
     def get_predictions_with_communes(
-        self, X: pd.DataFrame, commune_info: pd.DataFrame,
+        self,
+        X: pd.DataFrame,
+        commune_info: pd.DataFrame,
     ) -> pd.DataFrame:
-        y_pred  = self.predict(X)
+        y_pred = self.predict(X)
         y_proba = self.predict_proba(X)
-        result  = commune_info.reset_index(drop=True).copy()
-        result["prediction"]       = y_pred
+        result = commune_info.reset_index(drop=True).copy()
+        result["prediction"] = y_pred
         result["vainqueur_predit"] = pd.Series(y_pred).map({0: "Macron", 1: "Le Pen"})
         if y_proba is not None:
             result["proba_macron"] = y_proba[:, 0].round(4)
-            result["proba_lepen"]  = y_proba[:, 1].round(4)
+            result["proba_lepen"] = y_proba[:, 1].round(4)
         return result

@@ -2,10 +2,11 @@
 Configuration centralisée via Pydantic Settings.
 Lit les valeurs depuis .env ou les variables d'environnement.
 """
-import os
+
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -67,6 +68,9 @@ class Settings(BaseSettings):
     log_level: str = Field("INFO", alias="LOG_LEVEL")
     log_dir: Path = Field(Path("logs"), alias="LOG_DIR")
 
-    idf_depts: frozenset[str] = frozenset({"75", "77", "78", "91", "92", "93", "94", "95"})
+    idf_depts: frozenset[str] = frozenset(
+        {"75", "77", "78", "91", "92", "93", "94", "95"}
+    )
+
 
 settings = Settings()

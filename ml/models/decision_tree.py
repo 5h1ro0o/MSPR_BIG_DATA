@@ -19,6 +19,7 @@ Usage prévu :
     model.export_tree_dot()   # export pour graphviz
     model.save()
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,16 +29,17 @@ import numpy as np
 import pandas as pd
 
 from ml.models.base import BaseModel
-from ml.config import RANDOM_STATE, ARTIFACTS
+from ml.config import ARTIFACTS
 
 DT_PARAM_GRID = {
-    "dt__max_depth":         [3, 5, 7, 10, None],
+    "dt__max_depth": [3, 5, 7, 10, None],
     "dt__min_samples_split": [2, 5, 10, 20],
-    "dt__min_samples_leaf":  [1, 2, 5, 10],
-    "dt__criterion":         ["gini", "entropy"],
-    "dt__max_features":      [None, "sqrt", "log2"],
-    "dt__ccp_alpha":         [0.0, 0.001, 0.01],
+    "dt__min_samples_leaf": [1, 2, 5, 10],
+    "dt__criterion": ["gini", "entropy"],
+    "dt__max_features": [None, "sqrt", "log2"],
+    "dt__ccp_alpha": [0.0, 0.001, 0.01],
 }
+
 
 class DecisionTreeModel(BaseModel):
     """
@@ -105,7 +107,9 @@ class DecisionTreeModel(BaseModel):
 
     def get_feature_importance(self, top_n: int = 30) -> pd.DataFrame:
         """TODO : pipeline.named_steps["dt"].feature_importances_"""
-        raise NotImplementedError("DecisionTreeModel.get_feature_importance() non implémentée.")
+        raise NotImplementedError(
+            "DecisionTreeModel.get_feature_importance() non implémentée."
+        )
 
     def export_tree_dot(self, output_path: Optional[Path] = None) -> str:
         """
@@ -123,7 +127,9 @@ class DecisionTreeModel(BaseModel):
                 output_path.write_text(dot_data)
             return dot_data
         """
-        raise NotImplementedError("DecisionTreeModel.export_tree_dot() non implémentée.")
+        raise NotImplementedError(
+            "DecisionTreeModel.export_tree_dot() non implémentée."
+        )
 
     def export_tree_rules(self) -> str:
         """
@@ -135,4 +141,6 @@ class DecisionTreeModel(BaseModel):
                 feature_names=self.feature_names,
             )
         """
-        raise NotImplementedError("DecisionTreeModel.export_tree_rules() non implémentée.")
+        raise NotImplementedError(
+            "DecisionTreeModel.export_tree_rules() non implémentée."
+        )

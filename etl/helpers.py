@@ -1,17 +1,21 @@
 """
 Fonctions utilitaires partagées par tous les modules ETL.
 """
+
 import unicodedata
 import numpy as np
 import pandas as pd
+
 
 def norm_code(series: pd.Series) -> pd.Series:
     """Normalise les codes communes en strings de 5 caractères (zfill)."""
     return series.astype(str).str.strip().str.zfill(5)
 
+
 def pct(numerator: pd.Series, denominator: pd.Series, decimals: int = 2) -> pd.Series:
     """Calcule un pourcentage en gérant les divisions par zéro."""
     return (numerator / denominator.replace(0, np.nan) * 100).round(decimals)
+
 
 def norm_nom(s) -> str:
     """Supprime les accents et met en majuscules (MÉLENCHON → MELENCHON)."""
@@ -19,6 +23,7 @@ def norm_nom(s) -> str:
         return ""
     nfkd = unicodedata.normalize("NFKD", str(s))
     return "".join(c for c in nfkd if not unicodedata.combining(c)).upper().strip()
+
 
 def cap_outliers(df: pd.DataFrame, cols: list, factor: float = 3.0) -> pd.DataFrame:
     """
@@ -35,6 +40,7 @@ def cap_outliers(df: pd.DataFrame, cols: list, factor: float = 3.0) -> pd.DataFr
         iqr = q3 - q1
         df[col] = df[col].clip(lower=q1 - factor * iqr, upper=q3 + factor * iqr)
     return df
+
 
 def impute_missing(df: pd.DataFrame, cols: list) -> pd.DataFrame:
     """
@@ -54,6 +60,7 @@ def impute_missing(df: pd.DataFrame, cols: list) -> pd.DataFrame:
         df[col] = df[col].fillna(filler)
     return df
 
+
 def recalc_winner_marge(
     df: pd.DataFrame,
     prefix: str,
@@ -72,7 +79,5 @@ def recalc_winner_marge(
         df[f"{prefix}_vainqueur"] = np.where(
             df[col_a].values >= df[col_b].values, label_a, label_b
         ).astype(int)
-        df[f"{prefix}_marge"] = np.abs(
-            df[col_a].values - df[col_b].values
-        ).round(2)
+        df[f"{prefix}_marge"] = np.abs(df[col_a].values - df[col_b].values).round(2)
     return df

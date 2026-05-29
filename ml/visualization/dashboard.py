@@ -5,7 +5,10 @@ Lancement :
     cd etl_elections
     streamlit run ml/visualization/dashboard.py
 """
-import sys, json, glob
+
+import sys
+import json
+import glob
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -18,7 +21,6 @@ try:
     import streamlit as st
     import plotly.express as px
     import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
 except ImportError:
     print("pip install streamlit plotly")
     sys.exit(1)
@@ -32,7 +34,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 /* ── Reset & Base ── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -243,10 +246,12 @@ hr {
     background: #1c1f29 !important;
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-C_MACRON  = "#3b5bdb"
-C_LEPEN   = "#c92a2a"
+C_MACRON = "#3b5bdb"
+C_LEPEN = "#c92a2a"
 C_NEUTRAL = "#495057"
 PLOT_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
@@ -257,17 +262,19 @@ PLOT_LAYOUT = dict(
     yaxis=dict(gridcolor="#22252e", zerolinecolor="#22252e"),
 )
 
+
 @st.cache_data(ttl=300)
 def load_metrics() -> dict[str, dict]:
     results = {}
     for p in ARTIFACTS.glob("*_metrics_*.json"):
         try:
-            data  = json.loads(p.read_text())
+            data = json.loads(p.read_text())
             mname = p.stem.split("_metrics_")[0]
             results[mname] = data
         except Exception:
             pass
     return results
+
 
 @st.cache_data(ttl=300)
 def load_predictions_df(prefix: str) -> pd.DataFrame:
@@ -276,35 +283,42 @@ def load_predictions_df(prefix: str) -> pd.DataFrame:
         return pd.DataFrame()
     return pd.read_csv(files[-1])
 
+
 @st.cache_data(ttl=300)
 def load_dataset_cached() -> pd.DataFrame:
     try:
         from ml.preprocessing import load_dataset
+
         return load_dataset()
     except Exception:
         return pd.DataFrame()
 
+
 def dataset_info() -> dict:
     """Retourne les infos du dataset local (chemin, taille, date de modification)."""
     from ml.config import DATA_PATH
+
     p = Path(DATA_PATH)
     if not p.exists():
         return {"exists": False, "path": str(p)}
     import datetime
+
     mtime = datetime.datetime.fromtimestamp(p.stat().st_mtime)
     return {
-        "exists":    True,
-        "path":      str(p),
-        "name":      p.name,
-        "size_mb":   round(p.stat().st_size / 1_048_576, 1),
-        "modified":  mtime.strftime("%Y-%m-%d %H:%M"),
+        "exists": True,
+        "path": str(p),
+        "name": p.name,
+        "size_mb": round(p.stat().st_size / 1_048_576, 1),
+        "modified": mtime.strftime("%Y-%m-%d %H:%M"),
     }
+
 
 def img_or_info(path: Path, caption: str = ""):
     if path.exists():
         st.image(str(path), caption=caption, width="stretch")
     else:
         st.info(f"Image non générée : {path.name} — lancez l'entraînement d'abord.")
+
 
 def metric4(label, val, fmt=".4f"):
     if isinstance(val, float):
@@ -314,8 +328,10 @@ def metric4(label, val, fmt=".4f"):
     else:
         st.metric(label, "—")
 
+
 def fmt_val(v, fmt=".4f"):
     return f"{v:{fmt}}" if isinstance(v, float) else ("—" if v is None else str(v))
+
 
 def best_metric(m_dict, keys):
     for k in keys:
@@ -323,7 +339,9 @@ def best_metric(m_dict, keys):
             return m_dict[k]
     return None
 
+
 import os as _os
+
 
 def _build_db_url() -> str | None:
     pwd = _os.environ.get("POSTGRES_PASSWORD", "")
@@ -331,11 +349,13 @@ def _build_db_url() -> str | None:
         return None
     h = _os.environ.get("POSTGRES_HOST", "localhost")
     p = _os.environ.get("POSTGRES_PORT", "5432")
-    d = _os.environ.get("POSTGRES_DB",   "elections_idf")
-    u = _os.environ.get("POSTGRES_USER",  "etl_admin")
+    d = _os.environ.get("POSTGRES_DB", "elections_idf")
+    u = _os.environ.get("POSTGRES_USER", "etl_admin")
     return f"postgresql+psycopg2://{u}:{pwd}@{h}:{p}/{d}"
 
+
 DB_URL = _build_db_url()
+
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_db_predictions(model_name: str = None) -> pd.DataFrame:
@@ -343,9 +363,11 @@ def load_db_predictions(model_name: str = None) -> pd.DataFrame:
         return pd.DataFrame()
     try:
         from ml.training.db_store import load_predictions
+
         return load_predictions(DB_URL, model_name)
     except Exception:
         return pd.DataFrame()
+
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_db_metrics() -> pd.DataFrame:
@@ -353,9 +375,11 @@ def load_db_metrics() -> pd.DataFrame:
         return pd.DataFrame()
     try:
         from ml.training.db_store import load_metrics as _lm
+
         return _lm(DB_URL)
     except Exception:
         return pd.DataFrame()
+
 
 @st.cache_data(ttl=60, show_spinner=False)
 def check_db_connection() -> bool:
@@ -363,6 +387,7 @@ def check_db_connection() -> bool:
         return False
     try:
         from sqlalchemy import create_engine, text
+
         eng = create_engine(DB_URL, pool_pre_ping=True)
         with eng.connect() as c:
             c.execute(text("SELECT 1"))
@@ -370,25 +395,28 @@ def check_db_connection() -> bool:
     except Exception:
         return False
 
+
 DB_CONNECTED = check_db_connection()
 
 all_metrics = load_metrics()
-df_main     = load_dataset_cached()
-ds_info     = dataset_info()
+df_main = load_dataset_cached()
+ds_info = dataset_info()
 
 MODEL_LABELS = {
-    "random_forest":     "Random Forest",
+    "random_forest": "Random Forest",
     "gradient_boosting": "Gradient Boosting",
-    "lstm":              "LSTM",
-    "decision_tree":     "Decision Tree",
-    "mlp":               "MLP",
+    "lstm": "LSTM",
+    "decision_tree": "Decision Tree",
+    "mlp": "MLP",
 }
 
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">Elections IDF 2022</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sidebar-title">Elections IDF 2022</div>', unsafe_allow_html=True
+    )
     st.markdown(
         '<p style="font-size:0.8rem;color:#6b7280;margin-bottom:1.5rem;">'
-        'Prédiction T2 — Macron vs Le Pen</p>',
+        "Prédiction T2 — Macron vs Le Pen</p>",
         unsafe_allow_html=True,
     )
 
@@ -408,13 +436,13 @@ with st.sidebar:
     )
 
     st.markdown('<hr style="margin:0.8rem 0">', unsafe_allow_html=True)
-    db_dot   = "status-trained" if DB_CONNECTED else "status-pending"
+    db_dot = "status-trained" if DB_CONNECTED else "status-pending"
     db_label = "PostgreSQL connecté" if DB_CONNECTED else "PostgreSQL non connecté"
     st.markdown(
         f'<div class="model-row">'
         f'<span class="{db_dot}"></span>'
         f'<span style="font-size:0.78rem;color:#6b7280">{db_label}</span>'
-        f'</div>',
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -424,14 +452,22 @@ with st.sidebar:
     for key, label in MODEL_LABELS.items():
         trained = key in all_metrics
         dot = "status-trained" if trained else "status-pending"
-        suffix = fmt_val(best_metric(all_metrics.get(key, {}),
-                          ["val_accuracy","test_accuracy"]), ".3f") if trained else "non entraîné"
+        suffix = (
+            fmt_val(
+                best_metric(
+                    all_metrics.get(key, {}), ["val_accuracy", "test_accuracy"]
+                ),
+                ".3f",
+            )
+            if trained
+            else "non entraîné"
+        )
         st.markdown(
             f'<div class="model-row">'
             f'<span class="{dot}"></span>{label}'
             f'<span style="margin-left:auto;font-family:JetBrains Mono,monospace;'
             f'font-size:0.78rem;color:#6b7280">{suffix}</span>'
-            f'</div>',
+            f"</div>",
             unsafe_allow_html=True,
         )
 
@@ -444,14 +480,14 @@ with st.sidebar:
             f'{ds_info["name"]}<br>'
             f'<span style="font-family:JetBrains Mono,monospace">'
             f'{ds_info["size_mb"]} Mo · {ds_info["modified"]}</span>'
-            f'</div>',
+            f"</div>",
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
             '<div style="font-size:0.75rem;color:#c92a2a">'
             '<span style="font-size:0.65rem">●</span> Dataset absent — lancez l\'ETL'
-            '</div>',
+            "</div>",
             unsafe_allow_html=True,
         )
 
@@ -460,29 +496,49 @@ with st.sidebar:
     st.code("python ml/run_training.py", language="bash")
 
 if page == "Vue d'ensemble":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>Elections Presidentielles 2022 — Ile-de-France</h1>
         <div class="page-subtitle">
             Modeles de prediction du vainqueur au second tour par commune (Macron / Le Pen)
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     n_communes = len(df_main) if len(df_main) else 0
-    n_features = len([c for c in df_main.columns
-                      if not c.startswith("cible_")
-                      and c not in {"code_commune","code_departement","libelle_departement","libelle_commune"}
-                      ]) if n_communes else 0
-    pct_macron = (df_main["cible_t2_vainqueur"] == 0).mean() * 100 if (
-        n_communes and "cible_t2_vainqueur" in df_main.columns) else None
-    n_trained  = len(all_metrics)
+    n_features = (
+        len(
+            [
+                c
+                for c in df_main.columns
+                if not c.startswith("cible_")
+                and c
+                not in {
+                    "code_commune",
+                    "code_departement",
+                    "libelle_departement",
+                    "libelle_commune",
+                }
+            ]
+        )
+        if n_communes
+        else 0
+    )
+    pct_macron = (
+        (df_main["cible_t2_vainqueur"] == 0).mean() * 100
+        if (n_communes and "cible_t2_vainqueur" in df_main.columns)
+        else None
+    )
+    n_trained = len(all_metrics)
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Communes IDF",      f"{n_communes:,}" if n_communes else "—")
-    c2.metric("Features ML",       f"{n_features:,}" if n_features else "—")
-    c3.metric("Communes Macron",   f"{pct_macron:.1f}%" if pct_macron else "—")
-    c4.metric("Communes Le Pen",   f"{100-pct_macron:.1f}%" if pct_macron else "—")
+    c1.metric("Communes IDF", f"{n_communes:,}" if n_communes else "—")
+    c2.metric("Features ML", f"{n_features:,}" if n_features else "—")
+    c3.metric("Communes Macron", f"{pct_macron:.1f}%" if pct_macron else "—")
+    c4.metric("Communes Le Pen", f"{100-pct_macron:.1f}%" if pct_macron else "—")
     c5.metric("Modeles entraines", f"{n_trained}/5")
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -491,14 +547,22 @@ if page == "Vue d'ensemble":
         st.markdown("#### Synthese des modeles")
         rows = []
         for name, m in all_metrics.items():
-            rows.append({
-                "Modele":    MODEL_LABELS.get(name, name),
-                "Accuracy":  fmt_val(best_metric(m, ["val_accuracy","test_accuracy"])),
-                "AUC-ROC":   fmt_val(best_metric(m, ["val_auc","test_auc","test_roc_auc","cv_roc_auc"])),
-                "F1":        fmt_val(best_metric(m, ["val_f1","test_f1"])),
-                "CV AUC":    fmt_val(m.get("cv_roc_auc")),
-                "Temps (s)": fmt_val(m.get("training_time_s"), ".1f"),
-            })
+            rows.append(
+                {
+                    "Modele": MODEL_LABELS.get(name, name),
+                    "Accuracy": fmt_val(
+                        best_metric(m, ["val_accuracy", "test_accuracy"])
+                    ),
+                    "AUC-ROC": fmt_val(
+                        best_metric(
+                            m, ["val_auc", "test_auc", "test_roc_auc", "cv_roc_auc"]
+                        )
+                    ),
+                    "F1": fmt_val(best_metric(m, ["val_f1", "test_f1"])),
+                    "CV AUC": fmt_val(m.get("cv_roc_auc")),
+                    "Temps (s)": fmt_val(m.get("training_time_s"), ".1f"),
+                }
+            )
         st.dataframe(
             pd.DataFrame(rows).set_index("Modele"),
             width="stretch",
@@ -510,15 +574,20 @@ if page == "Vue d'ensemble":
 
         with col1:
             st.markdown("#### Distribution T2")
-            counts = df_main["cible_t2_vainqueur"].value_counts().rename({0: "Macron", 1: "Le Pen"})
+            counts = (
+                df_main["cible_t2_vainqueur"]
+                .value_counts()
+                .rename({0: "Macron", 1: "Le Pen"})
+            )
             fig = px.pie(
                 values=counts.values,
                 names=counts.index,
                 color_discrete_map={"Macron": C_MACRON, "Le Pen": C_LEPEN},
                 hole=0.45,
             )
-            fig.update_traces(textposition="outside", textinfo="percent+label",
-                              textfont_size=12)
+            fig.update_traces(
+                textposition="outside", textinfo="percent+label", textfont_size=12
+            )
             fig.update_layout(**PLOT_LAYOUT, showlegend=False, height=300)
             st.plotly_chart(fig, width="stretch")
 
@@ -527,28 +596,43 @@ if page == "Vue d'ensemble":
             if "code_departement" in df_main.columns:
                 dept_df = (
                     df_main.groupby(["code_departement", "libelle_departement"])
-                    .apply(lambda g: pd.Series({
-                        "Macron":  (g["cible_t2_vainqueur"] == 0).sum(),
-                        "Le Pen":  (g["cible_t2_vainqueur"] == 1).sum(),
-                    })).reset_index().sort_values("code_departement")
+                    .apply(
+                        lambda g: pd.Series(
+                            {
+                                "Macron": (g["cible_t2_vainqueur"] == 0).sum(),
+                                "Le Pen": (g["cible_t2_vainqueur"] == 1).sum(),
+                            }
+                        )
+                    )
+                    .reset_index()
+                    .sort_values("code_departement")
                 )
                 fig2 = px.bar(
-                    dept_df, x="libelle_departement", y=["Macron","Le Pen"],
+                    dept_df,
+                    x="libelle_departement",
+                    y=["Macron", "Le Pen"],
                     barmode="stack",
                     color_discrete_map={"Macron": C_MACRON, "Le Pen": C_LEPEN},
-                    labels={"value":"Communes","libelle_departement":""},
+                    labels={"value": "Communes", "libelle_departement": ""},
                 )
-                fig2.update_layout(**PLOT_LAYOUT, xaxis_tickangle=-30, height=300,
-                                   legend=dict(orientation="h", y=1.08))
+                fig2.update_layout(
+                    **PLOT_LAYOUT,
+                    xaxis_tickangle=-30,
+                    height=300,
+                    legend=dict(orientation="h", y=1.08),
+                )
                 st.plotly_chart(fig2, width="stretch")
 
 elif page == "Random Forest":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>Random Forest</h1>
         <div class="page-subtitle">Classification binaire — vainqueur T2 par commune</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     m = all_metrics.get("random_forest", {})
     if not m:
@@ -557,11 +641,16 @@ elif page == "Random Forest":
         st.stop()
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: metric4("Accuracy",  best_metric(m, ["val_accuracy","test_accuracy"]))
-    with c2: metric4("F1",        best_metric(m, ["val_f1","test_f1"]))
-    with c3: metric4("CV AUC",    m.get("cv_roc_auc"))
-    with c4: metric4("CV AUC ±",  m.get("cv_roc_auc_std"))
-    with c5: metric4("Temps (s)", m.get("training_time_s"), fmt=".1f")
+    with c1:
+        metric4("Accuracy", best_metric(m, ["val_accuracy", "test_accuracy"]))
+    with c2:
+        metric4("F1", best_metric(m, ["val_f1", "test_f1"]))
+    with c3:
+        metric4("CV AUC", m.get("cv_roc_auc"))
+    with c4:
+        metric4("CV AUC ±", m.get("cv_roc_auc_std"))
+    with c5:
+        metric4("Temps (s)", m.get("training_time_s"), fmt=".1f")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -579,9 +668,10 @@ elif page == "Random Forest":
     df_imp = pd.DataFrame()
     try:
         from ml.models.random_forest import RandomForestModel
+
         files = list(ARTIFACTS.glob("random_forest*.joblib"))
         if files:
-            tag = files[0].stem.replace("random_forest","").lstrip("_")
+            tag = files[0].stem.replace("random_forest", "").lstrip("_")
             mod = RandomForestModel(artifact_dir=ARTIFACTS)
             mod.load(tag=tag)
             df_imp = mod.get_feature_importance(top_n=30)
@@ -590,18 +680,22 @@ elif page == "Random Forest":
 
     if not df_imp.empty:
         df_plot = df_imp.sort_values("importance")
-        fig = go.Figure(go.Bar(
-            x=df_plot["importance"],
-            y=df_plot["feature"],
-            orientation="h",
-            marker=dict(
-                color=df_plot["importance"],
-                colorscale=[[0, "#1c3a6e"], [1, C_MACRON]],
-                showscale=False,
-            ),
-            error_x=dict(array=df_plot.get("std", [0]*len(df_plot)), color="#495057"),
-            hovertemplate="%{y}<br>%{x:.5f}<extra></extra>",
-        ))
+        fig = go.Figure(
+            go.Bar(
+                x=df_plot["importance"],
+                y=df_plot["feature"],
+                orientation="h",
+                marker=dict(
+                    color=df_plot["importance"],
+                    colorscale=[[0, "#1c3a6e"], [1, C_MACRON]],
+                    showscale=False,
+                ),
+                error_x=dict(
+                    array=df_plot.get("std", [0] * len(df_plot)), color="#495057"
+                ),
+                hovertemplate="%{y}<br>%{x:.5f}<extra></extra>",
+            )
+        )
         fig.update_layout(
             **PLOT_LAYOUT,
             height=max(480, len(df_plot) * 22),
@@ -622,12 +716,15 @@ elif page == "Random Forest":
             col.metric(k, str(v))
 
 elif page == "Gradient Boosting":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>Gradient Boosting</h1>
         <div class="page-subtitle">Classification binaire avec filtrage anti-fuite T2</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     m = all_metrics.get("gradient_boosting", {})
     if not m:
@@ -636,11 +733,16 @@ elif page == "Gradient Boosting":
         st.stop()
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: metric4("Accuracy",  best_metric(m, ["val_accuracy","test_accuracy"]))
-    with c2: metric4("AUC-ROC",   m.get("test_roc_auc"))
-    with c3: metric4("CV AUC",    m.get("cv_roc_auc"))
-    with c4: metric4("CV AUC ±",  m.get("cv_roc_auc_std"))
-    with c5: metric4("Temps (s)", m.get("training_time_s"), fmt=".1f")
+    with c1:
+        metric4("Accuracy", best_metric(m, ["val_accuracy", "test_accuracy"]))
+    with c2:
+        metric4("AUC-ROC", m.get("test_roc_auc"))
+    with c3:
+        metric4("CV AUC", m.get("cv_roc_auc"))
+    with c4:
+        metric4("CV AUC ±", m.get("cv_roc_auc_std"))
+    with c5:
+        metric4("Temps (s)", m.get("training_time_s"), fmt=".1f")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -665,9 +767,10 @@ elif page == "Gradient Boosting":
     df_imp = pd.DataFrame()
     try:
         from ml.models.gradient_boosting import GradientBoostingModel
+
         files = list(ARTIFACTS.glob("gradient_boosting*.joblib"))
         if files:
-            tag = files[0].stem.replace("gradient_boosting","").lstrip("_")
+            tag = files[0].stem.replace("gradient_boosting", "").lstrip("_")
             mod = GradientBoostingModel(artifact_dir=ARTIFACTS)
             mod.load(tag=tag)
             df_imp = mod.get_feature_importance(top_n=30)
@@ -676,17 +779,19 @@ elif page == "Gradient Boosting":
 
     if not df_imp.empty:
         df_plot = df_imp.sort_values("importance")
-        fig = go.Figure(go.Bar(
-            x=df_plot["importance"],
-            y=df_plot["feature"],
-            orientation="h",
-            marker=dict(
-                color=df_plot["importance"],
-                colorscale=[[0, "#2d1f1f"], [1, C_LEPEN]],
-                showscale=False,
-            ),
-            hovertemplate="%{y}<br>%{x:.5f}<extra></extra>",
-        ))
+        fig = go.Figure(
+            go.Bar(
+                x=df_plot["importance"],
+                y=df_plot["feature"],
+                orientation="h",
+                marker=dict(
+                    color=df_plot["importance"],
+                    colorscale=[[0, "#2d1f1f"], [1, C_LEPEN]],
+                    showscale=False,
+                ),
+                hovertemplate="%{y}<br>%{x:.5f}<extra></extra>",
+            )
+        )
         fig.update_layout(
             **PLOT_LAYOUT,
             height=max(480, len(df_plot) * 22),
@@ -713,14 +818,17 @@ elif page == "Gradient Boosting":
             col.metric(k, str(v))
 
 elif page == "LSTM":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>LSTM</h1>
         <div class="page-subtitle">
             Architecture duale — sequences temporelles (2012 / 2017 / 2022-T1) + features socio-economiques
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     m = all_metrics.get("lstm", {})
     if not m:
@@ -729,11 +837,16 @@ elif page == "LSTM":
         st.stop()
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: metric4("Val Accuracy", m.get("val_accuracy"))
-    with c2: metric4("Val AUC",      m.get("val_auc"))
-    with c3: metric4("Best Val AUC", m.get("best_val_auc"))
-    with c4: metric4("Epoques",      m.get("epochs_trained"))
-    with c5: metric4("Temps (s)",    m.get("training_time_s"), fmt=".1f")
+    with c1:
+        metric4("Val Accuracy", m.get("val_accuracy"))
+    with c2:
+        metric4("Val AUC", m.get("val_auc"))
+    with c3:
+        metric4("Best Val AUC", m.get("best_val_auc"))
+    with c4:
+        metric4("Epoques", m.get("epochs_trained"))
+    with c5:
+        metric4("Temps (s)", m.get("training_time_s"), fmt=".1f")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -785,17 +898,20 @@ elif page == "LSTM":
             metric4(k, v)
 
 elif page == "Predictions":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>Predictions par commune</h1>
         <div class="page-subtitle">Resultats des modeles sur l'ensemble des communes IDF</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     available_models = {
-        "random_forest":     "rf",
+        "random_forest": "rf",
         "gradient_boosting": "gb",
-        "lstm":              "lstm",
+        "lstm": "lstm",
     }
     trained_models = {k: v for k, v in available_models.items() if k in all_metrics}
 
@@ -812,8 +928,8 @@ elif page == "Predictions":
             list(trained_models.keys()),
             format_func=lambda k: MODEL_LABELS.get(k, k),
         )
-    prefix   = trained_models[sel_model]
-    df_pred  = load_predictions_df(prefix)
+    prefix = trained_models[sel_model]
+    df_pred = load_predictions_df(prefix)
 
     if df_pred.empty:
         st.warning(f"Pas de fichier de predictions pour {sel_model}.")
@@ -822,7 +938,8 @@ elif page == "Predictions":
     with col_dept:
         depts = ["Tous"] + (
             sorted(df_pred["code_departement"].astype(str).unique().tolist())
-            if "code_departement" in df_pred.columns else []
+            if "code_departement" in df_pred.columns
+            else []
         )
         dept_f = st.selectbox("Departement", depts)
 
@@ -843,22 +960,30 @@ elif page == "Predictions":
     if "correct" in df_show.columns and len(df_show) > 0:
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Accuracy", f"{df_show['correct'].mean():.1%}")
-        col_b.metric("Erreurs",  int((df_show["correct"] == 0).sum()))
+        col_b.metric("Erreurs", int((df_show["correct"] == 0).sum()))
         col_c.metric("Correctes", int(df_show["correct"].sum()))
 
-    display_cols = [c for c in [
-        "libelle_commune", "code_departement",
-        "vainqueur_predit", "ground_truth", "correct",
-        "proba_macron", "proba_lepen",
-    ] if c in df_show.columns]
+    display_cols = [
+        c
+        for c in [
+            "libelle_commune",
+            "code_departement",
+            "vainqueur_predit",
+            "ground_truth",
+            "correct",
+            "proba_macron",
+            "proba_lepen",
+        ]
+        if c in df_show.columns
+    ]
 
     rename_map = {
         "vainqueur_predit": "Predit",
-        "ground_truth":     "Reel",
-        "correct":          "OK",
-        "proba_macron":     "P(Macron)",
-        "proba_lepen":      "P(Le Pen)",
-        "libelle_commune":  "Commune",
+        "ground_truth": "Reel",
+        "correct": "OK",
+        "proba_macron": "P(Macron)",
+        "proba_lepen": "P(Le Pen)",
+        "libelle_commune": "Commune",
         "code_departement": "Dept",
     }
 
@@ -868,7 +993,9 @@ elif page == "Predictions":
         return [f"background-color:{bg}"] * len(row)
 
     st.dataframe(
-        df_show[display_cols].rename(columns=rename_map).style.apply(_color_row, axis=1),
+        df_show[display_cols]
+        .rename(columns=rename_map)
+        .style.apply(_color_row, axis=1),
         width="stretch",
         height=400,
     )
@@ -882,18 +1009,20 @@ elif page == "Predictions":
             st.markdown("#### Precision par departement")
             dept_acc = (
                 df_pred.groupby("code_departement")["correct"]
-                .agg(["sum","count"])
+                .agg(["sum", "count"])
                 .reset_index()
             )
             dept_acc["accuracy"] = dept_acc["sum"] / dept_acc["count"]
             dept_acc = dept_acc.sort_values("code_departement")
-            fig = go.Figure(go.Bar(
-                x=dept_acc["code_departement"].astype(str),
-                y=dept_acc["accuracy"],
-                marker_color=C_MACRON,
-                text=[f"{v:.1%}" for v in dept_acc["accuracy"]],
-                textposition="outside",
-            ))
+            fig = go.Figure(
+                go.Bar(
+                    x=dept_acc["code_departement"].astype(str),
+                    y=dept_acc["accuracy"],
+                    marker_color=C_MACRON,
+                    text=[f"{v:.1%}" for v in dept_acc["accuracy"]],
+                    textposition="outside",
+                )
+            )
             fig.update_layout(
                 **PLOT_LAYOUT,
                 yaxis=dict(tickformat=".0%", range=[0, 1.1], gridcolor="#22252e"),
@@ -906,38 +1035,56 @@ elif page == "Predictions":
         if "proba_lepen" in df_pred.columns:
             st.markdown("#### Distribution P(Le Pen)")
             fig = px.histogram(
-                df_pred, x="proba_lepen", nbins=50,
-                color="vainqueur_predit" if "vainqueur_predit" in df_pred.columns else None,
+                df_pred,
+                x="proba_lepen",
+                nbins=50,
+                color=(
+                    "vainqueur_predit"
+                    if "vainqueur_predit" in df_pred.columns
+                    else None
+                ),
                 color_discrete_map={"Macron": C_MACRON, "Le Pen": C_LEPEN},
                 labels={"proba_lepen": "P(Le Pen)", "count": "Communes"},
             )
-            fig.add_vline(x=0.5, line_dash="dot", line_color="#6b7280",
-                          annotation_text="0.5", annotation_font_color="#6b7280")
-            fig.update_layout(**PLOT_LAYOUT, height=320,
-                              legend=dict(orientation="h", y=1.05))
+            fig.add_vline(
+                x=0.5,
+                line_dash="dot",
+                line_color="#6b7280",
+                annotation_text="0.5",
+                annotation_font_color="#6b7280",
+            )
+            fig.update_layout(
+                **PLOT_LAYOUT, height=320, legend=dict(orientation="h", y=1.05)
+            )
             st.plotly_chart(fig, width="stretch")
 
 elif page == "Comparaison":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>Comparaison des modeles</h1>
         <div class="page-subtitle">Performance comparee sur les metriques principales</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     cols = st.columns(5)
     for col, (key, label) in zip(cols, MODEL_LABELS.items()):
         with col:
             trained = key in all_metrics
-            border  = "#3b5bdb" if trained else "#22252e"
-            status  = "Entraine" if trained else "—"
+            border = "#3b5bdb" if trained else "#22252e"
+            status = "Entraine" if trained else "—"
             acc_val = ""
             if trained:
-                acc = best_metric(all_metrics[key], ["val_accuracy","test_accuracy"])
-                auc = best_metric(all_metrics[key], ["val_auc","test_auc","test_roc_auc"])
+                acc = best_metric(all_metrics[key], ["val_accuracy", "test_accuracy"])
+                auc = best_metric(
+                    all_metrics[key], ["val_auc", "test_auc", "test_roc_auc"]
+                )
                 acc_val = f"{acc:.3f}" if acc else "—"
                 auc_val = f"{auc:.3f}" if auc else "—"
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="border:1px solid {border};border-radius:6px;padding:1rem;
                         background:#1c1f29;min-height:90px">
                 <div style="font-size:0.75rem;font-weight:500;color:#9095a8;
@@ -946,18 +1093,22 @@ elif page == "Comparaison":
                             margin-bottom:0.5rem">{status}</div>
                 {"<div style='font-size:0.72rem;color:#6b7280;font-family:JetBrains Mono,monospace'>Acc " + acc_val + " / AUC " + auc_val + "</div>" if trained else ""}
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
     if len(all_metrics) < 2:
-        st.info(f"Entrainez au moins 2 modeles pour la comparaison. ({len(all_metrics)}/5)")
+        st.info(
+            f"Entrainez au moins 2 modeles pour la comparaison. ({len(all_metrics)}/5)"
+        )
         st.stop()
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
     METRIC_GROUPS = {
-        "Accuracy":  ["val_accuracy","test_accuracy"],
-        "AUC-ROC":   ["val_auc","test_auc","test_roc_auc"],
-        "F1":        ["val_f1","test_f1"],
+        "Accuracy": ["val_accuracy", "test_accuracy"],
+        "AUC-ROC": ["val_auc", "test_auc", "test_roc_auc"],
+        "F1": ["val_f1", "test_f1"],
     }
     COLORS = [C_MACRON, C_LEPEN, "#40c057", "#d9770a", "#9775fa"]
 
@@ -965,20 +1116,23 @@ elif page == "Comparaison":
     cols_plot = [col_a, col_b, col_a, col_b]
 
     for idx, (group_name, keys) in enumerate(METRIC_GROUPS.items()):
-        data = {MODEL_LABELS.get(n, n): best_metric(m, keys)
-                for n, m in all_metrics.items()}
+        data = {
+            MODEL_LABELS.get(n, n): best_metric(m, keys) for n, m in all_metrics.items()
+        }
         data = {k: v for k, v in data.items() if v is not None}
         if not data:
             continue
 
-        fig = go.Figure(go.Bar(
-            x=list(data.keys()),
-            y=list(data.values()),
-            marker_color=COLORS[:len(data)],
-            text=[f"{v:.4f}" for v in data.values()],
-            textposition="outside",
-            textfont=dict(size=11),
-        ))
+        fig = go.Figure(
+            go.Bar(
+                x=list(data.keys()),
+                y=list(data.values()),
+                marker_color=COLORS[: len(data)],
+                text=[f"{v:.4f}" for v in data.values()],
+                textposition="outside",
+                textfont=dict(size=11),
+            )
+        )
         ymax = max(data.values()) * 1.18 if data else 1
         fig.update_layout(
             **PLOT_LAYOUT,
@@ -992,32 +1146,39 @@ elif page == "Comparaison":
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("#### Profil global")
 
-    radar_metrics = ["val_accuracy","val_auc","val_f1"]
-    eligible = {n: m for n, m in all_metrics.items()
-                if any(k in m for k in radar_metrics)}
+    radar_metrics = ["val_accuracy", "val_auc", "val_f1"]
+    eligible = {
+        n: m for n, m in all_metrics.items() if any(k in m for k in radar_metrics)
+    }
 
     if eligible:
         fig = go.Figure()
         categories = ["Accuracy", "AUC-ROC", "F1"]
         for (name, m), color in zip(eligible.items(), COLORS):
             values = [
-                best_metric(m, ["val_accuracy","test_accuracy"]) or 0,
-                best_metric(m, ["val_auc","test_auc","test_roc_auc"]) or 0,
-                best_metric(m, ["val_f1","test_f1"]) or 0,
+                best_metric(m, ["val_accuracy", "test_accuracy"]) or 0,
+                best_metric(m, ["val_auc", "test_auc", "test_roc_auc"]) or 0,
+                best_metric(m, ["val_f1", "test_f1"]) or 0,
             ]
-            fig.add_trace(go.Scatterpolar(
-                r=values + [values[0]],
-                theta=categories + [categories[0]],
-                fill="toself",
-                name=MODEL_LABELS.get(name, name),
-                line_color=color,
-                fillcolor=color,
-                opacity=0.15,
-            ))
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=values + [values[0]],
+                    theta=categories + [categories[0]],
+                    fill="toself",
+                    name=MODEL_LABELS.get(name, name),
+                    line_color=color,
+                    fillcolor=color,
+                    opacity=0.15,
+                )
+            )
         fig.update_layout(
             polar=dict(
-                radialaxis=dict(visible=True, range=[0, 1],
-                                gridcolor="#22252e", tickfont=dict(size=9, color="#6b7280")),
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, 1],
+                    gridcolor="#22252e",
+                    tickfont=dict(size=9, color="#6b7280"),
+                ),
                 angularaxis=dict(gridcolor="#22252e"),
                 bgcolor="#16181f",
             ),
@@ -1030,26 +1191,39 @@ elif page == "Comparaison":
         st.plotly_chart(fig, width="stretch")
 
 elif page == "Stats":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>Stats</h1>
         <div class="page-subtitle">Metriques brutes, distribution des features, configuration ML</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "Artefacts", "Metriques JSON", "Dataset", "Features", "Config",
-    ])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        [
+            "Artefacts",
+            "Metriques JSON",
+            "Dataset",
+            "Features",
+            "Config",
+        ]
+    )
 
     with tab1:
         st.markdown("#### Fichiers generes")
         if ARTIFACTS.exists():
             files = sorted(ARTIFACTS.iterdir())
-            data  = [{
-                "Fichier": f.name,
-                "Taille":  f"{f.stat().st_size / 1024:.1f} KB",
-                "Type":    f.suffix,
-            } for f in files if f.is_file()]
+            data = [
+                {
+                    "Fichier": f.name,
+                    "Taille": f"{f.stat().st_size / 1024:.1f} KB",
+                    "Type": f.suffix,
+                }
+                for f in files
+                if f.is_file()
+            ]
             if data:
                 st.dataframe(pd.DataFrame(data), width="stretch")
             else:
@@ -1062,8 +1236,13 @@ elif page == "Stats":
         if all_metrics:
             for name, metrics in all_metrics.items():
                 with st.expander(MODEL_LABELS.get(name, name), expanded=True):
-                    st.json({k: v for k, v in metrics.items()
-                             if not isinstance(v, (list, np.ndarray))})
+                    st.json(
+                        {
+                            k: v
+                            for k, v in metrics.items()
+                            if not isinstance(v, (list, np.ndarray))
+                        }
+                    )
         else:
             st.info("Aucune metrique disponible. Lancez l'entrainement.")
 
@@ -1071,22 +1250,25 @@ elif page == "Stats":
         st.markdown("#### Dataset")
         if len(df_main):
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Communes",   len(df_main))
-            c2.metric("Colonnes",   len(df_main.columns))
-            c3.metric("Nulls",      int(df_main.isnull().sum().sum()))
-            c4.metric("Doublons",   int(df_main.duplicated().sum()))
+            c1.metric("Communes", len(df_main))
+            c2.metric("Colonnes", len(df_main.columns))
+            c3.metric("Nulls", int(df_main.isnull().sum().sum()))
+            c4.metric("Doublons", int(df_main.duplicated().sum()))
 
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("#### Variables cibles 2022")
-            cible_cols = [c for c in df_main.columns if c.startswith("cible_") and "pct" in c]
+            cible_cols = [
+                c for c in df_main.columns if c.startswith("cible_") and "pct" in c
+            ]
             if cible_cols:
                 st.dataframe(df_main[cible_cols].describe().round(3), width="stretch")
 
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("#### Communes par departement")
             dept_df = (
-                df_main.groupby(["code_departement","libelle_departement"])
-                .agg(n_communes=("code_commune","count")).reset_index()
+                df_main.groupby(["code_departement", "libelle_departement"])
+                .agg(n_communes=("code_commune", "count"))
+                .reset_index()
             )
             st.dataframe(dept_df, width="stretch")
         else:
@@ -1095,18 +1277,27 @@ elif page == "Stats":
     with tab4:
         st.markdown("#### Distribution des features")
         if len(df_main):
-            num_cols = sorted([c for c in df_main.select_dtypes("number").columns
-                               if not c.startswith("cible_")])
+            num_cols = sorted(
+                [
+                    c
+                    for c in df_main.select_dtypes("number").columns
+                    if not c.startswith("cible_")
+                ]
+            )
             feat = st.selectbox("Feature", num_cols, label_visibility="collapsed")
 
             col1, col2 = st.columns(2)
             with col1:
                 fig = px.histogram(
-                    df_main, x=feat, nbins=50,
+                    df_main,
+                    x=feat,
+                    nbins=50,
                     labels={feat: feat, "count": "Communes"},
                     color_discrete_sequence=[C_MACRON],
                 )
-                fig.update_layout(**PLOT_LAYOUT, title=dict(text="Distribution", font=dict(size=12)))
+                fig.update_layout(
+                    **PLOT_LAYOUT, title=dict(text="Distribution", font=dict(size=12))
+                )
                 st.plotly_chart(fig, width="stretch")
 
             with col2:
@@ -1115,32 +1306,43 @@ elif page == "Stats":
                         df_main,
                         x=df_main["cible_t2_vainqueur"].map({0: "Macron", 1: "Le Pen"}),
                         y=feat,
-                        color=df_main["cible_t2_vainqueur"].map({0: "Macron", 1: "Le Pen"}),
+                        color=df_main["cible_t2_vainqueur"].map(
+                            {0: "Macron", 1: "Le Pen"}
+                        ),
                         color_discrete_map={"Macron": C_MACRON, "Le Pen": C_LEPEN},
                     )
-                    fig2.update_layout(**PLOT_LAYOUT, showlegend=False,
-                                       title=dict(text="Par vainqueur T2", font=dict(size=12)))
+                    fig2.update_layout(
+                        **PLOT_LAYOUT,
+                        showlegend=False,
+                        title=dict(text="Par vainqueur T2", font=dict(size=12)),
+                    )
                     st.plotly_chart(fig2, width="stretch")
 
             if "cible_t2_pct_lepen" in df_main.columns:
-                corr     = df_main[num_cols].corrwith(df_main["cible_t2_pct_lepen"]).dropna()
+                corr = (
+                    df_main[num_cols].corrwith(df_main["cible_t2_pct_lepen"]).dropna()
+                )
                 top_corr = corr.abs().nlargest(20).index
-                vals     = corr[top_corr]
+                vals = corr[top_corr]
 
-                fig3 = go.Figure(go.Bar(
-                    x=vals.values,
-                    y=vals.index,
-                    orientation="h",
-                    marker=dict(
-                        color=vals.values,
-                        colorscale=[[0, C_MACRON], [0.5, "#22252e"], [1, C_LEPEN]],
-                        cmid=0,
-                        showscale=True,
-                    ),
-                ))
+                fig3 = go.Figure(
+                    go.Bar(
+                        x=vals.values,
+                        y=vals.index,
+                        orientation="h",
+                        marker=dict(
+                            color=vals.values,
+                            colorscale=[[0, C_MACRON], [0.5, "#22252e"], [1, C_LEPEN]],
+                            cmid=0,
+                            showscale=True,
+                        ),
+                    )
+                )
                 fig3.update_layout(
                     **PLOT_LAYOUT,
-                    title=dict(text="Correlation avec % Le Pen T2 (top 20)", font=dict(size=12)),
+                    title=dict(
+                        text="Correlation avec % Le Pen T2 (top 20)", font=dict(size=12)
+                    ),
                     margin=dict(t=30, b=20, l=200, r=80),
                     yaxis=dict(tickfont=dict(size=10)),
                     height=460,
@@ -1151,7 +1353,14 @@ elif page == "Stats":
 
     with tab5:
         st.markdown("#### Configuration ML")
-        from ml.config import FEATURE_SETS, TARGETS, GB_BEST_PARAMS, LSTM_CONFIG, CV_FOLDS, TEST_SIZE
+        from ml.config import (
+            FEATURE_SETS,
+            TARGETS,
+            GB_BEST_PARAMS,
+            LSTM_CONFIG,
+            CV_FOLDS,
+            TEST_SIZE,
+        )
 
         col1, col2 = st.columns(2)
         with col1:
@@ -1171,14 +1380,17 @@ elif page == "Stats":
             st.json(LSTM_CONFIG)
 
 if page == "Résultats DB":
-    st.markdown("""
+    st.markdown(
+        """
     <div class="page-header">
         <h1>Résultats ML — Base de données</h1>
         <div class="page-subtitle">
             Prédictions et métriques stockées dans PostgreSQL après entraînement
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     if not DB_CONNECTED:
         st.error(
@@ -1191,18 +1403,18 @@ if page == "Résultats DB":
             language="bash",
         )
     else:
-        df_metrics  = load_db_metrics()
+        df_metrics = load_db_metrics()
         df_preds_all = load_db_predictions()
 
         models_in_db = df_metrics["model_name"].nunique() if not df_metrics.empty else 0
-        preds_count  = len(df_preds_all)
+        preds_count = len(df_preds_all)
         communes_count = df_preds_all["code_commune"].nunique() if preds_count else 0
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Modèles en DB",        models_in_db)
-        c2.metric("Prédictions totales",  f"{preds_count:,}")
-        c3.metric("Communes couvertes",   f"{communes_count:,}")
-        c4.metric("Connexion",            "✓ OK")
+        c1.metric("Modèles en DB", models_in_db)
+        c2.metric("Prédictions totales", f"{preds_count:,}")
+        c3.metric("Communes couvertes", f"{communes_count:,}")
+        c4.metric("Connexion", "✓ OK")
 
         st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -1213,41 +1425,46 @@ if page == "Résultats DB":
             )
         else:
             st.markdown("#### Métriques par modèle")
-            pivot = (
-                df_metrics
-                .pivot_table(
-                    index=["model_name", "feature_set", "target"],
-                    columns="metric_name",
-                    values="metric_value",
-                    aggfunc="last",
-                )
-                .reset_index()
-            )
+            pivot = df_metrics.pivot_table(
+                index=["model_name", "feature_set", "target"],
+                columns="metric_name",
+                values="metric_value",
+                aggfunc="last",
+            ).reset_index()
             st.dataframe(pivot, use_container_width=True)
 
             st.markdown("#### Comparaison des précisions")
             acc_col = next(
-                (c for c in df_metrics["metric_name"].unique()
-                 if "accuracy" in c.lower()),
+                (
+                    c
+                    for c in df_metrics["metric_name"].unique()
+                    if "accuracy" in c.lower()
+                ),
                 None,
             )
             if acc_col:
                 df_acc = df_metrics[df_metrics["metric_name"] == acc_col].copy()
                 fig_acc = px.bar(
                     df_acc.sort_values("metric_value", ascending=True),
-                    x="metric_value", y="model_name",
+                    x="metric_value",
+                    y="model_name",
                     color="feature_set",
                     barmode="group",
                     orientation="h",
-                    labels={"metric_value": "Accuracy", "model_name": "Modèle",
-                            "feature_set": "Feature set"},
+                    labels={
+                        "metric_value": "Accuracy",
+                        "model_name": "Modèle",
+                        "feature_set": "Feature set",
+                    },
                     color_discrete_sequence=px.colors.qualitative.Set2,
                 )
                 fig_acc.update_layout(
-                    paper_bgcolor="#16181f", plot_bgcolor="#1a1d27",
+                    paper_bgcolor="#16181f",
+                    plot_bgcolor="#1a1d27",
                     font=dict(color="#9095a8"),
                     xaxis=dict(range=[0.5, 1.0], tickformat=".1%"),
-                    height=320, margin=dict(t=20, b=20),
+                    height=320,
+                    margin=dict(t=20, b=20),
                 )
                 st.plotly_chart(fig_acc, use_container_width=True)
 
@@ -1259,14 +1476,16 @@ if page == "Résultats DB":
             df_sel = df_preds_all[df_preds_all["model_name"] == sel].copy()
 
             if not df_sel.empty:
-                has_correct = "correct" in df_sel.columns and df_sel["correct"].notna().any()
+                has_correct = (
+                    "correct" in df_sel.columns and df_sel["correct"].notna().any()
+                )
                 if has_correct:
-                    acc_val  = df_sel["correct"].astype(float).mean()
-                    n_ok     = df_sel["correct"].astype(bool).sum()
-                    n_ko     = (~df_sel["correct"].astype(bool)).sum()
+                    acc_val = df_sel["correct"].astype(float).mean()
+                    n_ok = df_sel["correct"].astype(bool).sum()
+                    n_ko = (~df_sel["correct"].astype(bool)).sum()
                     k1, k2, k3 = st.columns(3)
-                    k1.metric("Accuracy globale",    f"{acc_val:.1%}")
-                    k2.metric("Communes correctes",  f"{n_ok:,}")
+                    k1.metric("Accuracy globale", f"{acc_val:.1%}")
+                    k2.metric("Communes correctes", f"{n_ok:,}")
                     k3.metric("Communes incorrectes", f"{n_ko:,}")
 
                 col_l, col_r = st.columns(2)
@@ -1274,59 +1493,91 @@ if page == "Résultats DB":
                 with col_l:
                     if "prediction" in df_sel.columns:
                         pred_counts = (
-                            df_sel["prediction"].map({"0": "Macron", "1": "Le Pen",
-                                                      0: "Macron", 1: "Le Pen"})
-                            .value_counts().reset_index()
+                            df_sel["prediction"]
+                            .map(
+                                {"0": "Macron", "1": "Le Pen", 0: "Macron", 1: "Le Pen"}
+                            )
+                            .value_counts()
+                            .reset_index()
                         )
                         fig_pred = px.bar(
-                            pred_counts, x="prediction", y="count",
+                            pred_counts,
+                            x="prediction",
+                            y="count",
                             color="prediction",
                             color_discrete_map={"Macron": C_MACRON, "Le Pen": C_LEPEN},
                             labels={"prediction": "Prédit", "count": "Communes"},
                             title="Distribution des prédictions",
                         )
                         fig_pred.update_layout(
-                            paper_bgcolor="#16181f", plot_bgcolor="#1a1d27",
-                            font=dict(color="#9095a8"), showlegend=False,
-                            height=260, margin=dict(t=30, b=20),
+                            paper_bgcolor="#16181f",
+                            plot_bgcolor="#1a1d27",
+                            font=dict(color="#9095a8"),
+                            showlegend=False,
+                            height=260,
+                            margin=dict(t=30, b=20),
                         )
                         st.plotly_chart(fig_pred, use_container_width=True)
 
                 with col_r:
                     if "ground_truth" in df_sel.columns:
                         gt_counts = (
-                            df_sel["ground_truth"].map({"0": "Macron", "1": "Le Pen",
-                                                        0: "Macron", 1: "Le Pen"})
-                            .value_counts().reset_index()
+                            df_sel["ground_truth"]
+                            .map(
+                                {"0": "Macron", "1": "Le Pen", 0: "Macron", 1: "Le Pen"}
+                            )
+                            .value_counts()
+                            .reset_index()
                         )
                         fig_gt = px.bar(
-                            gt_counts, x="ground_truth", y="count",
+                            gt_counts,
+                            x="ground_truth",
+                            y="count",
                             color="ground_truth",
                             color_discrete_map={"Macron": C_MACRON, "Le Pen": C_LEPEN},
                             labels={"ground_truth": "Réel", "count": "Communes"},
                             title="Distribution réelle (vérité terrain)",
                         )
                         fig_gt.update_layout(
-                            paper_bgcolor="#16181f", plot_bgcolor="#1a1d27",
-                            font=dict(color="#9095a8"), showlegend=False,
-                            height=260, margin=dict(t=30, b=20),
+                            paper_bgcolor="#16181f",
+                            plot_bgcolor="#1a1d27",
+                            font=dict(color="#9095a8"),
+                            showlegend=False,
+                            height=260,
+                            margin=dict(t=30, b=20),
                         )
                         st.plotly_chart(fig_gt, use_container_width=True)
 
-                if (has_correct and "prediction" in df_sel.columns
-                        and "ground_truth" in df_sel.columns):
+                if (
+                    has_correct
+                    and "prediction" in df_sel.columns
+                    and "ground_truth" in df_sel.columns
+                ):
                     st.markdown("##### Matrice de confusion (données DB)")
-                    labels_map = {"0": "Macron", "1": "Le Pen", 0: "Macron", 1: "Le Pen"}
+                    labels_map = {
+                        "0": "Macron",
+                        "1": "Le Pen",
+                        0: "Macron",
+                        1: "Le Pen",
+                    }
                     df_cm = df_sel.copy()
-                    df_cm["pred_lbl"] = df_cm["prediction"].map(labels_map).fillna(df_cm["prediction"])
-                    df_cm["true_lbl"] = df_cm["ground_truth"].map(labels_map).fillna(df_cm["ground_truth"])
+                    df_cm["pred_lbl"] = (
+                        df_cm["prediction"].map(labels_map).fillna(df_cm["prediction"])
+                    )
+                    df_cm["true_lbl"] = (
+                        df_cm["ground_truth"]
+                        .map(labels_map)
+                        .fillna(df_cm["ground_truth"])
+                    )
 
                     cm_df = (
                         df_cm.groupby(["true_lbl", "pred_lbl"])
                         .size()
                         .reset_index(name="count")
                     )
-                    cm_pivot = cm_df.pivot(index="true_lbl", columns="pred_lbl", values="count").fillna(0)
+                    cm_pivot = cm_df.pivot(
+                        index="true_lbl", columns="pred_lbl", values="count"
+                    ).fillna(0)
 
                     fig_cm = px.imshow(
                         cm_pivot,
@@ -1336,29 +1587,52 @@ if page == "Résultats DB":
                         title=f"Matrice de confusion — {sel}",
                     )
                     fig_cm.update_layout(
-                        paper_bgcolor="#16181f", plot_bgcolor="#1a1d27",
+                        paper_bgcolor="#16181f",
+                        plot_bgcolor="#1a1d27",
                         font=dict(color="#9095a8"),
-                        height=320, margin=dict(t=40, b=20),
+                        height=320,
+                        margin=dict(t=40, b=20),
                     )
                     st.plotly_chart(fig_cm, use_container_width=True)
 
-                if "probability" in df_sel.columns and df_sel["probability"].notna().any():
+                if (
+                    "probability" in df_sel.columns
+                    and df_sel["probability"].notna().any()
+                ):
                     st.markdown("##### Distribution des probabilités de prédiction")
                     df_prob = df_sel[df_sel["probability"].notna()].copy()
-                    df_prob["correct_lbl"] = df_prob["correct"].map(
-                        {True: "Correct", False: "Incorrect", 1: "Correct", 0: "Incorrect"}
-                    ).fillna("Inconnu")
+                    df_prob["correct_lbl"] = (
+                        df_prob["correct"]
+                        .map(
+                            {
+                                True: "Correct",
+                                False: "Incorrect",
+                                1: "Correct",
+                                0: "Incorrect",
+                            }
+                        )
+                        .fillna("Inconnu")
+                    )
                     fig_prob = px.histogram(
-                        df_prob, x="probability", color="correct_lbl",
-                        nbins=40, barmode="overlay", opacity=0.7,
+                        df_prob,
+                        x="probability",
+                        color="correct_lbl",
+                        nbins=40,
+                        barmode="overlay",
+                        opacity=0.7,
                         color_discrete_map={"Correct": C_MACRON, "Incorrect": C_LEPEN},
-                        labels={"probability": "Probabilité prédite", "count": "Communes"},
+                        labels={
+                            "probability": "Probabilité prédite",
+                            "count": "Communes",
+                        },
                         title="Confiance du modèle vs correction",
                     )
                     fig_prob.update_layout(
-                        paper_bgcolor="#16181f", plot_bgcolor="#1a1d27",
+                        paper_bgcolor="#16181f",
+                        plot_bgcolor="#1a1d27",
                         font=dict(color="#9095a8"),
-                        height=300, margin=dict(t=40, b=20),
+                        height=300,
+                        margin=dict(t=40, b=20),
                     )
                     st.plotly_chart(fig_prob, use_container_width=True)
 
@@ -1370,30 +1644,44 @@ if page == "Résultats DB":
                         .reset_index()
                     )
                     DEPT_NAMES = {
-                        "75": "Paris (75)", "77": "S&M (77)", "78": "Yvelines (78)",
-                        "91": "Essonne (91)", "92": "Hts-de-Seine (92)",
-                        "93": "Seine-St-Denis (93)", "94": "Val-de-Marne (94)",
+                        "75": "Paris (75)",
+                        "77": "S&M (77)",
+                        "78": "Yvelines (78)",
+                        "91": "Essonne (91)",
+                        "92": "Hts-de-Seine (92)",
+                        "93": "Seine-St-Denis (93)",
+                        "94": "Val-de-Marne (94)",
                         "95": "Val-d'Oise (95)",
                     }
-                    df_dept["dept_label"] = df_dept["code_departement"].map(
-                        DEPT_NAMES
-                    ).fillna(df_dept["code_departement"])
+                    df_dept["dept_label"] = (
+                        df_dept["code_departement"]
+                        .map(DEPT_NAMES)
+                        .fillna(df_dept["code_departement"])
+                    )
                     fig_dept = px.bar(
                         df_dept.sort_values("accuracy"),
-                        x="accuracy", y="dept_label",
+                        x="accuracy",
+                        y="dept_label",
                         orientation="h",
                         text=df_dept["accuracy"].map("{:.1%}".format),
                         labels={"accuracy": "Accuracy", "dept_label": "Département"},
                         color="accuracy",
-                        color_continuous_scale=[[0, C_LEPEN], [0.5, "#8b9ab0"], [1, C_MACRON]],
+                        color_continuous_scale=[
+                            [0, C_LEPEN],
+                            [0.5, "#8b9ab0"],
+                            [1, C_MACRON],
+                        ],
                         range_color=[0.7, 1.0],
                         title=f"Accuracy par département — {sel}",
                     )
                     fig_dept.update_traces(textposition="outside")
                     fig_dept.update_layout(
-                        paper_bgcolor="#16181f", plot_bgcolor="#1a1d27",
-                        font=dict(color="#9095a8"), coloraxis_showscale=False,
-                        height=340, margin=dict(t=40, b=20, l=140, r=60),
+                        paper_bgcolor="#16181f",
+                        plot_bgcolor="#1a1d27",
+                        font=dict(color="#9095a8"),
+                        coloraxis_showscale=False,
+                        height=340,
+                        margin=dict(t=40, b=20, l=140, r=60),
                         xaxis=dict(tickformat=".0%"),
                     )
                     st.plotly_chart(fig_dept, use_container_width=True)
@@ -1402,17 +1690,27 @@ if page == "Résultats DB":
                     wrong_df = df_sel[~df_sel["correct"].astype(bool)].copy()
                     if not wrong_df.empty:
                         st.markdown(f"##### Communes mal prédites ({len(wrong_df)})")
-                        disp_cols = [c for c in ["libelle_commune", "code_departement",
-                                                  "prediction", "ground_truth", "probability"]
-                                     if c in wrong_df.columns]
+                        disp_cols = [
+                            c
+                            for c in [
+                                "libelle_commune",
+                                "code_departement",
+                                "prediction",
+                                "ground_truth",
+                                "probability",
+                            ]
+                            if c in wrong_df.columns
+                        ]
                         st.dataframe(
-                            wrong_df[disp_cols].rename(columns={
-                                "libelle_commune":    "Commune",
-                                "code_departement":   "Dept",
-                                "prediction":         "Prédit",
-                                "ground_truth":       "Réel",
-                                "probability":        "Prob.",
-                            }),
+                            wrong_df[disp_cols].rename(
+                                columns={
+                                    "libelle_commune": "Commune",
+                                    "code_departement": "Dept",
+                                    "prediction": "Prédit",
+                                    "ground_truth": "Réel",
+                                    "probability": "Prob.",
+                                }
+                            ),
                             use_container_width=True,
                             height=280,
                         )
@@ -1431,7 +1729,6 @@ st.markdown(
     '<div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap">'
     + "".join(status_parts)
     + f'<span style="color:#495057;font-size:0.75rem;margin-left:auto">'
-    f'{len(all_metrics)}/5 modeles entraines</span>'
-    + "</div>",
+    f"{len(all_metrics)}/5 modeles entraines</span>" + "</div>",
     unsafe_allow_html=True,
 )

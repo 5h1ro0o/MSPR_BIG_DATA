@@ -23,6 +23,7 @@ Usage prévu :
     model.plot_training_curve()   # courbe loss
     model.save()
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,23 +33,24 @@ import numpy as np
 import pandas as pd
 
 from ml.models.base import BaseModel
-from ml.config import RANDOM_STATE, ARTIFACTS
+from ml.config import ARTIFACTS
 
 MLP_PARAM_GRID_SKLEARN = {
     "mlp__hidden_layer_sizes": [(64, 32), (128, 64), (128, 64, 32), (256, 128, 64)],
-    "mlp__activation":         ["relu", "tanh"],
-    "mlp__alpha":              [0.0001, 0.001, 0.01],
+    "mlp__activation": ["relu", "tanh"],
+    "mlp__alpha": [0.0001, 0.001, 0.01],
     "mlp__learning_rate_init": [0.001, 0.01],
-    "mlp__max_iter":           [200, 500],
-    "mlp__early_stopping":     [True],
-    "mlp__validation_fraction":[0.1],
+    "mlp__max_iter": [200, 500],
+    "mlp__early_stopping": [True],
+    "mlp__validation_fraction": [0.1],
 }
 
 PYTORCH_HIDDEN_SIZES = [128, 64, 32]
-PYTORCH_DROPOUT      = 0.3
-PYTORCH_EPOCHS       = 200
-PYTORCH_LR           = 1e-3
-PYTORCH_BATCH_SIZE   = 64
+PYTORCH_DROPOUT = 0.3
+PYTORCH_EPOCHS = 200
+PYTORCH_LR = 1e-3
+PYTORCH_BATCH_SIZE = 64
+
 
 class MLPModel(BaseModel):
     """
@@ -72,7 +74,7 @@ class MLPModel(BaseModel):
         artifact_dir: Path = ARTIFACTS,
     ):
         super().__init__(artifact_dir)
-        self.task    = task
+        self.task = task
         self.backend = backend
         self.history: dict = {"train_loss": [], "val_loss": []}
 

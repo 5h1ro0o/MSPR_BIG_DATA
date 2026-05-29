@@ -8,6 +8,7 @@ Usage direct :
 Usage Prefect :
     prefect deploy orchestration/pipeline.py:etl_flow
 """
+
 import sys
 import uuid
 from datetime import datetime
@@ -47,6 +48,7 @@ from etl.quality import run_quality_checks
 
 setup_logger(settings.log_level, settings.log_dir)
 log = get_logger(__name__)
+
 
 def run_pipeline() -> dict:
     """
@@ -89,7 +91,12 @@ def run_pipeline() -> dict:
     step = metrics.start_step("extract_candidats_historique")
     raw_cands_hist = extract_candidats_raw(
         settings.candidats_file,
-        elections_filter=["2012_pres_t1", "2012_pres_t2", "2017_pres_t1", "2017_pres_t2"],
+        elections_filter=[
+            "2012_pres_t1",
+            "2012_pres_t2",
+            "2017_pres_t1",
+            "2017_pres_t2",
+        ],
         chunk_size=settings.chunk_size,
     )
     step.rows_out = len(raw_cands_hist)
@@ -183,6 +190,7 @@ def run_pipeline() -> dict:
     )
 
     return metrics_dict
+
 
 if __name__ == "__main__":
     result = run_pipeline()

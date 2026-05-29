@@ -2,8 +2,8 @@
 Extraction — dossier_complet.csv (INSEE RP 2022, ~642 MB, 1976 colonnes).
 Sélectionne uniquement les colonnes nécessaires pour économiser la mémoire.
 """
+
 from pathlib import Path
-import numpy as np
 import pandas as pd
 
 from etl.helpers import norm_code
@@ -57,6 +57,7 @@ COL_MAP = {
     "C22_MENFAMMONO": "men_monoparentaux",
     "MED21": "revenu_median_2021",
 }
+
 
 def extract_demographique(demographique_file: Path) -> pd.DataFrame:
     """
