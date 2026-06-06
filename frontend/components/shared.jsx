@@ -1,14 +1,11 @@
-// Shared: Topbar (glass nav), Footer, Sparkline, BarList, StackBar.
-// Loaded by every page.
-
 window.Topbar = function Topbar({ active }) {
   const items = [
     { id: 'index',      href: 'index.html',      label: 'Accueil' },
-    { id: 'overview',   href: 'overview.html',   label: 'Vue d\u2019ensemble' },
-    { id: 'comparison', href: 'comparison.html', label: 'Candidats' },
-    { id: 'map',        href: 'map.html',        label: 'Carte' },
-    { id: 'pipeline',   href: 'pipeline.html',   label: 'Pipeline' },
-    { id: 'prediction', href: 'prediction.html', label: 'Mod\u00e8les' },
+    { id: 'overview',   href: 'overview.html',   label: 'Résultats 2022' },
+    { id: 'comparison', href: 'comparison.html', label: 'Réalité vs Prédictions' },
+    { id: 'map',        href: 'map.html',        label: 'Carte IDF' },
+    { id: 'pipeline',   href: 'pipeline.html',   label: 'Pipeline ETL' },
+    { id: 'prediction', href: 'prediction.html', label: 'Modèles ML' },
   ];
   return (
     <div className="topbar">
@@ -26,11 +23,7 @@ window.Topbar = function Topbar({ active }) {
             ))}
           </div>
           <div className="nav-actions">
-            <span className="chip ok"><span className="dot"></span>Pipeline en ligne</span>
-            <button className="btn ghost" style={{padding: '7px 10px'}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-              <span className="kbd">\u2318K</span>
-            </button>
+            <span className="chip ok"><span className="dot"></span>Pipeline actif</span>
           </div>
         </nav>
       </div>
@@ -48,41 +41,41 @@ window.Footer = function Footer() {
             <span>Electoral Observatory</span>
           </div>
           <p style={{maxWidth: 360, color: 'var(--ink-3)', fontSize: 13, lineHeight: 1.55, margin: 0}}>
-            Plateforme d&apos;analyse, monitoring ETL et pr\u00e9diction \u00e9lectorale.
-            Donn\u00e9es publiques INSEE et Minist\u00e8re de l&apos;Int\u00e9rieur.
+            Plateforme d'analyse, monitoring ETL et prédiction électorale.
+            Données publiques INSEE et Ministère de l'Intérieur.
             Architecture Medallion bronze / silver / gold.
           </p>
           <div className="footer-meta">
-            <span>MSPR \u00c9preuve E6.2 \u00b7 2026</span>
-            <span>v 0.4.2</span>
+            <span>MSPR TPRE813 · Île-de-France · 2022</span>
+            <span>1 268 communes · 113 features</span>
           </div>
         </div>
         <div>
-          <h4>Sections</h4>
+          <h4>Navigation</h4>
           <ul>
-            <li><a href="overview.html">Vue d&apos;ensemble</a></li>
+            <li><a href="overview.html">Vue d'ensemble</a></li>
             <li><a href="comparison.html">Candidats &amp; partis</a></li>
-            <li><a href="map.html">Carte d&apos;\u00cele-de-France</a></li>
+            <li><a href="map.html">Carte Île-de-France</a></li>
             <li><a href="pipeline.html">Pipeline ETL</a></li>
-            <li><a href="prediction.html">Mod\u00e8les ML</a></li>
+            <li><a href="prediction.html">Modèles ML</a></li>
           </ul>
         </div>
         <div>
-          <h4>Donn\u00e9es</h4>
+          <h4>Sources</h4>
           <ul>
-            <li><a href="#">INSEE \u2014 RP 2022</a></li>
-            <li><a href="#">Filosofi 2017</a></li>
-            <li><a href="#">data.gouv.fr</a></li>
-            <li><a href="#">Min. Int\u00e9rieur</a></li>
+            <li><a href="https://www.data.gouv.fr/fr/pages/donnees-des-elections/" target="_blank">data.gouv.fr — Élections</a></li>
+            <li><a href="https://www.insee.fr/fr/statistiques/6036912" target="_blank">INSEE — RP 2022</a></li>
+            <li><a href="https://www.insee.fr/fr/statistiques/6049648" target="_blank">Filosofi 2017</a></li>
+            <li><a href="https://www.interieur.gouv.fr/" target="_blank">Min. Intérieur</a></li>
           </ul>
         </div>
         <div>
-          <h4>Ressources</h4>
+          <h4>Technique</h4>
           <ul>
-            <li><a href="#">Documentation</a></li>
-            <li><a href="#">M\u00e9thodologie</a></li>
-            <li><a href="#">Schema PostgreSQL</a></li>
-            <li><a href="#">Quality gates</a></li>
+            <li><a href="https://github.com/5h1ro0o/MSPR_BIG_DATA" target="_blank">GitHub</a></li>
+            <li><a href="https://sonarcloud.io/project/overview?id=5h1ro0o_MSPR_BIG_DATA" target="_blank">SonarCloud</a></li>
+            <li><a href="pipeline.html">Quality gates (14/14)</a></li>
+            <li><a href="prediction.html">Modèles (RF · GB)</a></li>
           </ul>
         </div>
       </div>
@@ -100,8 +93,8 @@ window.Sparkline = function Sparkline({ data, width = 120, height = 32, color = 
   const areaPath = linePath + ' L ' + width + ' ' + height + ' L 0 ' + height + ' Z';
   return (
     <svg className="spark" viewBox={'0 0 ' + width + ' ' + height} preserveAspectRatio="none" style={{height}}>
-      <path className="area" d={areaPath} style={{fill: color, opacity: 0.08}} />
-      <path className="line" d={linePath} style={{stroke: color}} />
+      <path d={areaPath} style={{fill: color, opacity: 0.08}} />
+      <path d={linePath} style={{stroke: color, fill: 'none', strokeWidth: 1.5}} />
     </svg>
   );
 };
@@ -118,10 +111,7 @@ window.BarList = function BarList({ rows, max }) {
             {r.party && <small>{r.party}</small>}
           </div>
           <div className="br">
-            <i style={{
-              width: ((r.value / m) * 100).toFixed(1) + '%',
-              background: r.color || 'var(--ink)'
-            }}/>
+            <i style={{ width: ((r.value / m) * 100).toFixed(1) + '%', background: r.color || 'var(--ink)' }} />
           </div>
           <div className="pc">{r.value.toFixed(2)}<small>%</small></div>
         </div>
@@ -135,14 +125,15 @@ window.StackBar = function StackBar({ segments }) {
   return (
     <>
       <div className="stack">
-        {segments.map((s, i) => {
-          const pct = (s.value / total) * 100;
-          return <div key={i} className="seg" style={{width: pct + '%', background: s.color}}/>;
-        })}
+        {segments.map((s, i) => (
+          <div key={i} className="seg" style={{ width: ((s.value / total) * 100) + '%', background: s.color }} />
+        ))}
       </div>
       <div className="stack-legend">
         {segments.map((s, i) => (
-          <span key={i} style={{'--lc': s.color}}>{s.name} <strong>{((s.value/total)*100).toFixed(1)}%</strong></span>
+          <span key={i} style={{'--lc': s.color}}>
+            {s.name} <strong>{((s.value / total) * 100).toFixed(1)}%</strong>
+          </span>
         ))}
       </div>
     </>
