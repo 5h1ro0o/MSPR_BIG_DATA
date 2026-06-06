@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>Vue d&apos;ensemble — Electoral Observatory</title>
+<title>Résultats 2022 — Electoral Observatory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="styles/tokens.css" />
 <link rel="stylesheet" href="styles/layout.css" />
@@ -16,172 +16,333 @@
 <div id="root"></div>
 <script type="text/babel" src="components/shared.jsx"></script>
 <script type="text/babel">
+const { useState } = React;
+
 function Header() {
   return (
     <section className="page-header">
       <div className="meta-row">
-        <span className="eyebrow">01 \u00b7 Vue d&apos;ensemble</span>
+        <span className="eyebrow">Présidentielle 2022 · Île-de-France</span>
+        <span className="chip">1 268 communes · 8 départements</span>
+        <span className="chip">Source : Ministère de l'Intérieur</span>
       </div>
-      <h1 className="headline-1">L&apos;\u00cele-de-France en chiffres.</h1>
-      <p className="dek">Indicateurs cl\u00e9s consolid\u00e9s sur 1\u202f268 communes, 113 colonnes, deux tours \u00e9lectoraux. Source\u202f: pipeline ETL Medallion, run du 5 mai 2026.</p>
+      <h1 className="headline-1">Résultats électoraux IDF 2022 — vue complète.</h1>
+      <p className="dek">
+        Résultats du premier et second tour, classement des candidats, profils socio-économiques
+        des électorats, participation historique et corrélations avec les indicateurs INSEE.
+      </p>
     </section>
   );
 }
 
-const Icon = ({d}) => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d}/>
-  </svg>
-);
-
 function KPIs() {
   const kpis = [
-    { lbl: 'Communes',          val: '1 268', spark: [1200,1240,1255,1260,1265,1268,1268], note: 'Couverture int\u00e9grale IDF', icn: 'M3 3h18v18H3zM9 3v18M3 9h18' },
-    { lbl: 'Inscrits',          val: '8.42',  unit: 'M', spark: [7.8,7.9,8.0,8.1,8.2,8.3,8.42], delta: '+1.4%', icn: 'M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
-    { lbl: 'Participation T1',  val: '71.2',  unit: '%', spark: [68,67,70,69,71,71,71.2],   delta: '+0.8 pt', icn: 'M3 3v18h18M7 14l4-4 4 4 5-5' },
-    { lbl: 'Marge T2',          val: '28.4',  unit: 'pts', spark: [10,18,22,24,26,28,28.4], delta: 'Macron +28.4', icn: 'M22 12L13 12M22 12l-4-4M22 12l-4 4' },
+    { lbl: 'Communes IDF',     val: '1 268',  unit: '',    note: 'Couverture intégrale',  spark: [1200,1240,1255,1260,1265,1268,1268] },
+    { lbl: 'Inscrits IDF',     val: '8,6',    unit: 'M',   note: 'Présidentielle T1',     spark: [7.8,7.9,8.0,8.2,8.4,8.5,8.6] },
+    { lbl: 'Participation T1', val: '73,6',   unit: '%',   note: '+2,1 pts vs national',  spark: [72.0,84.5,80.4,78.9,73.6] },
+    { lbl: 'Macron T2 IDF',    val: '64,18',  unit: '%',   note: '+28,4 pts sur Le Pen',  spark: [55,58,60,62,63,64,64.18] },
+    { lbl: 'Précision ML',     val: '95,7',   unit: '%',   note: 'GB post-T1',            spark: [88,90,90,91,93,95,95.7] },
   ];
   return (
-    <div className="kpi-row" style={{marginBottom: 56}}>
+    <div className="kpi-row" style={{ marginBottom: 48 }}>
       {kpis.map(k => (
         <div key={k.lbl} className="kpi">
-          <div className="kpi-hd">
-            <span className="label">{k.lbl}</span>
-            <span className="kpi-icon"><Icon d={k.icn}/></span>
-          </div>
-          <div className="kpi-value tnum">{k.val}{k.unit && <span className="unit">{k.unit}</span>}</div>
-          <Sparkline data={k.spark} height={32} />
-          {k.delta && <div className="kpi-foot"><span className="kpi-delta up">\u25b2 {k.delta}</span><span>vs 2017</span></div>}
-          {k.note && !k.delta && <div className="kpi-foot"><span>{k.note}</span></div>}
+          <div className="kpi-hd"><span className="label">{k.lbl}</span></div>
+          <div className="kpi-value tnum">{k.val}<span className="unit">{k.unit}</span></div>
+          <Sparkline data={k.spark} height={26} />
+          <div className="kpi-foot"><span style={{ color: 'var(--ink-4)' }}>{k.note}</span></div>
         </div>
       ))}
     </div>
   );
 }
 
-function TopCandidates() {
-  return (
-    <div className="grid-12" style={{marginBottom: 56}}>
-      <div className="panel">
-        <div className="panel-hd">
-          <h3>Top candidats au premier tour</h3>
-          <div className="tabs">
-            <button className="active">T1</button>
-            <button>T2</button>
-          </div>
-        </div>
-        <BarList rows={MOCK.candidatesT1} />
-      </div>
-      <div className="panel">
-        <div className="panel-hd">
-          <h3>Second tour</h3>
-          <span className="chip">Macron vs Le Pen</span>
-        </div>
-        <BarList rows={MOCK.t2} />
-        <div style={{marginTop: 24}}>
-          <div className="label">R\u00e9partition globale</div>
-          <StackBar segments={MOCK.t2}/>
-        </div>
-        <div className="callout" style={{marginTop: 28, fontSize: 18}}>
-          \u00ab Macron consolide une avance de 28,4 points en \u00cele-de-France, tir\u00e9e par Paris intra-muros et les Hauts-de-Seine. \u00bb
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Participation() {
-  const years = [2002, 2007, 2012, 2017, 2022];
-  const part  = [72.0, 84.5, 80.4, 78.9, 73.7];
-  const abst  = part.map(v => 100 - v);
+function T1T2Results() {
+  const [tour, setTour] = useState('t1');
   return (
     <section className="section">
       <div className="section-head">
         <div>
-          <span className="eyebrow">\u00c9volution</span>
-          <h2>Participation et abstention au fil des scrutins</h2>
+          <span className="eyebrow">Résultats électoraux</span>
+          <h2>Candidats — Île-de-France 2022</h2>
         </div>
-        <p>L&apos;abstention progresse depuis 2007 dans toutes les zones except\u00e9 Paris centre.</p>
+        <div className="tabs">
+          <button className={tour === 't1' ? 'active' : ''} onClick={() => setTour('t1')}>
+            1er tour — 10 avril
+          </button>
+          <button className={tour === 't2' ? 'active' : ''} onClick={() => setTour('t2')}>
+            2ème tour — 24 avril
+          </button>
+        </div>
       </div>
-      <div className="panel">
-        <svg viewBox="0 0 800 280" style={{width: '100%', height: 280, display: 'block'}}>
-          {[60, 70, 80, 90, 100].map((y, i) => (
-            <g key={y}>
-              <line x1="40" x2="780" y1={260-(y-50)*4.2} y2={260-(y-50)*4.2} stroke="var(--line)" strokeDasharray={i===4?'':'2 4'}/>
-              <text x="0" y={260-(y-50)*4.2+4} fill="var(--ink-5)" fontSize="10" fontFamily="var(--mono)">{y}%</text>
-            </g>
-          ))}
-          {(() => {
-            const xs = years.map((_, i) => 60 + i * 180);
-            const path = (vs) => vs.map((v, i) => (i?'L':'M')+xs[i]+' '+(260-(v-50)*4.2)).join(' ');
-            return (
-              <>
-                <path d={path(part)+' L '+xs[xs.length-1]+' 260 L '+xs[0]+' 260 Z'} fill="var(--d-1)" opacity="0.08"/>
-                <path d={path(part)} fill="none" stroke="var(--d-1)" strokeWidth="2"/>
-                <path d={path(abst)} fill="none" stroke="var(--d-2)" strokeWidth="2" strokeDasharray="4 4"/>
-                {xs.map((x, i) => (
-                  <g key={i}>
-                    <circle cx={x} cy={260-(part[i]-50)*4.2} r="4" fill="var(--surface-solid)" stroke="var(--d-1)" strokeWidth="2"/>
-                    <circle cx={x} cy={260-(abst[i]-50)*4.2} r="3" fill="var(--surface-solid)" stroke="var(--d-2)" strokeWidth="1.5"/>
-                    <text x={x} y="278" fill="var(--ink-4)" fontSize="11" fontFamily="var(--sans)" textAnchor="middle">{years[i]}</text>
-                    <text x={x} y={260-(part[i]-50)*4.2-10} fill="var(--ink)" fontSize="11" fontFamily="var(--mono)" textAnchor="middle" fontWeight="600">{part[i].toFixed(1)}</text>
-                  </g>
+      <div className="grid-12">
+        <div className="panel">
+          <BarList rows={tour === 't1' ? MOCK.candidatesT1 : MOCK.t2}
+            max={tour === 't2' ? 100 : undefined} />
+          {tour === 't1' && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
+                {MOCK.candidatesT1.map((c, i) => (
+                  <div key={i} title={c.name + ' ' + c.value + '%'}
+                    style={{ width: c.value + '%', background: c.color, minWidth: 2 }} />
                 ))}
-              </>
-            );
-          })()}
-        </svg>
-        <div style={{display:'flex', gap: 20, marginTop: 12}}>
-          <span className="chip" style={{borderColor:'var(--d-1)', color:'var(--d-1)'}}><span className="dot" style={{background:'var(--d-1)'}}></span>Participation T1</span>
-          <span className="chip" style={{borderColor:'var(--d-2)', color:'var(--d-2)'}}><span className="dot" style={{background:'var(--d-2)'}}></span>Abstention T1</span>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--ink-4)' }}>
+                Macron et Mélenchon totalisent 65,6% des voix IDF — écart national important
+                (LFI bien plus fort en IDF, RN bien plus faible qu'au niveau national 23,1%)
+              </div>
+            </div>
+          )}
+          {tour === 't2' && (
+            <div style={{ marginTop: 16 }}>
+              <StackBar segments={MOCK.t2} />
+              <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                L'IDF vote Macron à <strong>64,18%</strong>, soit +6,7 pts de plus que le résultat national.
+                Paris (85%) et Hauts-de-Seine (73,2%) constituent les bastions LREM.
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="panel">
+          <div className="panel-hd"><h3>T2 par département IDF</h3></div>
+          <div className="bar-list">
+            {[...MOCK.depts].sort((a, b) => b.macronT2 - a.macronT2).map((d) => (
+              <div key={d.code} className="bar-row">
+                <div className="rank" style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{d.code}</div>
+                <div className="nm">{d.nom}<small>{d.communes} communes</small></div>
+                <div className="br">
+                  <i style={{ width: d.macronT2 + '%', background: 'var(--d-1)' }} />
+                </div>
+                <div className="pc tnum">{d.macronT2.toFixed(1)}<small>%</small></div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+            Gradient entre Paris intra-muros (85%) et la grande couronne (57–62%).
+            77 et 95 sont les deux seuls départements où Le Pen dépasse 40%.
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function Heatmap() {
-  const cols = ['Cadres', 'Ouvriers', 'Dipl. sup.', 'Senior 60+', 'HLM', 'Pauvret\u00e9', 'Ch\u00f4mage'];
-  const rows = ['Macron T2', 'Le Pen T2', 'M\u00e9lenchon T1', 'Zemmour T1', 'P\u00e9cresse T1'];
-  const data = [
-    [ 0.72,-0.61, 0.78, 0.18,-0.42,-0.55,-0.39],
-    [-0.71, 0.62,-0.78,-0.18, 0.42, 0.55, 0.41],
-    [-0.18, 0.34,-0.12,-0.28, 0.51, 0.48, 0.37],
-    [ 0.11, 0.04,-0.05, 0.08,-0.32,-0.21,-0.16],
-    [ 0.62,-0.32, 0.51, 0.34,-0.42,-0.41,-0.31],
+function ElectoratProfiles() {
+  const profiles = [
+    { label: 'Macron',     color: 'var(--d-1)', cadres: 38, ouvriers:  8, diplSup: 52, hlm: 12, revenu: 31200 },
+    { label: 'Mélenchon', color: 'var(--d-3)', cadres: 18, ouvriers: 22, diplSup: 31, hlm: 28, revenu: 21400 },
+    { label: 'Le Pen',     color: 'var(--d-2)', cadres: 11, ouvriers: 28, diplSup: 18, hlm: 34, revenu: 18900 },
+    { label: 'Pécresse',   color: 'var(--d-5)', cadres: 42, ouvriers:  6, diplSup: 55, hlm:  9, revenu: 34500 },
   ];
-  const cell = (v) => {
+  const indicators = [
+    { key: 'cadres',   label: '% cadres',        unit: '%', max: 55 },
+    { key: 'ouvriers', label: '% ouvriers',       unit: '%', max: 40 },
+    { key: 'diplSup',  label: '% diplômés Bac+3', unit: '%', max: 65 },
+    { key: 'hlm',      label: '% HLM',            unit: '%', max: 45 },
+    { key: 'revenu',   label: 'Revenu médian',     unit: '€', max: 40000,
+      fmt: v => v.toLocaleString('fr-FR') },
+  ];
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">Sociologie électorale</span>
+          <h2>Profil socio-économique des électorats</h2>
+        </div>
+        <p>Caractéristiques moyennes des communes remportées par chaque candidat — IDF 2022 · source INSEE RP 2022 + Filosofi 2017.</p>
+      </div>
+      <div className="panel">
+        <div style={{ display: 'grid', gridTemplateColumns: '160px repeat(4, 1fr)', gap: '0 12px' }}>
+          <div />
+          {profiles.map(p => (
+            <div key={p.label} style={{ textAlign: 'center', paddingBottom: 14,
+              borderBottom: '2px solid ' + p.color }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: p.color }}>{p.label}</div>
+            </div>
+          ))}
+          {indicators.map(ind => (
+            <React.Fragment key={ind.key}>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', padding: '9px 12px 9px 0',
+                borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
+                {ind.label}
+              </div>
+              {profiles.map(p => {
+                const val = p[ind.key];
+                const fmt = ind.fmt ? ind.fmt(val) : val;
+                return (
+                  <div key={p.label} style={{ padding: '9px 4px', borderBottom: '1px solid var(--line-soft)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', marginBottom: 4 }}>
+                      {fmt}{ind.unit !== '€' ? ind.unit : ''}
+                      {ind.unit === '€' && <span style={{ fontSize: 11, color: 'var(--ink-4)' }}> €</span>}
+                    </div>
+                    <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-3)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: Math.min(100, (val / ind.max) * 100) + '%',
+                        background: p.color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Participation() {
+  const years = [2002, 2007, 2012, 2017, 2022];
+  const part  = [72.0, 84.5, 80.4, 78.9, 73.6];
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">Évolution historique</span>
+          <h2>Participation T1 — IDF 2002–2022</h2>
+        </div>
+        <p>Source : Ministère de l'Intérieur. Pic en 2007 (84,5%) — recul progressif depuis.</p>
+      </div>
+      <div className="panel">
+        <svg viewBox="0 0 800 260" style={{ width: '100%', height: 260, display: 'block' }}>
+          {[60, 70, 80, 90, 100].map((y, i) => (
+            <g key={y}>
+              <line x1="50" x2="780" y1={240 - (y - 50) * 3.8} y2={240 - (y - 50) * 3.8}
+                stroke="var(--line)" strokeDasharray={i === 4 ? '' : '2 4'} />
+              <text x="4" y={240 - (y - 50) * 3.8 + 4} fill="var(--ink-5)" fontSize="10"
+                fontFamily="var(--mono)">{y}%</text>
+            </g>
+          ))}
+          {(() => {
+            const xs = years.map((_, i) => 70 + i * 170);
+            const py = v => 240 - (v - 50) * 3.8;
+            const pathStr = vs => vs.map((v, i) => (i ? 'L' : 'M') + xs[i] + ' ' + py(v)).join(' ');
+            return (
+              <>
+                <path d={pathStr(part) + ' L ' + xs[4] + ' 240 L ' + xs[0] + ' 240 Z'}
+                  fill="var(--d-1)" opacity="0.08" />
+                <path d={pathStr(part)} fill="none" stroke="var(--d-1)" strokeWidth="2.5" />
+                {xs.map((x, i) => (
+                  <g key={i}>
+                    <circle cx={x} cy={py(part[i])} r="6" fill="var(--surface-solid)"
+                      stroke="var(--d-1)" strokeWidth="2.5" />
+                    <text x={x} y={py(part[i]) - 12} fill="var(--ink)" fontSize="13"
+                      fontFamily="var(--mono)" textAnchor="middle" fontWeight="700">
+                      {part[i].toFixed(1)}%
+                    </text>
+                    <text x={x} y="258" fill="var(--ink-4)" fontSize="12"
+                      fontFamily="var(--sans)" textAnchor="middle">{years[i]}</text>
+                  </g>
+                ))}
+              </>
+            );
+          })()}
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+function Heatmap() {
+  const cols = ['Cadres', 'Ouvriers', 'Dipl. sup.', 'Senior 60+', 'HLM', 'Pauvreté', 'Chômage'];
+  const rows = ['Macron T2', 'Le Pen T2', 'Mélenchon T1', 'Zemmour T1', 'Pécresse T1'];
+  const data = [
+    [ 0.72, -0.61,  0.78,  0.18, -0.42, -0.55, -0.39],
+    [-0.71,  0.62, -0.78, -0.18,  0.42,  0.55,  0.41],
+    [-0.18,  0.34, -0.12, -0.28,  0.51,  0.48,  0.37],
+    [ 0.11,  0.04, -0.05,  0.08, -0.32, -0.21, -0.16],
+    [ 0.62, -0.32,  0.51,  0.34, -0.42, -0.41, -0.31],
+  ];
+  const cell = v => {
     const a = Math.abs(v);
     const c = v >= 0 ? 'var(--d-1)' : 'var(--d-2)';
-    return { background: 'color-mix(in srgb, '+c+' '+(a*70).toFixed(0)+'%, var(--surface-solid))', color: a > 0.5 ? '#fff' : 'var(--ink)' };
+    return { background: 'color-mix(in srgb, ' + c + ' ' + (a * 68).toFixed(0) + '%, var(--surface-solid))',
+      color: a > 0.45 ? '#fff' : 'var(--ink)' };
   };
   return (
     <section className="section">
       <div className="section-head">
         <div>
-          <span className="eyebrow">Corr\u00e9lations</span>
-          <h2>Profils socio-\u00e9conomiques et vote</h2>
+          <span className="eyebrow">Corrélations socio-électorales</span>
+          <h2>Pearson r — indicateurs INSEE × résultats par commune</h2>
         </div>
-        <p>Coefficients de Pearson entre indicateurs INSEE et r\u00e9sultats par commune.</p>
+        <p>Calculé sur les 1 268 communes IDF · p &lt; 0,001 · source : croisement ETL pipeline gold.</p>
       </div>
-      <div className="heatmap" style={{gridTemplateColumns: '160px repeat('+cols.length+', 1fr)'}}>
+      <div className="heatmap" style={{ gridTemplateColumns: '160px repeat(' + cols.length + ', 1fr)' }}>
         <div className="hcell head"></div>
         {cols.map(c => <div key={c} className="hcell head">{c}</div>)}
         {rows.map((r, ri) => (
           <React.Fragment key={r}>
-            <div className="hcell head" style={{aspectRatio:'auto', justifyContent:'flex-start', padding:'0 14px'}}>{r}</div>
+            <div className="hcell head" style={{ aspectRatio: 'auto', justifyContent: 'flex-start', padding: '0 14px' }}>{r}</div>
             {data[ri].map((v, ci) => (
-              <div key={ci} className="hcell tnum" style={cell(v)}>{(v>=0?'+':'')+v.toFixed(2)}</div>
+              <div key={ci} className="hcell tnum" style={cell(v)}>{(v >= 0 ? '+' : '') + v.toFixed(2)}</div>
             ))}
           </React.Fragment>
         ))}
       </div>
-      <div style={{display:'flex', gap: 18, marginTop: 16, fontSize: 12, color:'var(--ink-4)'}}>
-        <span style={{display:'inline-flex', alignItems:'center', gap: 6}}>
-          <i style={{display:'inline-block', width: 32, height: 8, background:'linear-gradient(90deg, var(--d-2), var(--bg-2), var(--d-1))', borderRadius: 2}}/>
-          {' '}\u22121.0 \u00b7 0 \u00b7 +1.0
+      <div style={{ marginTop: 14, fontSize: 12, color: 'var(--ink-4)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <i style={{ display: 'inline-block', width: 32, height: 8,
+            background: 'linear-gradient(90deg, var(--d-2), var(--bg-2), var(--d-1))', borderRadius: 2 }} />
+          −1,0 · 0 · +1,0
         </span>
-        <span>Pearson r \u00b7 n = 1\u202f268 communes</span>
+        <span>Corrélation la plus forte : % diplômés sup. ↔ Macron T2 (r = +0,78)</span>
+        <span style={{ marginLeft: 'auto' }}>% cadres ↔ Le Pen T2 : r = −0,61</span>
+      </div>
+    </section>
+  );
+}
+
+function CommuneTable() {
+  const [dept, setDept] = useState('Tous');
+  const depts = ['Tous', '75', '77', '78', '91', '92', '93', '94', '95'];
+  const filtered = dept === 'Tous' ? MOCK.communes : MOCK.communes.filter(c => c.dept === dept);
+  const colorMap = { Macron: 'var(--d-1)', Melenchon: 'var(--d-3)', LePen: 'var(--d-2)' };
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">Communes emblématiques</span>
+          <h2>Résultats T1 par commune</h2>
+        </div>
+        <div className="tabs">
+          {depts.map(d => (
+            <button key={d} className={dept === d ? 'active' : ''} onClick={() => setDept(d)}>{d}</button>
+          ))}
+        </div>
+      </div>
+      <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Code INSEE</th><th>Commune</th><th>Dept.</th>
+              <th className="num">Inscrits</th>
+              <th className="num">Participation</th>
+              <th>Leader T1</th>
+              <th className="num">Score T1 (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(c => {
+              const col = colorMap[c.top] || 'var(--ink)';
+              return (
+                <tr key={c.code}>
+                  <td className="mono" style={{ color: 'var(--ink-4)' }}>{c.code}</td>
+                  <td style={{ fontWeight: 500 }}>{c.nom}</td>
+                  <td className="mono">{c.dept}</td>
+                  <td className="num tnum">{c.inscrits.toLocaleString('fr-FR')}</td>
+                  <td className="num tnum">{c.participation.toFixed(1)}%</td>
+                  <td>
+                    <span className="chip" style={{ color: col, borderColor: 'transparent',
+                      background: 'color-mix(in srgb, ' + col + ' 10%, transparent)' }}>
+                      <span className="dot" style={{ background: col }} />{c.top}
+                    </span>
+                  </td>
+                  <td className="num tnum">{c.pct.toFixed(1)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );
@@ -194,9 +355,11 @@ function App() {
       <main className="shell">
         <Header />
         <KPIs />
-        <TopCandidates />
+        <T1T2Results />
+        <ElectoratProfiles />
         <Participation />
         <Heatmap />
+        <CommuneTable />
       </main>
       <Footer />
     </>
