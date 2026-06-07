@@ -44,11 +44,14 @@ services:
       <<: *env-common
     volumes:
       - ${DATA_ROOT_HOST:-../}:/data
-      - ./ml/artifacts:/app/ml/artifacts   # persiste les modèles entre runs
+      - ./ml/artifacts:/app/ml/artifacts   # persiste modèles et CSVs de prédictions entre runs
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
+    # Le pipeline est un job one-shot : il s'exécute, produit les artefacts, puis s'arrête.
+    # Relancer : docker compose up --build (reconstruction image si code changé)
+    #            docker compose run --rm pipeline (sans rebuild)
 
   nginx:
     image: nginx:1.25-alpine
@@ -62,6 +65,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      pipeline:
+        condition: service_completed_successfully  # attend la fin du pipeline (ETL + train)
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost/index.html || exit 1"]

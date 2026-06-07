@@ -85,59 +85,127 @@ window.MOCK = (function () {
     { name: 'load_db',                 dur:  0.5 },
   ];
 
-  // Modèles ML — métriques réelles du dernier run pipeline (07/05/2026)
+  // Modèles ML — valeurs initiales (écrasées par loadArtifacts() si les JSON sont disponibles)
   const models = [
     {
       key: 'gradient_boosting', fset: 'post_t1',
       name: 'Gradient Boosting post-T1',
       accuracy: 0.9567, f1: 0.9568, auc: 0.9850, cv_auc: 0.9843, cv_std: 0.0066,
       time: '0.4s', feat: 78, best: true,
-      macronWin: 171, lepenWin: 83, total: 254,
     },
     {
       key: 'random_forest', fset: 'post_t1',
       name: 'Random Forest post-T1',
       accuracy: 0.9370, f1: 0.9370, auc: 0.9851, cv_auc: 0.9841, cv_std: 0.0069,
       time: '3.5s', feat: 78, best: false,
-      macronWin: 171, lepenWin: 83, total: 254,
     },
     {
       key: 'random_forest', fset: 'pre_vote',
       name: 'Random Forest pré-vote',
       accuracy: 0.9094, f1: 0.9093, auc: 0.9775, cv_auc: 0.9785, cv_std: 0.0062,
       time: '6.1s', feat: 69, best: false,
-      macronWin: 171, lepenWin: 83, total: 254,
     },
     {
       key: 'gradient_boosting', fset: 'pre_vote',
       name: 'Gradient Boosting pré-vote',
       accuracy: 0.9016, f1: 0.9014, auc: 0.9720, cv_auc: 0.9758, cv_std: 0.0098,
       time: '0.4s', feat: 69, best: false,
-      macronWin: 171, lepenWin: 83, total: 254,
     },
   ];
 
-  // Features les plus importantes — Gradient Boosting post-T1
-  const topFeatures = [
-    { name: 'h17_t2_pct_macron',     imp: 0.142, desc: '% Macron T2 2017' },
-    { name: 'pct_dipl_superieur',    imp: 0.118, desc: '% diplômés bac+3' },
-    { name: 'revenu_median_2021',    imp: 0.094, desc: 'Revenu médian 2021' },
-    { name: 'pct_csp_cadres',        imp: 0.087, desc: '% cadres et prof. sup.' },
-    { name: 'cible_t1_pct_macron',   imp: 0.072, desc: '% Macron T1 2022' },
-    { name: 'pct_log_hlm',           imp: 0.063, desc: '% logements HLM' },
-    { name: 'taux_chomage_rp2022',   imp: 0.054, desc: 'Taux chômage RP 2022' },
-    { name: 'pct_csp_ouvriers',      imp: 0.048, desc: '% ouvriers' },
-    { name: 'pct_pop_senior_60p',    imp: 0.041, desc: '% population 60+' },
-    { name: 'taux_pauvrete_2017',    imp: 0.037, desc: 'Taux pauvreté 2017' },
-    { name: 'h12_t2_pct_hollande',   imp: 0.031, desc: '% Hollande T2 2012' },
-    { name: 'pct_dipl_aucun',        imp: 0.028, desc: '% sans diplôme' },
-    { name: 'nb_log_vacants_pct',    imp: 0.024, desc: '% logements vacants' },
-    { name: 'pct_etrangers',         imp: 0.021, desc: '% population étrangère' },
-    { name: 'revenu_decile_d1',      imp: 0.018, desc: 'Revenu 1er décile' },
-  ];
+  // Features — initialisées vides, remplies par loadArtifacts() depuis gb_top_features.csv
+  const topFeatures = [];
 
-  return { partyColor, candidatesT1, t2, depts, communes, runs, steps, models, topFeatures };
+  // Noms lisibles des features (statique — les noms ne changent pas)
+  const FEAT_LABELS = {
+    h17_t2_pct_lepen:              '% Le Pen T2 2017',
+    h17_t2_pct_macron:             '% Macron T2 2017',
+    cible_t1_pct_lepen:            '% Le Pen T1 2022',
+    pct_dipl_capbep:               '% diplômés CAP/BEP',
+    cible_t1_pct_macron:           '% Macron T1 2022',
+    h12_t1_pct_lepen:              '% Le Pen T1 2012',
+    h17_t2_marge:                  'Marge T2 2017',
+    pct_dipl_sup_bac5:             '% diplômés Bac+5 ou plus',
+    h17_t1_pct_lepen:              '% Le Pen T1 2017',
+    h17_t1_pct_macron:             '% Macron T1 2017',
+    pct_dipl_sup_bac34:            '% diplômés Bac+3/4',
+    h12_t1_pct_hollande:           '% Hollande T1 2012',
+    pct_dipl_superieur:            '% diplômés supérieur',
+    pct_csp_precaires:             '% emplois précaires',
+    pop_totale:                    'Population totale',
+    nb_chomeurs_2020:              'Nb chômeurs 2020',
+    h12_t1_pct_bayrou:             '% Bayrou T1 2012',
+    h17_t1_pct_autres:             '% autres candidats T1 2017',
+    cible_t1_pct_jadot:            '% Jadot T1 2022',
+    pct_csp_cadres:                '% cadres et prof. sup.',
+    pct_log_hlm:                   '% logements HLM',
+    pct_csp_ouvriers:              '% ouvriers',
+    pct_csp_artisans_commercants:  '% artisans / commerçants',
+    pct_csp_employes:              '% employés',
+    h17_t1_pct_melenchon:          '% Mélenchon T1 2017',
+    revenu_median_2021:            'Revenu médian 2021',
+    taux_chomage_rp2022:           'Taux chômage RP 2022',
+    pct_pop_senior_60p:            '% population 60+',
+    taux_pauvrete_2017:            'Taux pauvreté 2017',
+    h12_t2_pct_hollande:           '% Hollande T2 2012',
+    pct_dipl_aucun:                '% sans diplôme',
+    nb_log_vacants_pct:            '% logements vacants',
+    pct_etrangers:                 '% population étrangère',
+    revenu_decile_d1:              'Revenu 1er décile',
+  };
+
+  return { partyColor, candidatesT1, t2, depts, communes, runs, steps, models, topFeatures, FEAT_LABELS };
 })();
+
+// Utilitaire : parse un CSV texte brut en tableau d'objets
+window.parseCSV = function (text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const values = line.split(',');
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (values[i] || '').trim(); });
+    return obj;
+  });
+};
+
+const flt = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+
+// Normalise une ligne de CSV prédictions quelle que soit sa provenance (GB/LSTM vs RF)
+window.normPredRow = function (row) {
+  const pred = parseInt(row.prediction, 10);
+  const gt   = parseInt(row.ground_truth, 10);
+  return {
+    // Identifiants
+    code_commune:        row.code_commune,
+    code_departement:    row.code_departement,
+    libelle_departement: row.libelle_departement,
+    libelle_commune:     row.libelle_commune,
+    // Prédiction modèle T2
+    prediction:          pred,
+    vainqueur_predit:    row.vainqueur_predit || (pred === 0 ? 'Macron' : 'Le Pen'),
+    proba_macron:        flt(row.proba_macron ?? row.proba_0) ?? 0,
+    proba_lepen:         flt(row.proba_lepen  ?? row.proba_1) ?? 0,
+    ground_truth:        gt,
+    vainqueur_reel:      gt === 0 ? 'Macron' : 'Le Pen',
+    correct:             parseInt(row.correct, 10),
+    split:               row.split || null,
+    // T1 2022 — résultats réels par candidat
+    t1_macron:     flt(row.cible_t1_pct_macron),
+    t1_melenchon:  flt(row.cible_t1_pct_melenchon),
+    t1_lepen:      flt(row.cible_t1_pct_lepen),
+    t1_zemmour:    flt(row.cible_t1_pct_zemmour),
+    t1_pecresse:   flt(row.cible_t1_pct_pecresse),
+    t1_jadot:      flt(row.cible_t1_pct_jadot),
+    t1_autres:     flt(row.cible_t1_pct_autres),
+    t1_premier:    row.cible_t1_premier || null,
+    participation_t1: flt(row.taux_participation_t1),
+    // T2 2022 — résultats réels
+    t2_macron:     flt(row.cible_t2_pct_macron),
+    t2_lepen:      flt(row.cible_t2_pct_lepen),
+    t2_marge:      flt(row.cible_t2_marge),
+  };
+};
 
 window.loadArtifacts = async function () {
   const FILES = [
@@ -155,6 +223,7 @@ window.loadArtifacts = async function () {
   const pick = (m, keys) => { for (const k of keys) if (m[k] != null) return m[k]; return null; };
   const results = [];
   let anyLoaded = false;
+
   await Promise.all(FILES.map(async ({ key, fset, file }) => {
     try {
       const r = await fetch('/artifacts/' + file, { cache: 'no-store' });
@@ -171,15 +240,29 @@ window.loadArtifacts = async function () {
         time:     m.training_time_s != null ? m.training_time_s.toFixed(1) + 's' : null,
         feat:     m.n_features || null,
         best:     (key === 'gradient_boosting' && fset === 'post_t1'),
-        macronWin: 171, lepenWin: 83, total: 254,
       });
     } catch (_) {}
   }));
+
   if (anyLoaded && results.length > 0) {
     results.sort((a, b) => (b.accuracy || 0) - (a.accuracy || 0));
     MOCK.models = results;
     MOCK.artifactsLoaded = true;
   }
+
+  // Chargement des features réelles depuis gb_top_features.csv
+  try {
+    const r = await fetch('/artifacts/gb_top_features.csv', { cache: 'no-store' });
+    if (r.ok) {
+      const rows = parseCSV(await r.text());
+      MOCK.topFeatures = rows.map(row => ({
+        name: row.feature,
+        imp:  parseFloat(row.importance),
+        desc: MOCK.FEAT_LABELS[row.feature] || row.feature,
+      }));
+    }
+  } catch (_) {}
+
   MOCK.images = {
     rf_confusion:  '/artifacts/random_forest_confusion_matrix.png',
     rf_roc:        '/artifacts/random_forest_roc_curve.png',
@@ -192,5 +275,29 @@ window.loadArtifacts = async function () {
     cmp_f1:        '/artifacts/model_comparison_test_f1.png',
     cmp_auc:       '/artifacts/model_comparison_test_roc_auc.png',
   };
+
   return MOCK;
+};
+
+// Charge les prédictions pour les 4 modèles depuis /artifacts/
+window.loadPredictions = async function () {
+  const FILES = [
+    { id: 'gb_post_t1',  name: 'Gradient Boosting post-T1',  file: 'gb_predictions_post_t1_classification_t2.csv' },
+    { id: 'gb_pre_vote', name: 'Gradient Boosting pré-vote', file: 'gb_predictions_pre_vote_classification_t2.csv' },
+    { id: 'rf_post_t1',  name: 'Random Forest post-T1',      file: 'rf_predictions_post_t1_classification_t2.csv' },
+    { id: 'lstm',        name: 'LSTM',                        file: 'lstm_predictions_classification_t2.csv' },
+  ];
+
+  const predictions = {};
+  await Promise.all(FILES.map(async ({ id, name, file }) => {
+    try {
+      const r = await fetch('/artifacts/' + file, { cache: 'no-store' });
+      if (!r.ok) return;
+      const rows = parseCSV(await r.text()).map(normPredRow);
+      predictions[id] = { id, name, rows };
+    } catch (_) {}
+  }));
+
+  MOCK.predictions = predictions;
+  return predictions;
 };

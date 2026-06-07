@@ -186,23 +186,30 @@ RF_PARAM_GRID_FAST = {
 }
 
 GB_BEST_PARAMS = {
-    "n_estimators": 200,
+    "n_estimators": 300,
     "learning_rate": 0.05,
-    "max_depth": 4,
-    "min_samples_split": 10,
-    "min_samples_leaf": 5,
-    "subsample": 0.8,
+    "max_depth": 3,            # réduit (4→3) pour limiter l'overfitting
+    "min_samples_split": 15,   # renforcé pour empêcher la mémorisation
+    "min_samples_leaf": 8,     # renforcé
+    "subsample": 0.75,         # sous-échantillonnage plus agressif
     "max_features": "sqrt",
     "random_state": 42,
+    # Early stopping interne — empêche train_accuracy=1.0 par mémorisation
+    "n_iter_no_change": 15,    # arrêt si pas d'amélioration sur 15 itérations
+    "validation_fraction": 0.12,  # 12% du train réservé en interne pour early stopping
+    "tol": 1e-4,
 }
 GB_PARAM_GRID = {
-    "n_estimators": [100, 200, 300],
-    "learning_rate": [0.03, 0.05, 0.1, 0.15],
-    "max_depth": [3, 4, 5],
-    "min_samples_split": [5, 10, 20],
-    "min_samples_leaf": [3, 5, 10],
-    "subsample": [0.7, 0.8, 1.0],
+    "n_estimators": [200, 300, 400],
+    "learning_rate": [0.03, 0.05, 0.08],
+    "max_depth": [2, 3, 4],              # max 4 — jamais plus
+    "min_samples_split": [10, 15, 25],
+    "min_samples_leaf": [5, 8, 12],
+    "subsample": [0.65, 0.75, 0.85],
     "max_features": ["sqrt", "log2"],
+    "n_iter_no_change": [10, 15],
+    "validation_fraction": [0.1, 0.15],
+    "tol": [1e-4],
 }
 
 LSTM_CONFIG = {

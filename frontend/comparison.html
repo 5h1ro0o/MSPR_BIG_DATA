@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>Candidats &amp; partis — Electoral Observatory</title>
+<title>Réalité vs Prédictions — Electoral Observatory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="styles/tokens.css" />
 <link rel="stylesheet" href="styles/layout.css" />
@@ -11,271 +11,847 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <script src="components/data.js"></script>
+<style>
+/* ── Matrices & grilles ──────────────────────────────── */
+.cm-grid{display:grid;grid-template-columns:120px 1fr 1fr;gap:3px;font-size:13px}
+.cm-cell{padding:18px 12px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--bg-2);text-align:center}
+.cm-cell.head{background:transparent;font-size:11px;color:var(--ink-4);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.cm-cell .cm-count{font-size:30px;font-weight:700;font-family:var(--mono);letter-spacing:-0.03em}
+.cm-cell .cm-label{font-size:11px;color:var(--ink-4)}
+.cm-cell.tp{background:color-mix(in srgb,var(--status-ok) 14%,var(--surface-solid))}
+.cm-cell.tn{background:color-mix(in srgb,var(--status-ok) 10%,var(--surface-solid))}
+.cm-cell.fp{background:color-mix(in srgb,var(--status-err) 12%,var(--surface-solid))}
+.cm-cell.fn{background:color-mix(in srgb,var(--status-err) 9%,var(--surface-solid))}
+
+/* ── Contrôles ───────────────────────────────────────── */
+.toggle-group{display:flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.toggle-group button{padding:6px 14px;font-size:12px;font-weight:500;background:transparent;border:none;cursor:pointer;color:var(--ink-3);transition:background .15s,color .15s}
+.toggle-group button.active{background:var(--ink);color:#fff}
+.dept-tab-bar{display:flex;gap:4px;flex-wrap:wrap}
+.dept-tab-bar button{padding:4px 10px;font-size:11.5px;font-family:var(--mono);border:1px solid var(--line);border-radius:var(--r-sm);background:transparent;cursor:pointer;color:var(--ink-3);transition:background .15s,color .15s}
+.dept-tab-bar button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.model-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.model-tabs button{padding:7px 16px;font-size:12.5px;font-weight:500;border:1px solid var(--line);border-radius:var(--r-sm);background:transparent;cursor:pointer;color:var(--ink-3);transition:background .15s,color .15s,border-color .15s}
+.model-tabs button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ── Navigation de sections ──────────────────────────── */
+.section-nav{display:flex;gap:0;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;margin-bottom:32px}
+.section-nav button{flex:1;padding:12px 20px;font-size:13.5px;font-weight:500;background:transparent;border:none;border-right:1px solid var(--line);cursor:pointer;color:var(--ink-3);transition:background .15s,color .15s;text-align:center}
+.section-nav button:last-child{border-right:none}
+.section-nav button.active{background:var(--ink);color:#fff}
+
+/* ── Résultats ───────────────────────────────────────── */
+.result-ok{color:var(--status-ok);font-weight:700;font-size:15px}
+.result-err{color:var(--status-err);font-weight:700;font-size:15px}
+.proba-bar{height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;margin-top:3px}
+.proba-bar i{display:block;height:100%;border-radius:2px}
+
+/* ── Candidats ───────────────────────────────────────── */
+.cand-bar-row{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--line-soft)}
+.cand-bar-row:last-child{border-bottom:none}
+.cand-name{font-size:12px;font-weight:500;width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cand-party{font-size:10px;color:var(--ink-4);width:36px;flex-shrink:0;font-family:var(--mono)}
+.cand-track{flex:1;height:8px;border-radius:4px;background:var(--bg-3);overflow:hidden;position:relative}
+.cand-track i{position:absolute;left:0;top:0;height:100%;border-radius:4px;transition:width .4s ease}
+.cand-pct{font-size:12px;font-weight:600;width:42px;text-align:right;font-family:var(--mono);flex-shrink:0}
+.cand-winner{font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0}
+
+/* ── Commune search ──────────────────────────────────── */
+.commune-search-input{width:100%;padding:9px 12px;font-size:13.5px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-solid);color:var(--ink);outline:none;box-sizing:border-box}
+.commune-suggestion{padding:9px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line-soft)}
+.commune-suggestion:hover{background:var(--bg-2)}
+
+/* ── Niveaux ─────────────────────────────────────────── */
+.level-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.level-card{padding:18px 20px;border:2px solid var(--line);border-radius:var(--r);cursor:pointer;transition:border-color .15s,background .15s}
+.level-card:hover,.level-card.active{border-color:var(--ink);background:color-mix(in srgb,var(--ink) 4%,var(--surface-solid))}
+.level-card h4{margin:0 0 4px;font-size:14px;font-weight:600}
+.level-card p{margin:0;font-size:12px;color:var(--ink-4)}
+
+/* ── Misc ────────────────────────────────────────────── */
+.loading-state{display:flex;align-items:center;justify-content:center;min-height:320px;color:var(--ink-4);font-size:14px;gap:12px}
+.warn-banner{padding:12px 16px;margin-bottom:24px;border-radius:var(--r-sm);background:color-mix(in srgb,var(--status-warn) 10%,var(--surface-solid));border:1px solid color-mix(in srgb,var(--status-warn) 30%,transparent);font-size:12.5px;color:var(--ink-3);line-height:1.6}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel" src="components/shared.jsx"></script>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect, useMemo } = React;
 
-function Donut({ a, b, ca, cb, label }) {
-  const r = 68, circ = 2 * Math.PI * r, total = a + b;
-  const sa = (a / total) * circ;
-  return (
-    <svg viewBox="0 0 180 180" style={{ width: 180, height: 180 }}>
-      <circle cx="90" cy="90" r={r} fill="none" stroke="var(--bg-3)" strokeWidth="22" />
-      <circle cx="90" cy="90" r={r} fill="none" stroke={ca} strokeWidth="22"
-        strokeDasharray={sa + ' ' + circ} transform="rotate(-90 90 90)" />
-      <circle cx="90" cy="90" r={r} fill="none" stroke={cb} strokeWidth="22"
-        strokeDasharray={(circ - sa) + ' ' + circ} strokeDashoffset={-sa} transform="rotate(-90 90 90)" />
-      <text x="90" y="88" textAnchor="middle" fontFamily="var(--sans)" fontSize="24"
-        fontWeight="600" letterSpacing="-0.03em" fill="var(--ink)">{a.toFixed(1)}%</text>
-      <text x="90" y="105" textAnchor="middle" fontFamily="var(--sans)" fontSize="10"
-        fill="var(--ink-4)" letterSpacing="0.04em">{label}</text>
-    </svg>
-  );
+// ── Constantes candidats ──────────────────────────────────────────────────────
+const T1_CANDS = [
+  { key: 't1_macron',    label: 'Macron',    party: 'LREM', color: 'var(--d-1)' },
+  { key: 't1_melenchon', label: 'Mélenchon', party: 'LFI',  color: 'var(--d-3)' },
+  { key: 't1_lepen',     label: 'Le Pen',    party: 'RN',   color: 'var(--d-2)' },
+  { key: 't1_zemmour',   label: 'Zemmour',   party: 'REC',  color: 'var(--d-4)' },
+  { key: 't1_pecresse',  label: 'Pécresse',  party: 'LR',   color: 'var(--d-5)' },
+  { key: 't1_jadot',     label: 'Jadot',     party: 'EELV', color: 'var(--d-6)' },
+  { key: 't1_autres',    label: 'Autres',    party: '',     color: 'var(--ink-4)' },
+];
+const DEPT_NAMES = {
+  '75':'Paris','77':'Seine-et-Marne','78':'Yvelines','91':'Essonne',
+  '92':'Hauts-de-Seine','93':'Seine-Saint-Denis','94':'Val-de-Marne','95':"Val-d'Oise",
+};
+const DEPT_ORDER = ['75','92','78','91','94','93','77','95'];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const pct  = v => v != null ? (v * 100).toFixed(1) + '%' : '—';
+const p1   = v => v != null ? v.toFixed(1) + '%' : '—';
+const mean = (rows, key) => {
+  const vals = rows.map(r => r[key]).filter(v => v != null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+};
+
+// ── Stats pour la section Vainqueur T2 ───────────────────────────────────────
+function computeStats(rows) {
+  const total = rows.length;
+  if (!total) return null;
+  const hasSplit  = rows.some(r => r.split !== null);
+  const testRows  = hasSplit ? rows.filter(r => r.split === 'test') : rows;
+  const trainRows = hasSplit ? rows.filter(r => r.split === 'train') : [];
+  const calc = (sub) => {
+    const n = sub.length;
+    if (!n) return null;
+    const correct = sub.filter(r => r.correct === 1).length;
+    return {
+      total: n, correct, wrong: n - correct, accuracy: correct / n,
+      tp: sub.filter(r => r.ground_truth === 0 && r.prediction === 0).length,
+      tn: sub.filter(r => r.ground_truth === 1 && r.prediction === 1).length,
+      fp: sub.filter(r => r.ground_truth === 1 && r.prediction === 0).length,
+      fn: sub.filter(r => r.ground_truth === 0 && r.prediction === 1).length,
+      macronTotal: sub.filter(r => r.ground_truth === 0).length,
+      lepenTotal:  sub.filter(r => r.ground_truth === 1).length,
+    };
+  };
+  return { all: calc(rows), test: calc(testRows), train: calc(trainRows), hasSplit, testRows, trainRows };
 }
 
-function Header() {
-  return (
-    <section className="page-header">
-      <div className="meta-row">
-        <span className="eyebrow">02 · Candidats &amp; partis</span>
-        <span className="chip">Premier tour IDF · 10 avril 2022</span>
-        <span className="chip">10 candidats</span>
-      </div>
-      <h1 className="headline-1">Les résultats candidat par candidat.</h1>
-      <p className="dek">
-        Classement du premier tour en Île-de-France, comparaison socio-économique des électorats,
-        et résultat du second tour Macron vs Le Pen. Source : Ministère de l'Intérieur.
-      </p>
-    </section>
-  );
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 1 — Vainqueur T2 (prédictions modèle)
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function T1Ranking() {
-  const total = MOCK.candidatesT1.reduce((s, c) => s + c.value, 0);
+function ModelTabs({ models, selected, onSelect }) {
   return (
-    <section className="section">
-      <div className="section-head">
+    <div className="panel" style={{ padding: '16px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <span className="eyebrow">Premier tour</span>
-          <h2>Classement complet — IDF 2022</h2>
-        </div>
-        <span className="chip">Exprimés IDF · {total.toFixed(1)}% total</span>
-      </div>
-      <div className="grid-12">
-        <div className="panel">
-          <BarList rows={MOCK.candidatesT1} />
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-            <div className="label" style={{ marginBottom: 10 }}>Répartition graphique</div>
-            <div style={{ display: 'flex', height: 20, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-              {MOCK.candidatesT1.map((c, i) => (
-                <div key={i} title={c.name + ' ' + c.value + '%'}
-                  style={{ width: c.value + '%', background: c.color, minWidth: 2 }} />
-              ))}
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginTop: 10 }}>
-              {MOCK.candidatesT1.slice(0, 6).map((c, i) => (
-                <span key={i} style={{ fontSize: 11, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color, display: 'inline-block' }} />
-                  {c.name.split(' ').pop()}
-                </span>
-              ))}
-            </div>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>Choisir un modèle</div>
+          <div className="model-tabs">
+            {models.map(m => (
+              <button key={m.id} className={selected === m.id ? 'active' : ''} onClick={() => onSelect(m.id)}>
+                {m.name}
+              </button>
+            ))}
           </div>
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div className="panel">
-            <div className="panel-hd">
-              <h3>Second tour</h3>
-              <span className="chip">24 avril 2022</span>
-            </div>
-            <BarList rows={MOCK.t2} max={100} />
-            <div style={{ marginTop: 20 }}>
-              <StackBar segments={MOCK.t2} />
-            </div>
-            <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-              Macron remporte l'IDF avec <strong style={{ color: 'var(--d-1)' }}>+28,4 points</strong> d'avance,
-              soit un score nettement supérieur au résultat national (+17,1 pts).
-              Paris (75) et les Hauts-de-Seine (92) constituent ses bastions.
-            </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-hd"><h3>Macron vs Mélenchon — T1</h3></div>
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, padding: '8px 0' }}>
-              <Donut
-                a={MOCK.candidatesT1[0].value}
-                b={MOCK.candidatesT1[1].value}
-                ca={MOCK.candidatesT1[0].color}
-                cb={MOCK.candidatesT1[1].color}
-                label="T1 IDF"
-              />
-              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-                <div style={{ marginBottom: 8 }}>
-                  <span style={{ color: 'var(--d-1)', fontWeight: 600 }}>Macron 35,42%</span>
-                  <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>+5,21 pts sur Mélenchon</div>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--d-3)', fontWeight: 600 }}>Mélenchon 30,21%</span>
-                  <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>Score LFI record en IDF</div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div style={{ fontSize: 11, color: 'var(--ink-4)', lineHeight: 1.6, maxWidth: 280 }}>
+          Prédictions chargées depuis les CSV générés par le pipeline ML
+          (<code style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>/artifacts/</code>). Aucune valeur simulée.
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-function ElectoratProfiles() {
-  const profiles = [
-    { label: 'Macron (LREM)', color: 'var(--d-1)',
-      cadres: 38, ouvriers: 8,  diplSup: 52, hlm: 12, revenu: 31200 },
-    { label: 'Mélenchon (LFI)', color: 'var(--d-3)',
-      cadres: 18, ouvriers: 22, diplSup: 31, hlm: 28, revenu: 21400 },
-    { label: 'Le Pen (RN)',   color: 'var(--d-2)',
-      cadres: 11, ouvriers: 28, diplSup: 18, hlm: 34, revenu: 18900 },
-    { label: 'Pécresse (LR)', color: 'var(--d-5)',
-      cadres: 42, ouvriers: 6,  diplSup: 55, hlm:  9, revenu: 34500 },
+function SummaryKPIs({ stats, metricAcc }) {
+  if (!stats) return null;
+  const ds    = stats.hasSplit ? stats.test : stats.all;
+  const label = stats.hasSplit ? 'Accuracy set de test' : 'Accuracy (toutes communes)';
+  const note  = stats.hasSplit
+    ? `${ds.total} communes · split 80/20`
+    : metricAcc ? 'Set de test officiel : ' + pct(metricAcc) : 'Train + test — relancez le pipeline';
+  const kpis = [
+    { lbl: label,                  val: pct(ds.accuracy),                     note, spark: [0.86,0.89,0.91,0.93,ds.accuracy], color: 'var(--ink)' },
+    { lbl: 'Prédictions correctes', val: ds.correct.toLocaleString('fr-FR'),  note: pct(ds.accuracy) + ' du set de test', color: 'var(--status-ok)' },
+    { lbl: 'Erreurs',               val: ds.wrong.toLocaleString('fr-FR'),    note: pct(ds.wrong / ds.total) + ' du set de test', color: 'var(--status-err)' },
+    { lbl: 'Communes testées',      val: ds.total.toLocaleString('fr-FR'),    note: stats.hasSplit ? `sur ${stats.all.total} total (80/20)` : '8 depts IDF', color: 'var(--ink-3)' },
   ];
-
-  const indicators = [
-    { key: 'cadres',   label: '% cadres',         unit: '%', max: 60 },
-    { key: 'ouvriers', label: '% ouvriers',        unit: '%', max: 40 },
-    { key: 'diplSup',  label: '% diplômés Bac+3',  unit: '%', max: 70 },
-    { key: 'hlm',      label: '% logements HLM',   unit: '%', max: 50 },
-    { key: 'revenu',   label: 'Revenu médian',      unit: '€', max: 40000, fmt: v => v.toLocaleString('fr-FR') },
-  ];
-
   return (
-    <section className="section">
-      <div className="section-head">
-        <div>
-          <span className="eyebrow">Sociologie électorale</span>
-          <h2>Profil socio-économique des électorats</h2>
+    <>
+      {!stats.hasSplit && (
+        <div className="warn-banner">
+          <strong>CSV sans colonne split</strong> — L'accuracy affichée inclut les données d'entraînement (train acc ≈ 100%).
+          Accuracy réelle sur set de test : <strong>{metricAcc ? pct(metricAcc) : '—'}</strong>. Relancez le pipeline ML.
         </div>
-        <p>Caractéristiques moyennes des communes remportées par chaque candidat au T1 — IDF 2022.</p>
+      )}
+      <div className="kpi-row" style={{ marginBottom: 48 }}>
+        {kpis.map(k => (
+          <div key={k.lbl} className="kpi">
+            <div className="kpi-hd"><span className="label">{k.lbl}</span></div>
+            <div className="kpi-value tnum" style={{ color: k.color }}>{k.val}</div>
+            {k.spark && <Sparkline data={k.spark} height={26} color={k.color} />}
+            <div className="kpi-foot"><span style={{ color: 'var(--ink-4)', fontSize: 11 }}>{k.note}</span></div>
+          </div>
+        ))}
       </div>
-      <div className="panel">
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(4, 1fr)', gap: '0 16px' }}>
-          <div />
-          {profiles.map(p => (
-            <div key={p.label} style={{ textAlign: 'center', padding: '0 4px 16px', borderBottom: '2px solid ' + p.color }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: p.color }}>{p.label}</div>
-            </div>
-          ))}
-          {indicators.map(ind => (
-            <React.Fragment key={ind.key}>
-              <div style={{ fontSize: 12, color: 'var(--ink-4)', padding: '10px 12px 10px 0',
-                borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
-                {ind.label}
-              </div>
-              {profiles.map(p => {
-                const val = p[ind.key];
-                const pct = (val / ind.max) * 100;
-                const fmt = ind.fmt ? ind.fmt(val) : val;
-                return (
-                  <div key={p.label} style={{ padding: '10px 4px', borderBottom: '1px solid var(--line-soft)' }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, textAlign: 'center', marginBottom: 4 }}>
-                      {fmt}{ind.unit !== '€' ? ind.unit : ''}
-                      {ind.unit === '€' && <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>€</span>}
-                    </div>
-                    <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-3)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: Math.min(100, pct) + '%', background: p.color }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </div>
-        <div style={{ marginTop: 16, fontSize: 12, color: 'var(--ink-4)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          Source : croisement résultats électoraux × données INSEE RP 2022 et Filosofi 2017 sur les 1 268 communes IDF.
-          Valeurs moyennes pondérées par le score du candidat.
-        </div>
-      </div>
-    </section>
+    </>
   );
 }
 
-function CommuneTable() {
-  const [dept, setDept] = useState('Tous');
-  const depts = ['Tous', '75', '77', '78', '91', '92', '93', '94', '95'];
-  const filtered = dept === 'Tous' ? MOCK.communes : MOCK.communes.filter(c => c.dept === dept);
-  const colorMap = { Macron: 'var(--d-1)', Melenchon: 'var(--d-3)', LePen: 'var(--d-2)' };
+function ConfusionMatrix({ s }) {
+  if (!s) return null;
+  const total = s.total;
+  return (
+    <div>
+      <div className="eyebrow" style={{ marginBottom: 12 }}>Matrice de confusion</div>
+      <div className="cm-grid">
+        <div className="cm-cell head" />
+        <div className="cm-cell head">Prédit Macron</div>
+        <div className="cm-cell head">Prédit Le Pen</div>
+        <div className="cm-cell head" style={{ justifyContent: 'flex-end', alignItems: 'flex-start', padding: '12px 10px' }}>Réel Macron</div>
+        <div className="cm-cell tp"><span className="cm-count" style={{ color: 'var(--status-ok)' }}>{s.tp}</span><span className="cm-label">Vrais positifs</span><span className="cm-label">{((s.tp/total)*100).toFixed(1)}%</span></div>
+        <div className="cm-cell fn"><span className="cm-count" style={{ color: 'var(--status-err)' }}>{s.fn}</span><span className="cm-label">Faux négatifs</span><span className="cm-label">{((s.fn/total)*100).toFixed(1)}%</span></div>
+        <div className="cm-cell head" style={{ justifyContent: 'flex-end', alignItems: 'flex-start', padding: '12px 10px' }}>Réel Le Pen</div>
+        <div className="cm-cell fp"><span className="cm-count" style={{ color: 'var(--status-err)' }}>{s.fp}</span><span className="cm-label">Faux positifs</span><span className="cm-label">{((s.fp/total)*100).toFixed(1)}%</span></div>
+        <div className="cm-cell tn"><span className="cm-count" style={{ color: 'var(--status-ok)' }}>{s.tn}</span><span className="cm-label">Vrais négatifs</span><span className="cm-label">{((s.tn/total)*100).toFixed(1)}%</span></div>
+      </div>
+      <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--ink-4)', lineHeight: 1.7 }}>
+        Macron gagne {s.macronTotal} communes ({((s.macronTotal/total)*100).toFixed(1)}%) · Le Pen gagne {s.lepenTotal} communes ({((s.lepenTotal/total)*100).toFixed(1)}%)
+      </div>
+    </div>
+  );
+}
 
+function DeptBreakdown({ rows }) {
+  const byDept = {};
+  rows.forEach(r => {
+    const d = r.code_departement;
+    if (!byDept[d]) byDept[d] = { total: 0, correct: 0 };
+    byDept[d].total++;
+    if (r.correct === 1) byDept[d].correct++;
+  });
+  const depts = DEPT_ORDER.filter(d => byDept[d]).map(d => ({
+    code: d, nom: DEPT_NAMES[d] || d,
+    accuracy: byDept[d].correct / byDept[d].total,
+    correct: byDept[d].correct, total: byDept[d].total,
+  }));
+  return (
+    <div>
+      <div className="eyebrow" style={{ marginBottom: 12 }}>Accuracy par département</div>
+      <div className="bar-list">
+        {depts.map(d => {
+          const col = d.accuracy >= 0.96 ? 'var(--status-ok)' : d.accuracy >= 0.88 ? 'var(--ink-3)' : 'var(--status-err)';
+          return (
+            <div key={d.code} className="bar-row">
+              <div className="rank" style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{d.code}</div>
+              <div className="nm">{d.nom}<small>{d.correct}/{d.total}</small></div>
+              <div className="br"><i style={{ width: (d.accuracy*100)+'%', background: col }} /></div>
+              <div className="pc tnum" style={{ color: col }}>{(d.accuracy*100).toFixed(1)}<small>%</small></div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CommuneTable({ rows, hasSplit }) {
+  const [dept, setDept]         = useState('Tous');
+  const [filter, setFilter]     = useState('tous');
+  const [splitFilter, setSplit] = useState(hasSplit ? 'test' : 'tous');
+  const [search, setSearch]     = useState('');
+  const allDepts = useMemo(() => DEPT_ORDER.filter(d => new Set(rows.map(r => r.code_departement)).has(d)), [rows]);
+  const filtered = useMemo(() => rows.filter(r => {
+    if (dept !== 'Tous' && r.code_departement !== dept) return false;
+    if (filter === 'correct' && r.correct !== 1) return false;
+    if (filter === 'erreur'  && r.correct !== 0) return false;
+    if (hasSplit && splitFilter !== 'tous' && r.split !== splitFilter) return false;
+    if (search) { const q = search.toLowerCase(); if (!r.libelle_commune.toLowerCase().includes(q) && !r.code_commune.includes(q)) return false; }
+    return true;
+  }), [rows, dept, filter, splitFilter, search]);
+  const shown = filtered.slice(0, 300);
+  const MC = 'var(--d-1)', LP = 'var(--d-2)';
   return (
     <section className="section">
       <div className="section-head">
         <div>
-          <span className="eyebrow">Communes emblématiques</span>
-          <h2>Résultats T1 sélection IDF</h2>
+          <span className="eyebrow">Détail par commune</span>
+          <h2>{filtered.length.toLocaleString('fr-FR')} commune{filtered.length > 1 ? 's' : ''}</h2>
         </div>
-        <div className="tabs">
-          {depts.map(d => (
+        {hasSplit && <div style={{ fontSize: 11.5, color: 'var(--ink-4)', lineHeight: 1.5, maxWidth: 260 }}>
+          Les métriques officielles sont calculées sur le <strong>set de test</strong> (20%).
+        </div>}
+      </div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+        {hasSplit && (
+          <div className="toggle-group">
+            {[['test','Test (20%)'],['train','Train (80%)'],['tous','Tout']].map(([v,l]) => (
+              <button key={v} className={splitFilter === v ? 'active' : ''} onClick={() => setSplit(v)}>{l}</button>
+            ))}
+          </div>
+        )}
+        <div className="toggle-group">
+          {[['tous','Toutes'],['correct','Correctes'],['erreur','Erreurs']].map(([v,l]) => (
+            <button key={v} className={filter === v ? 'active' : ''} onClick={() => setFilter(v)}>{l}</button>
+          ))}
+        </div>
+        <div className="dept-tab-bar">
+          {['Tous', ...allDepts].map(d => (
             <button key={d} className={dept === d ? 'active' : ''} onClick={() => setDept(d)}>{d}</button>
           ))}
         </div>
+        <input type="search" placeholder="Commune ou code INSEE…" value={search} onChange={e => setSearch(e.target.value)}
+          style={{ padding:'5px 12px', fontSize:12.5, border:'1px solid var(--line)', borderRadius:'var(--r-sm)',
+            background:'var(--surface-solid)', color:'var(--ink)', outline:'none', minWidth:200, flex:1, maxWidth:320 }} />
       </div>
       <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
         <table className="tbl">
           <thead>
             <tr>
-              <th>Code</th>
-              <th>Commune</th>
-              <th>Dept.</th>
-              <th className="num">Inscrits</th>
-              <th className="num">Participation</th>
-              <th>Leader T1</th>
-              <th className="num">Score (%)</th>
+              <th>Code</th><th>Commune</th><th>Dept</th>
+              {hasSplit && <th style={{ width: 68 }}>Split</th>}
+              <th>Réel T2</th><th>Prédit T2</th>
+              <th className="num">Proba Macron</th><th className="num">Proba Le Pen</th>
+              <th style={{ textAlign:'center', width:72 }}>✓/✗</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(c => {
-              const col = colorMap[c.top] || 'var(--ink)';
+            {shown.map(r => {
+              const rc = r.ground_truth === 0 ? MC : LP;
+              const pc = r.prediction   === 0 ? MC : LP;
               return (
-                <tr key={c.code}>
-                  <td className="mono" style={{ color: 'var(--ink-4)' }}>{c.code}</td>
-                  <td style={{ fontWeight: 500 }}>{c.nom}</td>
-                  <td className="mono">{c.dept}</td>
-                  <td className="num tnum">{c.inscrits.toLocaleString('fr-FR')}</td>
-                  <td className="num tnum">{c.participation.toFixed(1)}%</td>
-                  <td>
-                    <span className="chip" style={{ color: col, borderColor: 'transparent',
-                      background: 'color-mix(in srgb, ' + col + ' 10%, transparent)' }}>
-                      <span className="dot" style={{ background: col }} />
-                      {c.top}
-                    </span>
-                  </td>
-                  <td className="num tnum">{c.pct.toFixed(1)}</td>
+                <tr key={r.code_commune} style={r.correct === 0 ? { background:'color-mix(in srgb,var(--status-err) 4%,transparent)' } : {}}>
+                  <td className="mono" style={{ color:'var(--ink-4)', fontSize:11 }}>{r.code_commune}</td>
+                  <td style={{ fontWeight:500 }}>{r.libelle_commune}</td>
+                  <td className="mono" style={{ fontSize:12 }}>{r.code_departement}</td>
+                  {hasSplit && <td><span style={{ fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:3,
+                    background: r.split==='test' ? 'color-mix(in srgb,var(--ink) 10%,transparent)' : 'var(--bg-3)',
+                    color: r.split==='test' ? 'var(--ink)' : 'var(--ink-4)' }}>{r.split||'—'}</span></td>}
+                  <td><span className="chip" style={{ color:rc, borderColor:'transparent', background:`color-mix(in srgb,${rc} 10%,transparent)` }}><span className="dot" style={{ background:rc }} />{r.vainqueur_reel}</span></td>
+                  <td><span className="chip" style={{ color:pc, borderColor:'transparent', background:`color-mix(in srgb,${pc} 10%,transparent)` }}><span className="dot" style={{ background:pc }} />{r.vainqueur_predit}</span></td>
+                  <td className="num"><div style={{ minWidth:68 }}>
+                    <div className="tnum" style={{ fontSize:12, color:MC }}>{(r.proba_macron*100).toFixed(1)}%</div>
+                    <div className="proba-bar"><i style={{ width:(r.proba_macron*100)+'%', background:MC }} /></div>
+                  </div></td>
+                  <td className="num"><div style={{ minWidth:68 }}>
+                    <div className="tnum" style={{ fontSize:12, color:LP }}>{(r.proba_lepen*100).toFixed(1)}%</div>
+                    <div className="proba-bar"><i style={{ width:(r.proba_lepen*100)+'%', background:LP }} /></div>
+                  </div></td>
+                  <td style={{ textAlign:'center' }}>{r.correct===1 ? <span className="result-ok">✓</span> : <span className="result-err">✗</span>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        {filtered.length > 300 && <div style={{ padding:'10px 16px', fontSize:12, color:'var(--ink-4)', borderTop:'1px solid var(--line)', background:'var(--bg-2)' }}>
+          {shown.length} sur {filtered.length.toLocaleString('fr-FR')} communes — affinez les filtres.
+        </div>}
+        {filtered.length === 0 && <div style={{ padding:40, textAlign:'center', color:'var(--ink-4)' }}>Aucune commune ne correspond.</div>}
       </div>
     </section>
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 2 — Résultats T1 & T2 par candidat
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function T1Bars({ rows, title }) {
+  const agg = T1_CANDS.map(c => ({ ...c, val: mean(rows, c.key) })).filter(c => c.val != null);
+  const sorted = [...agg].sort((a, b) => b.val - a.val);
+  const max = sorted[0]?.val || 1;
+  return (
+    <div>
+      {title && <div className="eyebrow" style={{ marginBottom: 10 }}>{title}</div>}
+      {sorted.map(c => (
+        <div key={c.key} className="cand-bar-row">
+          <span className="cand-name" style={{ color: c.color }}>{c.label}</span>
+          <span className="cand-party">{c.party}</span>
+          <div className="cand-track">
+            <i style={{ width: ((c.val / max) * 100) + '%', background: c.color }} />
+          </div>
+          <span className="cand-pct" style={{ color: c.color }}>{c.val.toFixed(1)}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function T2Comparison({ rows, modelName }) {
+  const realM   = mean(rows, 't2_macron');
+  const realLP  = mean(rows, 't2_lepen');
+  const predM   = mean(rows, 'proba_macron') != null ? mean(rows, 'proba_macron') * 100 : null;
+  const predLP  = mean(rows, 'proba_lepen')  != null ? mean(rows, 'proba_lepen')  * 100 : null;
+  const realWin = (realM != null && realLP != null) ? (realM >= realLP ? 'Macron' : 'Le Pen') : null;
+  const predWin = (predM != null && predLP != null) ? (predM >= predLP ? 'Macron' : 'Le Pen') : null;
+  const MC = 'var(--d-1)', LP = 'var(--d-2)';
+  const col = (w) => w === 'Macron' ? MC : LP;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {/* Résultats réels */}
+      <div style={{ padding: 16, borderRadius: 'var(--r)', background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>T2 — Résultats réels</div>
+        {realM != null && realLP != null ? (
+          <>
+            <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 10 }}>
+              <div style={{ width: (realM / (realM + realLP) * 100) + '%', background: MC }} />
+              <div style={{ width: (realLP / (realM + realLP) * 100) + '%', background: LP }} />
+            </div>
+            {[['Macron', realM, MC], ['Le Pen', realLP, LP]].map(([n, v, c]) => (
+              <div key={n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: c, fontWeight: 600 }}>{n}</span>
+                <span className="tnum" style={{ fontSize: 16, fontWeight: 700, color: c }}>{v.toFixed(1)}%</span>
+              </div>
+            ))}
+            {realWin && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>
+              Vainqueur : <strong style={{ color: col(realWin) }}>{realWin}</strong>
+              {realM && realLP && <span> · Marge {Math.abs(realM - realLP).toFixed(1)} pts</span>}
+            </div>}
+          </>
+        ) : <div style={{ color: 'var(--ink-4)', fontSize: 12 }}>Non disponible</div>}
+      </div>
+      {/* Prédictions modèle */}
+      <div style={{ padding: 16, borderRadius: 'var(--r)', background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>T2 — Prédiction {modelName || 'modèle'}</div>
+        {predM != null && predLP != null ? (
+          <>
+            <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 10 }}>
+              <div style={{ width: predM + '%', background: MC }} />
+              <div style={{ width: predLP + '%', background: LP }} />
+            </div>
+            {[['Macron', predM, MC], ['Le Pen', predLP, LP]].map(([n, v, c]) => (
+              <div key={n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: c, fontWeight: 600 }}>{n}</span>
+                <span className="tnum" style={{ fontSize: 16, fontWeight: 700, color: c }}>{v.toFixed(1)}%</span>
+              </div>
+            ))}
+            {predWin && realWin && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>
+              Vainqueur prédit : <strong style={{ color: col(predWin) }}>{predWin}</strong>
+              {predWin === realWin
+                ? <span style={{ color: 'var(--status-ok)', marginLeft: 6 }}>✓ Correct</span>
+                : <span style={{ color: 'var(--status-err)', marginLeft: 6 }}>✗ Erreur</span>}
+            </div>}
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--ink-5)' }}>
+              Probabilité moyenne sur {rows.length.toLocaleString('fr-FR')} communes
+            </div>
+          </>
+        ) : <div style={{ color: 'var(--ink-4)', fontSize: 12 }}>Non disponible</div>}
+      </div>
+    </div>
+  );
+}
+
+function IFDView({ rows, modelName }) {
+  const hasT1 = rows.some(r => r.t1_macron != null);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <section className="section" style={{ marginBottom: 0 }}>
+        <div className="section-head">
+          <div><span className="eyebrow">Île-de-France — {rows.length.toLocaleString('fr-FR')} communes</span>
+            <h2>T1 2022 — Résultats par candidat (moyenne)</h2></div>
+          <span className="chip">Source : Ministère de l'Intérieur</span>
+        </div>
+        <div className="panel">
+          {hasT1
+            ? <T1Bars rows={rows} />
+            : <div style={{ color: 'var(--ink-4)', fontSize: 13, padding: 8 }}>Données T1 non disponibles — relancez le script d'enrichissement.</div>}
+        </div>
+      </section>
+      <section className="section" style={{ marginBottom: 0 }}>
+        <div className="section-head">
+          <div><span className="eyebrow">Île-de-France</span><h2>T2 2022 — Réalité vs prédiction</h2></div>
+        </div>
+        <T2Comparison rows={rows} modelName={modelName} />
+      </section>
+    </div>
+  );
+}
+
+function DeptView({ rows, modelName }) {
+  const [dept, setDept] = useState('75');
+  const allDepts = useMemo(() => DEPT_ORDER.filter(d => rows.some(r => r.code_departement === d)), [rows]);
+  const deptRows = useMemo(() => rows.filter(r => r.code_departement === dept), [rows, dept]);
+  const hasT1 = deptRows.some(r => r.t1_macron != null);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Vue résumé tous départements */}
+      <section className="section" style={{ marginBottom: 0 }}>
+        <div className="section-head">
+          <div><span className="eyebrow">Vue d'ensemble</span><h2>T2 réel vs prédit — tous départements</h2></div>
+        </div>
+        <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Dept</th><th>Communes</th>
+                <th className="num">T2 réel Macron</th><th className="num">T2 réel Le Pen</th>
+                <th className="num">Modèle Macron</th><th className="num">Modèle Le Pen</th>
+                <th className="num">Accuracy modèle</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allDepts.map(d => {
+                const dr = rows.filter(r => r.code_departement === d);
+                const rM  = mean(dr, 't2_macron');
+                const rLP = mean(dr, 't2_lepen');
+                const pM  = mean(dr, 'proba_macron');
+                const pLP = mean(dr, 'proba_lepen');
+                const acc = dr.filter(r => r.correct === 1).length / dr.length;
+                return (
+                  <tr key={d} style={{ cursor: 'pointer', background: d === dept ? 'color-mix(in srgb,var(--ink) 3%,transparent)' : '' }}
+                    onClick={() => setDept(d)}>
+                    <td><strong style={{ fontFamily:'var(--mono)', fontSize:13 }}>{d}</strong> <span style={{ fontSize:12, color:'var(--ink-4)' }}>{DEPT_NAMES[d]}</span></td>
+                    <td className="num tnum">{dr.length}</td>
+                    <td className="num tnum" style={{ color:'var(--d-1)' }}>{rM != null ? rM.toFixed(1)+'%' : '—'}</td>
+                    <td className="num tnum" style={{ color:'var(--d-2)' }}>{rLP != null ? rLP.toFixed(1)+'%' : '—'}</td>
+                    <td className="num tnum" style={{ color:'var(--d-1)', opacity:.75 }}>{pM != null ? (pM*100).toFixed(1)+'%' : '—'}</td>
+                    <td className="num tnum" style={{ color:'var(--d-2)', opacity:.75 }}>{pLP != null ? (pLP*100).toFixed(1)+'%' : '—'}</td>
+                    <td className="num tnum">{(acc*100).toFixed(1)}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Détail département sélectionné */}
+      <section className="section" style={{ marginBottom: 0 }}>
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">Département sélectionné — cliquez le tableau ci-dessus</span>
+            <h2>{dept} · {DEPT_NAMES[dept]} — {deptRows.length} communes</h2>
+          </div>
+          <div className="dept-tab-bar">
+            {allDepts.map(d => <button key={d} className={dept === d ? 'active' : ''} onClick={() => setDept(d)}>{d}</button>)}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="panel">
+            {hasT1
+              ? <T1Bars rows={deptRows} title={`T1 — ${DEPT_NAMES[dept]}`} />
+              : <div style={{ color:'var(--ink-4)', fontSize:13 }}>Données T1 non disponibles.</div>}
+          </div>
+          <div className="panel">
+            <T2Comparison rows={deptRows} modelName={modelName} />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CommuneView({ rows, modelName }) {
+  const [search, setSearch]   = useState('');
+  const [selected, setSelected] = useState(null);
+  const [suggestions, setSugg] = useState([]);
+
+  const handleSearch = (q) => {
+    setSearch(q); setSelected(null);
+    if (q.length < 2) { setSugg([]); return; }
+    const lo = q.toLowerCase();
+    setSugg(rows.filter(r => r.libelle_commune.toLowerCase().includes(lo) || r.code_commune.startsWith(q)).slice(0, 8));
+  };
+  const pick = (r) => { setSelected(r); setSearch(r.libelle_commune); setSugg([]); };
+
+  const MC = 'var(--d-1)', LP = 'var(--d-2)';
+  const hasT1 = selected && selected.t1_macron != null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Barre de recherche */}
+      <div style={{ position: 'relative', maxWidth: 500 }}>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>Rechercher une commune</div>
+        <input className="commune-search-input" type="search" placeholder="Nom de commune ou code INSEE…"
+          value={search} onChange={e => handleSearch(e.target.value)} />
+        {suggestions.length > 0 && (
+          <div style={{ position:'absolute', top:'100%', left:0, right:0, zIndex:10, background:'var(--surface-solid)',
+            border:'1px solid var(--line)', borderRadius:'var(--r-sm)', boxShadow:'0 4px 16px rgba(0,0,0,.08)', marginTop:4 }}>
+            {suggestions.map(r => (
+              <div key={r.code_commune} className="commune-suggestion" onClick={() => pick(r)}>
+                <span style={{ fontWeight:500 }}>{r.libelle_commune}</span>
+                <span style={{ fontSize:11, color:'var(--ink-4)', fontFamily:'var(--mono)' }}>{r.code_commune} · {r.code_departement}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!selected && (
+        <div style={{ textAlign:'center', color:'var(--ink-4)', padding:48, fontSize:14 }}>
+          Tapez le nom d'une commune pour voir son détail complet.
+        </div>
+      )}
+
+      {selected && (
+        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+          {/* En-tête commune */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+            <div>
+              <h2 style={{ margin:0, fontSize:22 }}>{selected.libelle_commune}</h2>
+              <div style={{ fontSize:13, color:'var(--ink-4)', marginTop:4 }}>
+                {selected.libelle_departement} · Dept. {selected.code_departement} · Code {selected.code_commune}
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {selected.participation_t1 != null && (
+                <span className="chip">Participation T1 : {selected.participation_t1.toFixed(1)}%</span>
+              )}
+              {selected.split && <span className="chip">{selected.split === 'test' ? '🔬 Set de test' : '📚 Set d\'entraînement'}</span>}
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+            {/* T1 par candidat */}
+            <div className="panel">
+              <div className="panel-hd"><h3>T1 2022 — Résultats par candidat</h3></div>
+              {hasT1 ? (
+                <>
+                  {T1_CANDS.map(c => {
+                    const v = selected[c.key];
+                    if (v == null) return null;
+                    const isWinner = selected.t1_premier &&
+                      (selected.t1_premier.toLowerCase().includes(c.label.toLowerCase()) ||
+                       (c.key === 't1_macron' && selected.t1_premier.toLowerCase().includes('macron')) ||
+                       (c.key === 't1_lepen' && selected.t1_premier.toLowerCase().includes('pen')) ||
+                       (c.key === 't1_melenchon' && selected.t1_premier.toLowerCase().includes('melenchon')));
+                    return (
+                      <div key={c.key} className="cand-bar-row">
+                        <span className="cand-name" style={{ color: c.color }}>{c.label}</span>
+                        <span className="cand-party">{c.party}</span>
+                        <div className="cand-track"><i style={{ width: v + '%', background: c.color }} /></div>
+                        <span className="cand-pct" style={{ color: c.color }}>{v.toFixed(1)}%</span>
+                        {isWinner && <span className="cand-winner" style={{ background:`color-mix(in srgb,${c.color} 12%,transparent)`, color:c.color }}>1er</span>}
+                      </div>
+                    );
+                  })}
+                  {selected.t1_premier && <div style={{ marginTop:12, fontSize:12, color:'var(--ink-4)' }}>Vainqueur T1 : <strong>{selected.t1_premier}</strong></div>}
+                </>
+              ) : <div style={{ color:'var(--ink-4)', fontSize:12 }}>Données T1 non disponibles.</div>}
+            </div>
+
+            {/* T2 réel + modèle */}
+            <div className="panel" style={{ display:'flex', flexDirection:'column', gap:20 }}>
+              <div className="panel-hd"><h3>T2 2022 — Réalité vs {modelName || 'modèle'}</h3></div>
+
+              {/* Résultat réel */}
+              <div>
+                <div className="label" style={{ marginBottom:8 }}>Vainqueur réel</div>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <span style={{ fontSize:22, fontWeight:700, color: selected.ground_truth===0 ? MC : LP }}>
+                    {selected.vainqueur_reel}
+                  </span>
+                  {selected.t2_macron != null && selected.t2_lepen != null && (
+                    <span style={{ fontSize:13, color:'var(--ink-4)' }}>
+                      {selected.t2_macron.toFixed(1)}% vs {selected.t2_lepen.toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                {selected.t2_macron != null && selected.t2_lepen != null && (
+                  <div style={{ display:'flex', height:8, borderRadius:4, overflow:'hidden', marginTop:8 }}>
+                    <div style={{ width:(selected.t2_macron/(selected.t2_macron+selected.t2_lepen)*100)+'%', background:MC }} />
+                    <div style={{ width:(selected.t2_lepen/(selected.t2_macron+selected.t2_lepen)*100)+'%', background:LP }} />
+                  </div>
+                )}
+                {selected.t2_marge != null && (
+                  <div style={{ fontSize:11, color:'var(--ink-4)', marginTop:6 }}>
+                    Marge : {Math.abs(selected.t2_marge).toFixed(1)} pts
+                  </div>
+                )}
+              </div>
+
+              <hr />
+
+              {/* Prédiction modèle */}
+              <div>
+                <div className="label" style={{ marginBottom:8 }}>Prédiction {modelName || 'modèle'}</div>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <span style={{ fontSize:22, fontWeight:700, color: selected.prediction===0 ? MC : LP }}>
+                    {selected.vainqueur_predit}
+                  </span>
+                  {selected.correct === 1
+                    ? <span style={{ color:'var(--status-ok)', fontWeight:600 }}>✓ Correct</span>
+                    : <span style={{ color:'var(--status-err)', fontWeight:600 }}>✗ Erreur</span>}
+                </div>
+                <div style={{ display:'flex', height:8, borderRadius:4, overflow:'hidden', marginTop:8 }}>
+                  <div style={{ width:(selected.proba_macron*100)+'%', background:MC }} />
+                  <div style={{ width:(selected.proba_lepen*100)+'%', background:LP }} />
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:12 }}>
+                  <span style={{ color:MC }}>Macron {(selected.proba_macron*100).toFixed(1)}%</span>
+                  <span style={{ color:LP }}>Le Pen {(selected.proba_lepen*100).toFixed(1)}%</span>
+                </div>
+              </div>
+
+              {/* Écart réel vs modèle */}
+              {selected.t2_macron != null && (
+                <div style={{ padding:'12px 14px', background:'var(--bg-2)', borderRadius:'var(--r-sm)', fontSize:12, color:'var(--ink-4)', lineHeight:1.6 }}>
+                  Écart proba modèle vs résultat réel :<br />
+                  Macron : {selected.t2_macron.toFixed(1)}% réel vs {(selected.proba_macron*100).toFixed(1)}% prédit
+                  ({(Math.abs(selected.t2_macron - selected.proba_macron*100)).toFixed(1)} pts d'écart)
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CandidatsSection({ rows, modelName }) {
+  const [level, setLevel] = useState('idf');
+  const levels = [
+    { id: 'idf',     label: 'Île-de-France', desc: 'Résultats agrégés sur toutes les communes IDF' },
+    { id: 'dept',    label: 'Département',   desc: 'Comparaison des 8 départements, détail par dept' },
+    { id: 'commune', label: 'Commune',        desc: 'Détail commune par commune — recherche libre' },
+  ];
+  return (
+    <div>
+      <section className="section" style={{ marginBottom: 0 }}>
+        <div className="section-head">
+          <div><span className="eyebrow">Niveau d'analyse</span><h2>Choisissez la granularité</h2></div>
+        </div>
+        <div className="level-cards">
+          {levels.map(l => (
+            <div key={l.id} className={`level-card${level === l.id ? ' active' : ''}`} onClick={() => setLevel(l.id)}>
+              <h4>{l.label}</h4>
+              <p>{l.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {level === 'idf'     && <IFDView    rows={rows} modelName={modelName} />}
+      {level === 'dept'    && <DeptView   rows={rows} modelName={modelName} />}
+      {level === 'commune' && <CommuneView rows={rows} modelName={modelName} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function Header({ loaded, error }) {
+  return (
+    <section className="page-header">
+      <div className="meta-row">
+        <span className="eyebrow">02 · Réalité vs Prédictions</span>
+        <span className="chip">Île-de-France 2022</span>
+        {loaded
+          ? <span className="chip ok"><span className="live-dot" />Prédictions chargées depuis /artifacts/</span>
+          : error
+          ? <span className="chip" style={{ color:'var(--status-err)' }}>Chargement échoué</span>
+          : <span className="chip">Chargement…</span>}
+      </div>
+      <h1 className="headline-1">Résultats réels vs prédictions des modèles, commune par commune.</h1>
+      <p className="dek">
+        Deux espaces : vainqueur T2 prédit par chaque modèle ML, et résultats complets T1 &amp; T2
+        par candidat à toutes les granularités (IDF, département, commune).
+      </p>
+    </section>
+  );
+}
+
 function App() {
+  const [predictions,   setPredictions]   = useState(null);
+  const [metricsLoaded, setMetricsLoaded] = useState(false);
+  const [loadError,     setLoadError]     = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gb_post_t1');
+  const [activeSection, setSection]       = useState('winner');
+
+  useEffect(() => {
+    Promise.all([loadPredictions(), loadArtifacts()])
+      .then(([preds]) => {
+        if (Object.keys(preds).length === 0) { setLoadError(true); return; }
+        setPredictions(preds);
+        setMetricsLoaded(!!MOCK.artifactsLoaded);
+        const first = ['gb_post_t1','gb_pre_vote','rf_post_t1','lstm'].find(id => preds[id]);
+        if (first) setSelectedModel(first);
+      })
+      .catch(() => setLoadError(true));
+  }, []);
+
+  const modelList = predictions
+    ? ['gb_post_t1','gb_pre_vote','rf_post_t1','lstm'].filter(id => predictions[id])
+        .map(id => ({ id, name: predictions[id].name }))
+    : [];
+
+  const currentRows = predictions?.[selectedModel]?.rows ?? [];
+  const currentName = predictions?.[selectedModel]?.name ?? '';
+
+  const stats = useMemo(() => computeStats(currentRows), [currentRows]);
+
+  const metricAcc = useMemo(() => {
+    if (!metricsLoaded || !MOCK.models) return null;
+    const MAP = { gb_post_t1:'gradient_boosting|post_t1', gb_pre_vote:'gradient_boosting|pre_vote', rf_post_t1:'random_forest|post_t1' };
+    const m = MOCK.models.find(m => (m.key+'|'+m.fset) === MAP[selectedModel]);
+    return m?.accuracy ?? null;
+  }, [metricsLoaded, selectedModel]);
+
+  const loaded = !!predictions && !loadError;
+
   return (
     <>
       <Topbar active="comparison" />
       <main className="shell">
-        <Header />
-        <T1Ranking />
-        <ElectoratProfiles />
-        <CommuneTable />
+        <Header loaded={loaded} error={loadError} />
+
+        {!loaded && !loadError && (
+          <div className="loading-state">
+            <div style={{ width:20, height:20, border:'2px solid var(--line)', borderTopColor:'var(--ink)', borderRadius:'50%', animation:'spin .8s linear infinite' }} />
+            Chargement des prédictions depuis /artifacts/…
+          </div>
+        )}
+
+        {loadError && (
+          <div className="panel" style={{ textAlign:'center', color:'var(--status-err)', padding:40 }}>
+            Impossible de charger les fichiers depuis /artifacts/. Vérifiez que Nginx sert correctement ce répertoire.
+          </div>
+        )}
+
+        {loaded && (
+          <>
+            {/* Navigation sections */}
+            <div className="section-nav">
+              <button className={activeSection === 'winner' ? 'active' : ''} onClick={() => setSection('winner')}>
+                Vainqueur T2 — Prédictions modèle
+              </button>
+              <button className={activeSection === 'candidats' ? 'active' : ''} onClick={() => setSection('candidats')}>
+                Résultats T1 &amp; T2 — par candidat
+              </button>
+            </div>
+
+            {/* Sélecteur de modèle (commun aux deux sections) */}
+            <ModelTabs models={modelList} selected={selectedModel} onSelect={setSelectedModel} />
+
+            {/* ── Section 1 : Vainqueur T2 ────────────────────────── */}
+            {activeSection === 'winner' && (
+              <>
+                <SummaryKPIs stats={stats} metricAcc={metricAcc} />
+                <section className="section">
+                  <div className="section-head">
+                    <div><span className="eyebrow">Analyse — set de test uniquement</span>
+                      <h2>Matrice de confusion et précision par département</h2></div>
+                    {stats?.hasSplit
+                      ? <span className="chip ok"><span className="live-dot" />{stats.test.total} communes · set de test (20%)</span>
+                      : <span className="chip" style={{ color:'var(--status-warn)' }}>Toutes communes — incluant entraînement</span>}
+                  </div>
+                  <div className="grid-12">
+                    <div className="panel"><ConfusionMatrix s={stats?.hasSplit ? stats.test : stats?.all} /></div>
+                    <div className="panel"><DeptBreakdown rows={stats?.hasSplit ? stats.testRows : currentRows} /></div>
+                  </div>
+                </section>
+                <CommuneTable rows={currentRows} hasSplit={stats?.hasSplit ?? false} />
+              </>
+            )}
+
+            {/* ── Section 2 : Résultats T1 & T2 ──────────────────── */}
+            {activeSection === 'candidats' && (
+              <CandidatsSection rows={currentRows} modelName={currentName} />
+            )}
+          </>
+        )}
       </main>
       <Footer />
     </>
   );
 }
+
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>

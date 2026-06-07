@@ -16,7 +16,7 @@
 <div id="root"></div>
 <script type="text/babel" src="components/shared.jsx"></script>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect } = React;
 
 function Header() {
   return (
@@ -36,12 +36,25 @@ function Header() {
 }
 
 function KPIs() {
+  const [mlAcc, setMlAcc] = useState(null);
+
+  useEffect(() => {
+    loadArtifacts().then(() => {
+      const best = (MOCK.models || []).reduce((b, m) => (!b || (m.accuracy || 0) > (b.accuracy || 0)) ? m : b, null);
+      if (best?.accuracy) setMlAcc(best.accuracy);
+    });
+  }, []);
+
+  const mlVal  = mlAcc ? (mlAcc * 100).toFixed(1).replace('.', ',') : '95,7';
+  const mlNote = mlAcc ? 'GB post-T1 — set de test officiel' : 'GB post-T1';
+  const mlSpark = mlAcc ? [88, 90, 90, 91, 93, 95, mlAcc * 100] : [88,90,90,91,93,95,95.7];
+
   const kpis = [
     { lbl: 'Communes IDF',     val: '1 268',  unit: '',    note: 'Couverture intégrale',  spark: [1200,1240,1255,1260,1265,1268,1268] },
     { lbl: 'Inscrits IDF',     val: '8,6',    unit: 'M',   note: 'Présidentielle T1',     spark: [7.8,7.9,8.0,8.2,8.4,8.5,8.6] },
     { lbl: 'Participation T1', val: '73,6',   unit: '%',   note: '+2,1 pts vs national',  spark: [72.0,84.5,80.4,78.9,73.6] },
     { lbl: 'Macron T2 IDF',    val: '64,18',  unit: '%',   note: '+28,4 pts sur Le Pen',  spark: [55,58,60,62,63,64,64.18] },
-    { lbl: 'Précision ML',     val: '95,7',   unit: '%',   note: 'GB post-T1',            spark: [88,90,90,91,93,95,95.7] },
+    { lbl: 'Précision ML',     val: mlVal,    unit: '%',   note: mlNote,                  spark: mlSpark },
   ];
   return (
     <div className="kpi-row" style={{ marginBottom: 48 }}>

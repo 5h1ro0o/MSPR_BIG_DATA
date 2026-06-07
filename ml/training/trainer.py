@@ -18,6 +18,23 @@ from ml.preprocessing import (
     load_dataset,
     split_data,
 )
+
+# Colonnes de contexte électorales ajoutées au CSV de prédictions
+_CONTEXT_T1 = [
+    "cible_t1_pct_macron", "cible_t1_pct_melenchon", "cible_t1_pct_lepen",
+    "cible_t1_pct_zemmour", "cible_t1_pct_pecresse", "cible_t1_pct_jadot",
+    "cible_t1_pct_autres", "cible_t1_premier", "taux_participation_t1",
+]
+_CONTEXT_T2 = ["cible_t2_pct_macron", "cible_t2_pct_lepen", "cible_t2_marge"]
+
+
+def _add_context_cols(pred_df: pd.DataFrame, df: pd.DataFrame, index: pd.Index) -> pd.DataFrame:
+    """Ajoute les colonnes T1/T2 réelles au DataFrame de prédictions."""
+    ctx_cols = [c for c in _CONTEXT_T1 + _CONTEXT_T2 if c in df.columns]
+    if not ctx_cols:
+        return pred_df
+    ctx = df.loc[index, ctx_cols].reset_index(drop=True)
+    return pd.concat([pred_df, ctx], axis=1)
 from ml.training.evaluate import (
     plot_confusion_matrix,
     plot_feature_importance,
@@ -45,11 +62,10 @@ def train_random_forest(
     X_train, X_test, y_train, y_test = split_data(X, y)
 
     model = RandomForestModel(task=task, artifact_dir=ARTIFACTS)
+    # X_test n'est PAS passé comme X_val — il est réservé pour l'évaluation finale
     model.train(
         X_train,
         y_train,
-        X_val=X_test,
-        y_val=y_test,
         use_grid_search=True,
         fast_search=fast_search,
         n_iter_random=n_iter,
@@ -78,6 +94,10 @@ def train_random_forest(
     pred_df = model.get_predictions_with_communes(X_all, comm)
     pred_df["ground_truth"] = y_all.reset_index(drop=True)
     pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    split_col = pd.Series("train", index=y_all.index)
+    split_col.loc[X_test.index] = "test"
+    pred_df["split"] = split_col.values
+    pred_df = _add_context_cols(pred_df, df, y_all.index)
     pred_df.to_csv(ARTIFACTS / f"rf_predictions_{tag}.csv", index=False)
 
     if save:
@@ -109,11 +129,10 @@ def train_gradient_boosting(
     X_train, X_test, y_train, y_test = split_data(X, y)
 
     model = GradientBoostingModel(task=task, artifact_dir=ARTIFACTS)
+    # X_test n'est PAS passé comme X_val — il est réservé pour l'évaluation finale
     model.train(
         X_train,
         y_train,
-        X_val=X_test,
-        y_val=y_test,
         use_search=use_search,
         n_iter=n_iter,
     )
@@ -143,6 +162,10 @@ def train_gradient_boosting(
     pred_df = model.get_predictions_with_communes(X_all, comm)
     pred_df["ground_truth"] = y_all.reset_index(drop=True)
     pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    split_col = pd.Series("train", index=y_all.index)
+    split_col.loc[X_test.index] = "test"
+    pred_df["split"] = split_col.values
+    pred_df = _add_context_cols(pred_df, df, y_all.index)
     pred_df.to_csv(ARTIFACTS / f"gb_predictions_{tag}.csv", index=False)
 
     if save:
@@ -213,6 +236,9 @@ def train_lstm(
     pred_df = model.get_predictions_with_communes(X_all.reset_index(drop=True), comm)
     pred_df["ground_truth"] = y_all.reset_index(drop=True)
     pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    test_pos = set(idx_te)
+    pred_df["split"] = ["test" if i in test_pos else "train" for i in range(len(pred_df))]
+    pred_df = _add_context_cols(pred_df, df, y_all.index)
     pred_df.to_csv(ARTIFACTS / f"lstm_predictions_{target}.csv", index=False)
 
     if save:
@@ -257,9 +283,21 @@ def compare_all_models(results: dict[str, dict]) -> None:
 
 
 def _save_metrics(metrics: dict, model_name: str, tag: str) -> None:
-    """Sauvegarde les métriques en JSON."""
+    """
+    Sauvegarde les métriques en JSON.
+    Ajoute une note explicative sur la signification des métriques.
+    """
     path = ARTIFACTS / f"{model_name}_metrics_{tag}.json"
     clean = {k: v for k, v in metrics.items() if not isinstance(v, (list, np.ndarray))}
+    # Note de lecture des métriques
+    clean["_notes"] = (
+        "train_*: sur données d'entraînement (indicateur d'overfitting, pas une référence). "
+        "cv_*: cross-validation sur train (estimation robuste). "
+        "test_*: set de test jamais vu pendant l'entraînement (métrique officielle). "
+        "test_*_ci_lo / _ci_hi: intervalle de confiance 95% (Wilson pour accuracy, bootstrap pour AUC). "
+        "baseline_accuracy: classifieur naïf (classe majoritaire). "
+        "improvement_over_baseline: gain réel du modèle sur la baseline."
+    )
     path.write_text(json.dumps(clean, indent=2, default=str))
 
 

@@ -114,20 +114,22 @@ function ModelTable({ models }) {
   );
 }
 
-function FeatureImportance() {
-  const max = Math.max(...MOCK.topFeatures.map(t => t.imp));
+function FeatureImportance({ features }) {
+  if (!features || features.length === 0) return null;
+  const top = features.slice(0, 15);
+  const max = Math.max(...top.map(t => t.imp));
   return (
     <section className="section">
       <div className="section-head">
         <div>
           <span className="eyebrow">Interprétabilité</span>
-          <h2>Top 15 variables explicatives — Gradient Boosting post-T1</h2>
+          <h2>Top {top.length} variables explicatives — Gradient Boosting post-T1</h2>
         </div>
-        <span className="chip">feature_importances_ scikit-learn · 78 features totales</span>
+        <span className="chip ok"><span className="live-dot" />Chargées depuis gb_top_features.csv</span>
       </div>
       <div className="panel">
         <div className="bar-list">
-          {MOCK.topFeatures.map((t, i) => (
+          {top.map((t, i) => (
             <div key={t.name} className="bar-row">
               <div className="rank">{String(i + 1).padStart(2, '0')}</div>
               <div className="nm" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>
@@ -140,9 +142,9 @@ function FeatureImportance() {
           ))}
         </div>
         <div style={{ marginTop: 16, fontSize: 12, color: 'var(--ink-4)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          La variable <code style={{ background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>h17_t2_pct_macron</code> (score Macron au T2 2017)
-          est la plus prédictive : un territoire qui a voté Macron en 2017 le fera très probablement à nouveau.
-          Le niveau de diplôme et le revenu médian confirment la géographie sociale de ce vote.
+          La variable <code style={{ background: 'var(--bg-2)', padding: '1px 4px', borderRadius: 3 }}>{top[0]?.name}</code>
+          {' '}({top[0]?.desc}) est la plus prédictive du vainqueur T2.
+          Les scores historiques 2017 et 2022-T1 dominent le classement, confirmant la stabilité des comportements électoraux.
         </div>
       </div>
     </section>
@@ -181,99 +183,179 @@ function Artifacts({ images }) {
   );
 }
 
-function Sandbox() {
-  const init = { cadres: 25, ouvriers: 12, dipl: 35, hlm: 18, revenu: 26500, chomage: 7.5, t1macron: 32 };
-  const [v, setV] = useState(init);
+function CommuneLookup({ predictions }) {
+  const [search, setSearch]           = useState('');
+  const [selectedModel, setModelKey]  = useState('gb_post_t1');
+  const [result, setResult]           = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
 
-  const score = (() => {
-    let s = 0.5;
-    s += (v.cadres    - 18) * 0.012;
-    s += (v.dipl      - 28) * 0.008;
-    s += (v.revenu - 22000) * 0.0000085;
-    s += (v.t1macron  - 28) * 0.014;
-    s -= (v.ouvriers  - 14) * 0.013;
-    s -= (v.hlm       - 20) * 0.005;
-    s -= (v.chomage   -  7) * 0.018;
-    return Math.max(0.02, Math.min(0.98, s));
-  })();
+  const modelList = predictions
+    ? ['gb_post_t1','gb_pre_vote','rf_post_t1','lstm'].filter(id => predictions[id])
+    : [];
 
-  const winner   = score > 0.5 ? 'Macron' : 'Le Pen';
-  const winColor = score > 0.5 ? 'var(--d-1)' : 'var(--d-2)';
-  const margin   = (Math.abs(score - 0.5) * 200).toFixed(1);
+  const modelNames = {
+    gb_post_t1:  'GB post-T1',
+    gb_pre_vote: 'GB pré-vote',
+    rf_post_t1:  'RF post-T1',
+    lstm:        'LSTM',
+  };
 
-  const slider = (key, lbl, min, max, step, unit) => (
-    <div className="slider-row" key={key}>
-      <div className="top">
-        <span className="lbl">{lbl}</span>
-        <span className="val tnum">{Number(v[key]).toLocaleString('fr-FR')}<small>{unit}</small></span>
-      </div>
-      <input className="rng" type="range" min={min} max={max} step={step} value={v[key]}
-        onChange={e => setV(p => ({ ...p, [key]: parseFloat(e.target.value) }))} />
-    </div>
-  );
+  const allRows = predictions?.[selectedModel]?.rows ?? [];
+
+  const handleSearch = (q) => {
+    setSearch(q);
+    setResult(null);
+    if (q.length < 2) { setSuggestions([]); return; }
+    const lower = q.toLowerCase();
+    const hits = allRows.filter(r =>
+      r.libelle_commune.toLowerCase().includes(lower) || r.code_commune.startsWith(q)
+    ).slice(0, 8);
+    setSuggestions(hits);
+  };
+
+  const pick = (row) => {
+    setResult(row);
+    setSearch(row.libelle_commune);
+    setSuggestions([]);
+  };
+
+  const macronColor = 'var(--d-1)';
+  const lepenColor  = 'var(--d-2)';
+  const realCol  = result ? (result.ground_truth === 0 ? macronColor : lepenColor) : null;
+  const predCol  = result ? (result.prediction   === 0 ? macronColor : lepenColor) : null;
 
   return (
     <section className="section">
       <div className="section-head">
-        <div><span className="eyebrow">Simulation</span><h2>Sandbox — prédire une commune</h2></div>
+        <div>
+          <span className="eyebrow">Exploration</span>
+          <h2>Chercher une commune — prédiction du modèle</h2>
+        </div>
         <p>
-          Proxy du modèle Gradient Boosting pré-vote. Ajustez les indicateurs,
-          la prédiction se met à jour en direct. Accuracy proxy : ~88%.
+          Retrouvez la prédiction du modèle pour n'importe quelle commune IDF.
+          Les valeurs affichées proviennent directement du fichier CSV généré lors de l'entraînement.
         </p>
       </div>
       <div className="grid-21">
-        <div className="panel">
-          {slider('cadres',   '% Cadres et prof. sup.',   5, 55, 0.5, '%')}
-          {slider('ouvriers', '% Ouvriers',               2, 40, 0.5, '%')}
-          {slider('dipl',     '% Diplômés Bac+3 ou plus', 10, 65, 0.5, '%')}
-          {slider('hlm',      '% Logements HLM',          0, 65, 0.5, '%')}
-          {slider('revenu',   'Revenu médian annuel',      12000, 50000, 100, ' €')}
-          {slider('chomage',  'Taux de chômage RP',        3, 20, 0.1, '%')}
-          {slider('t1macron', 'Score Macron T1 2022',      10, 55, 0.5, '%')}
-        </div>
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div className="panel-hd">
-            <h3>Prédiction T2</h3>
-            <span className="chip ok"><span className="live-dot" />en direct</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
-            <span style={{ fontSize: 64, fontWeight: 600, letterSpacing: '-0.04em', color: winColor, fontFamily: 'var(--mono)' }}>
-              {(score * 100).toFixed(1)}
-              <span style={{ fontSize: 22, color: 'var(--ink-4)' }}>%</span>
-            </span>
-            <div>
-              <div className="label">Probabilité vainqueur</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: winColor, marginTop: 4 }}>{winner}</div>
-            </div>
-          </div>
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div>
-            <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden' }}>
-              <div style={{ width: (score * 100) + '%', background: 'var(--d-1)' }} />
-              <div style={{ width: ((1 - score) * 100) + '%', background: 'var(--d-2)' }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: 'var(--ink-4)' }}>
-              <span><strong style={{ color: 'var(--ink)' }}>{(score * 100).toFixed(1)}%</strong> Macron</span>
-              <span><strong style={{ color: 'var(--ink)' }}>{((1 - score) * 100).toFixed(1)}%</strong> Le Pen</span>
+            <div className="label" style={{ marginBottom: 8 }}>Modèle</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {modelList.map(id => (
+                <button key={id}
+                  onClick={() => { setModelKey(id); setResult(null); setSuggestions([]); }}
+                  style={{
+                    padding: '5px 12px', fontSize: 12, fontWeight: 500,
+                    border: '1px solid var(--line)', borderRadius: 'var(--r-sm)',
+                    background: selectedModel === id ? 'var(--ink)' : 'transparent',
+                    color: selectedModel === id ? '#fff' : 'var(--ink-3)', cursor: 'pointer',
+                  }}>
+                  {modelNames[id] || id}
+                </button>
+              ))}
             </div>
           </div>
-          <hr />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div>
-              <div className="label">Marge prédite</div>
-              <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.025em', marginTop: 4 }}>
-                {margin}<span style={{ fontSize: 13, color: 'var(--ink-4)' }}>pts</span>
+          <div style={{ position: 'relative' }}>
+            <div className="label" style={{ marginBottom: 8 }}>Commune</div>
+            <input
+              type="search"
+              placeholder="Nom de commune ou code INSEE…"
+              value={search}
+              onChange={e => handleSearch(e.target.value)}
+              style={{
+                width: '100%', padding: '9px 12px', fontSize: 13.5,
+                border: '1px solid var(--line)', borderRadius: 'var(--r-sm)',
+                background: 'var(--surface-solid)', color: 'var(--ink)', outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {suggestions.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                background: 'var(--surface-solid)', border: '1px solid var(--line)',
+                borderRadius: 'var(--r-sm)', boxShadow: '0 4px 16px rgba(0,0,0,.08)',
+                marginTop: 4,
+              }}>
+                {suggestions.map(r => (
+                  <div key={r.code_commune}
+                    onClick={() => pick(r)}
+                    style={{
+                      padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      borderBottom: '1px solid var(--line-soft)',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <span style={{ fontWeight: 500 }}>{r.libelle_commune}</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>
+                      {r.code_commune} · {r.code_departement}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div>
-              <div className="label">Modèle référence</div>
-              <div style={{ fontSize: 13, fontWeight: 500, marginTop: 6 }}>GB pré-vote</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>Accuracy réelle : 90,2%</div>
-            </div>
+            )}
           </div>
-          <div style={{ padding: '12px 14px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.5 }}>
-            Ce proxy utilise une régression linéaire sur les 7 indicateurs les plus importants.
-            Le modèle complet (GB, 69 features) atteint 90,2% d'accuracy sur les 254 communes du set de test.
-          </div>
+          {!result && (
+            <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
+              Tapez au moins 2 caractères pour voir les suggestions.
+              Les prédictions couvrent les {allRows.length.toLocaleString('fr-FR')} communes IDF.
+            </div>
+          )}
+        </div>
+
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {!result && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flex: 1, color: 'var(--ink-5)', fontSize: 13, minHeight: 180 }}>
+              Sélectionnez une commune pour voir la prédiction du modèle.
+            </div>
+          )}
+          {result && (
+            <>
+              <div className="panel-hd">
+                <div>
+                  <h3 style={{ margin: 0 }}>{result.libelle_commune}</h3>
+                  <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>
+                    {result.libelle_departement} · {result.code_commune} · {modelNames[selectedModel] || selectedModel}
+                  </div>
+                </div>
+                {result.correct === 1
+                  ? <span className="chip ok" style={{ fontSize: 11 }}><span className="dot" />Correct</span>
+                  : <span className="chip" style={{ fontSize: 11, color: 'var(--status-err)', borderColor: 'var(--status-err)' }}>Erreur</span>}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div style={{ padding: 16, borderRadius: 'var(--r)', background: 'color-mix(in srgb, ' + realCol + ' 8%, var(--bg-2))' }}>
+                  <div className="label" style={{ marginBottom: 6 }}>Vainqueur réel (T2)</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: realCol }}>{result.vainqueur_reel}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 4 }}>Source : Min. Intérieur</div>
+                </div>
+                <div style={{ padding: 16, borderRadius: 'var(--r)', background: 'color-mix(in srgb, ' + predCol + ' 8%, var(--bg-2))' }}>
+                  <div className="label" style={{ marginBottom: 6 }}>Prédit par le modèle</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: predCol }}>{result.vainqueur_predit}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 4 }}>
+                    {modelNames[selectedModel]}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="label" style={{ marginBottom: 8 }}>Probabilités du modèle</div>
+                <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden' }}>
+                  <div style={{ width: (result.proba_macron * 100) + '%', background: macronColor }} />
+                  <div style={{ width: (result.proba_lepen  * 100) + '%', background: lepenColor  }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12 }}>
+                  <span style={{ color: macronColor, fontWeight: 600 }}>
+                    Macron {(result.proba_macron * 100).toFixed(1)}%
+                  </span>
+                  <span style={{ color: lepenColor, fontWeight: 600 }}>
+                    Le Pen {(result.proba_lepen * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -281,15 +363,19 @@ function Sandbox() {
 }
 
 function App() {
-  const [models, setModels] = useState(MOCK.models);
-  const [images, setImages]  = useState(null);
-  const [loaded, setLoaded]  = useState(false);
+  const [models,      setModels]      = useState(MOCK.models);
+  const [features,    setFeatures]    = useState(MOCK.topFeatures);
+  const [images,      setImages]      = useState(null);
+  const [predictions, setPredictions] = useState(null);
+  const [loaded,      setLoaded]      = useState(false);
 
   useEffect(() => {
-    loadArtifacts().then(() => {
+    Promise.all([loadArtifacts(), loadPredictions()]).then(([, preds]) => {
       setModels([...MOCK.models]);
+      setFeatures([...MOCK.topFeatures]);
       setImages(MOCK.images || null);
       setLoaded(!!MOCK.artifactsLoaded);
+      if (Object.keys(preds).length > 0) setPredictions(preds);
     });
   }, []);
 
@@ -299,9 +385,9 @@ function App() {
       <main className="shell">
         <Header loaded={loaded} />
         <ModelTable models={models} />
-        <FeatureImportance />
+        <FeatureImportance features={features} />
         {images && <Artifacts images={images} />}
-        <Sandbox />
+        <CommuneLookup predictions={predictions} />
       </main>
       <Footer />
     </>

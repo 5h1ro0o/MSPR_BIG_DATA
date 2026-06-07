@@ -54,7 +54,7 @@ window.Footer = function Footer() {
           <h4>Navigation</h4>
           <ul>
             <li><a href="overview.html">Vue d'ensemble</a></li>
-            <li><a href="comparison.html">Candidats &amp; partis</a></li>
+            <li><a href="comparison.html">Réalité vs Prédictions</a></li>
             <li><a href="map.html">Carte Île-de-France</a></li>
             <li><a href="pipeline.html">Pipeline ETL</a></li>
             <li><a href="prediction.html">Modèles ML</a></li>
