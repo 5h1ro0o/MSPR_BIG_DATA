@@ -7,6 +7,7 @@ la validation et la documentation de la qualité des données.
 Remplace / complète le module checks.py avec des Expectations déclaratives,
 traçables et réutilisables.
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,11 +33,14 @@ log = get_logger(__name__)
 
 try:
     import great_expectations as gx
+
     HAS_GE = True
 except ImportError:
     HAS_GE = False
-    log.warning("great-expectations non installé — validation GE désactivée. "
-                "Lancez : pip install great-expectations>=0.18.0")
+    log.warning(
+        "great-expectations non installé — validation GE désactivée. "
+        "Lancez : pip install great-expectations>=0.18.0"
+    )
 
 DEPTS_IDF = {"75", "77", "78", "91", "92", "93", "94", "95"}
 
@@ -49,14 +53,10 @@ def build_suite(context) -> "gx.ExpectationSuite":
     suite.add_expectation(
         gx.expectations.ExpectTableRowCountToBeBetween(min_value=1_200, max_value=1_400)
     )
-    suite.add_expectation(
-        gx.expectations.ExpectTableColumnCountToEqual(value=113)
-    )
+    suite.add_expectation(gx.expectations.ExpectTableColumnCountToEqual(value=113))
 
     # ── Colonne clé : code_commune ────────────────────────────────────────────
-    suite.add_expectation(
-        gx.expectations.ExpectColumnToExist(column="code_commune")
-    )
+    suite.add_expectation(gx.expectations.ExpectColumnToExist(column="code_commune"))
     suite.add_expectation(
         gx.expectations.ExpectColumnValuesToNotBeNull(column="code_commune")
     )
@@ -103,7 +103,10 @@ def build_suite(context) -> "gx.ExpectationSuite":
     )
     suite.add_expectation(
         gx.expectations.ExpectColumnValuesToBeBetween(
-            column="revenu_median_2021", min_value=5_000.0, max_value=150_000.0, mostly=0.99
+            column="revenu_median_2021",
+            min_value=5_000.0,
+            max_value=150_000.0,
+            mostly=0.99,
         )
     )
     suite.add_expectation(
@@ -139,8 +142,8 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
         context = gx.get_context(mode="ephemeral")
 
         data_source = context.data_sources.add_pandas("elections_gold_source")
-        data_asset  = data_source.add_dataframe_asset("gold_dataset")
-        batch_def   = data_asset.add_batch_definition_whole_dataframe("full_batch")
+        data_asset = data_source.add_dataframe_asset("gold_dataset")
+        batch_def = data_asset.add_batch_definition_whole_dataframe("full_batch")
 
         suite = build_suite(context)
 
@@ -156,29 +159,36 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
 
         passed = sum(1 for r in result.results if r.success)
         failed = sum(1 for r in result.results if not r.success)
-        total  = len(result.results)
+        total = len(result.results)
 
         log.info(
             "Great Expectations : %d/%d expectations passées%s",
-            passed, total,
+            passed,
+            total,
             f" — {failed} ÉCHEC(S)" if failed else " ✓",
         )
         for r in result.results:
             if not r.success:
                 col = getattr(r.expectation_config, "kwargs", {}).get("column", "table")
-                log.warning("  GE FAIL | %s | col=%s | %s",
-                            r.expectation_config.type, col, r.result)
+                log.warning(
+                    "  GE FAIL | %s | col=%s | %s",
+                    r.expectation_config.type,
+                    col,
+                    r.result,
+                )
 
         return {
-            "success":  result.success,
-            "passed":   passed,
-            "failed":   failed,
-            "total":    total,
+            "success": result.success,
+            "passed": passed,
+            "failed": failed,
+            "total": total,
             "results": [
                 {
                     "expectation": r.expectation_config.type,
-                    "success":     r.success,
-                    "column":      getattr(r.expectation_config, "kwargs", {}).get("column", "table"),
+                    "success": r.success,
+                    "column": getattr(r.expectation_config, "kwargs", {}).get(
+                        "column", "table"
+                    ),
                 }
                 for r in result.results
             ],
@@ -186,4 +196,10 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
 
     except Exception as exc:
         log.error("Great Expectations ERREUR : %s", exc)
-        return {"success": False, "passed": 0, "failed": 1, "total": 1, "error": str(exc)}
+        return {
+            "success": False,
+            "passed": 0,
+            "failed": 1,
+            "total": 1,
+            "error": str(exc),
+        }

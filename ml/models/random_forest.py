@@ -95,7 +95,7 @@ class RandomForestModel(BaseModel):
             estimator = RandomForestClassifier(
                 random_state=RANDOM_STATE,
                 n_jobs=self.n_jobs,
-                oob_score=True,   # estimation non biaisée de la généralisation, gratuite
+                oob_score=True,  # estimation non biaisée de la généralisation, gratuite
                 **kwargs,
             )
         else:
@@ -143,7 +143,9 @@ class RandomForestModel(BaseModel):
 
         if use_grid_search:
             # RandomizedSearchCV fait déjà la CV → pas besoin d'une 2ème CV après
-            self.pipeline = self._run_search(X_train, y_train, fast_search, n_iter_random)
+            self.pipeline = self._run_search(
+                X_train, y_train, fast_search, n_iter_random
+            )
         else:
             self.pipeline = self.build()
             self.pipeline.fit(X_train, y_train)
@@ -159,12 +161,18 @@ class RandomForestModel(BaseModel):
 
         # Métriques train — diagnostique d'overfitting uniquement
         y_pred_tr = self.pipeline.predict(X_train)
-        train_acc = round(float(accuracy_score(y_arr, y_pred_tr) if self.task == "classification"
-                                else r2_score(y_arr, y_pred_tr)), 4)
+        train_acc = round(
+            float(
+                accuracy_score(y_arr, y_pred_tr)
+                if self.task == "classification"
+                else r2_score(y_arr, y_pred_tr)
+            ),
+            4,
+        )
 
         self.metrics = {
-            "n_train":         len(X_train),
-            "train_accuracy":  train_acc,
+            "n_train": len(X_train),
+            "train_accuracy": train_acc,
             "training_time_s": round(elapsed, 2),
         }
         if oob_score is not None:
@@ -345,9 +353,9 @@ class RandomForestModel(BaseModel):
         Évaluation finale sur le set de test (jamais vu pendant l'entraînement).
         Utilise robust_classification_eval avec IC, baseline et calibration.
         """
-        y_pred  = self.predict(X_test)
+        y_pred = self.predict(X_test)
         y_proba = self.predict_proba(X_test)
-        y_true  = np.asarray(y_test)
+        y_true = np.asarray(y_test)
 
         if self.task == "classification":
             metrics = robust_classification_eval(y_true, y_pred, y_proba, split="test")
@@ -362,9 +370,13 @@ class RandomForestModel(BaseModel):
                 pass
             print(f"\n{'─'*55}")
             print(f"  SET DE TEST — {metrics['test_n_samples']} communes")
-            print(f"  Accuracy          : {metrics['test_accuracy']:.4f}  IC95% [{metrics['test_accuracy_ci_lo']:.4f}, {metrics['test_accuracy_ci_hi']:.4f}]")
+            print(
+                f"  Accuracy          : {metrics['test_accuracy']:.4f}  IC95% [{metrics['test_accuracy_ci_lo']:.4f}, {metrics['test_accuracy_ci_hi']:.4f}]"
+            )
             print(f"  Balanced accuracy : {metrics['test_balanced_accuracy']:.4f}")
-            print(f"  ROC-AUC           : {metrics.get('test_roc_auc','N/A')}  IC95% [{metrics.get('test_roc_auc_ci_lo','?')}, {metrics.get('test_roc_auc_ci_hi','?')}]")
+            print(
+                f"  ROC-AUC           : {metrics.get('test_roc_auc','N/A')}  IC95% [{metrics.get('test_roc_auc_ci_lo','?')}, {metrics.get('test_roc_auc_ci_hi','?')}]"
+            )
             print(f"  Cohen's κ         : {metrics['test_cohen_kappa']:.4f}")
             print(f"  Brier score       : {metrics.get('test_brier_score','N/A')}")
             print(f"  Baseline accuracy : {bl['baseline_accuracy']:.4f}")
@@ -372,11 +384,15 @@ class RandomForestModel(BaseModel):
             print(f"{'─'*55}")
         else:
             metrics = {
-                "test_r2":   round(float(r2_score(y_true, y_pred)), 4),
-                "test_mae":  round(float(mean_absolute_error(y_true, y_pred)), 4),
-                "test_rmse": round(float(np.sqrt(mean_squared_error(y_true, y_pred))), 4),
+                "test_r2": round(float(r2_score(y_true, y_pred)), 4),
+                "test_mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
+                "test_rmse": round(
+                    float(np.sqrt(mean_squared_error(y_true, y_pred))), 4
+                ),
             }
-            print(f"  R²={metrics['test_r2']:.4f}  MAE={metrics['test_mae']:.4f}  RMSE={metrics['test_rmse']:.4f}")
+            print(
+                f"  R²={metrics['test_r2']:.4f}  MAE={metrics['test_mae']:.4f}  RMSE={metrics['test_rmse']:.4f}"
+            )
 
         self.metrics.update(metrics)
         return metrics

@@ -21,14 +21,22 @@ from ml.preprocessing import (
 
 # Colonnes de contexte électorales ajoutées au CSV de prédictions
 _CONTEXT_T1 = [
-    "cible_t1_pct_macron", "cible_t1_pct_melenchon", "cible_t1_pct_lepen",
-    "cible_t1_pct_zemmour", "cible_t1_pct_pecresse", "cible_t1_pct_jadot",
-    "cible_t1_pct_autres", "cible_t1_premier", "taux_participation_t1",
+    "cible_t1_pct_macron",
+    "cible_t1_pct_melenchon",
+    "cible_t1_pct_lepen",
+    "cible_t1_pct_zemmour",
+    "cible_t1_pct_pecresse",
+    "cible_t1_pct_jadot",
+    "cible_t1_pct_autres",
+    "cible_t1_premier",
+    "taux_participation_t1",
 ]
 _CONTEXT_T2 = ["cible_t2_pct_macron", "cible_t2_pct_lepen", "cible_t2_marge"]
 
 
-def _add_context_cols(pred_df: pd.DataFrame, df: pd.DataFrame, index: pd.Index) -> pd.DataFrame:
+def _add_context_cols(
+    pred_df: pd.DataFrame, df: pd.DataFrame, index: pd.Index
+) -> pd.DataFrame:
     """Ajoute les colonnes T1/T2 réelles au DataFrame de prédictions."""
     ctx_cols = [c for c in _CONTEXT_T1 + _CONTEXT_T2 if c in df.columns]
     if not ctx_cols:
@@ -239,7 +247,9 @@ def train_lstm(
     pred_df["ground_truth"] = y_all.reset_index(drop=True)
     pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
     test_pos = set(idx_te)
-    pred_df["split"] = ["test" if i in test_pos else "train" for i in range(len(pred_df))]
+    pred_df["split"] = [
+        "test" if i in test_pos else "train" for i in range(len(pred_df))
+    ]
     pred_df = _add_context_cols(pred_df, df, y_all.index)
     pred_df.to_csv(ARTIFACTS / f"lstm_predictions_{target}.csv", index=False)
 
@@ -271,7 +281,9 @@ def train_decision_tree(
     model.evaluate(X_test, y_test)
 
     y_pred = model.predict(X_test)
-    plot_confusion_matrix(y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "decision_tree", ARTIFACTS)
+    plot_confusion_matrix(
+        y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "decision_tree", ARTIFACTS
+    )
     y_proba = model.predict_proba(X_test)
     if y_proba is not None:
         try:
@@ -321,7 +333,9 @@ def train_mlp(
     model.evaluate(X_test, y_test)
 
     y_pred = model.predict(X_test)
-    plot_confusion_matrix(y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "mlp", ARTIFACTS)
+    plot_confusion_matrix(
+        y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "mlp", ARTIFACTS
+    )
     y_proba = model.predict_proba(X_test)
     if y_proba is not None:
         try:

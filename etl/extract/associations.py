@@ -27,9 +27,37 @@ DEPTS_IDF = {"75", "77", "78", "91", "92", "93", "94", "95"}
 
 # Mots-clés dans l'objet/titre de l'association pour la classification
 KEYWORDS = {
-    "sportives":   ["sport", "tennis", "football", "basket", "natation", "gym", "athlét", "cyclisme", "rugby"],
-    "culturelles": ["cultur", "musique", "théâtre", "art", "danse", "cinéma", "patrimoin", "littérat"],
-    "sociales":    ["social", "solidar", "humanitaire", "aide", "handicap", "retraite", "sénior", "jeunesse"],
+    "sportives": [
+        "sport",
+        "tennis",
+        "football",
+        "basket",
+        "natation",
+        "gym",
+        "athlét",
+        "cyclisme",
+        "rugby",
+    ],
+    "culturelles": [
+        "cultur",
+        "musique",
+        "théâtre",
+        "art",
+        "danse",
+        "cinéma",
+        "patrimoin",
+        "littérat",
+    ],
+    "sociales": [
+        "social",
+        "solidar",
+        "humanitaire",
+        "aide",
+        "handicap",
+        "retraite",
+        "sénior",
+        "jeunesse",
+    ],
 }
 
 
@@ -52,9 +80,9 @@ def extract_associations(data_root: Path) -> pd.DataFrame | None:
     et les indicateurs de vie associative calculés.
     """
     candidates = (
-        list(data_root.glob("**/*rna*commune*.csv")) +
-        list(data_root.glob("**/*associations*idf*.csv")) +
-        list(data_root.glob("**/*rna*.csv"))
+        list(data_root.glob("**/*rna*commune*.csv"))
+        + list(data_root.glob("**/*associations*idf*.csv"))
+        + list(data_root.glob("**/*rna*.csv"))
     )
 
     if not candidates:
@@ -76,9 +104,20 @@ def extract_associations(data_root: Path) -> pd.DataFrame | None:
 
     df.columns = [c.strip().lower() for c in df.columns]
 
-    col_commune = next((c for c in df.columns if "commune" in c or "siret_commune" in c or "adrs_codepostal" in c), None)
-    col_objet   = next((c for c in df.columns if "objet" in c or "titre" in c or "libelle" in c), None)
-    col_etat    = next((c for c in df.columns if "etat" in c or "dissolut" in c or "valid" in c), None)
+    col_commune = next(
+        (
+            c
+            for c in df.columns
+            if "commune" in c or "siret_commune" in c or "adrs_codepostal" in c
+        ),
+        None,
+    )
+    col_objet = next(
+        (c for c in df.columns if "objet" in c or "titre" in c or "libelle" in c), None
+    )
+    col_etat = next(
+        (c for c in df.columns if "etat" in c or "dissolut" in c or "valid" in c), None
+    )
 
     if not col_commune:
         log.error(f"Colonne commune RNA introuvable. Colonnes: {list(df.columns)[:10]}")
@@ -97,7 +136,12 @@ def extract_associations(data_root: Path) -> pd.DataFrame | None:
 
     # Filtrer actives si disponible
     if col_etat:
-        actives_mask = ~df[col_etat].astype(str).str.upper().isin(["D", "DISSOUTE", "0", "INVALIDE"])
+        actives_mask = (
+            ~df[col_etat]
+            .astype(str)
+            .str.upper()
+            .isin(["D", "DISSOUTE", "0", "INVALIDE"])
+        )
         df = df[actives_mask].copy()
 
     # Classification
@@ -109,7 +153,7 @@ def extract_associations(data_root: Path) -> pd.DataFrame | None:
     for commune_cp, grp in df.groupby(col_commune):
         total = len(grp)
         row = {
-            "code_commune_cp":        str(commune_cp).zfill(5),
+            "code_commune_cp": str(commune_cp).zfill(5),
             "nb_associations_actives": total,
         }
         if col_objet:

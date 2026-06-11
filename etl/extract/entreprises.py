@@ -29,9 +29,9 @@ log = get_logger(__name__)
 DEPTS_IDF = {"75", "77", "78", "91", "92", "93", "94", "95"}
 
 # Sections NAF pour les catégories agrégées
-NAF_COMMERCE  = {"G"}   # Commerce ; réparation d'automobiles
-NAF_SERVICES  = {"J", "K", "L", "M", "N"}  # Services aux entreprises
-NAF_INDUSTRIE = {"B", "C", "D", "E"}       # Industries
+NAF_COMMERCE = {"G"}  # Commerce ; réparation d'automobiles
+NAF_SERVICES = {"J", "K", "L", "M", "N"}  # Services aux entreprises
+NAF_INDUSTRIE = {"B", "C", "D", "E"}  # Industries
 
 
 def extract_entreprises(data_root: Path) -> pd.DataFrame | None:
@@ -43,11 +43,11 @@ def extract_entreprises(data_root: Path) -> pd.DataFrame | None:
     """
     # Noms de fichiers possibles, recherche récursive dans les sous-dossiers
     candidates = (
-        list(data_root.glob("**/*sirene*commune*.csv")) +
-        list(data_root.glob("**/*clap*commune*.csv")) +
-        list(data_root.glob("**/*etab*commune*.csv")) +
-        list(data_root.glob("**/*entreprises*idf*.csv")) +
-        list(data_root.glob("**/*etablissements*actifs*.csv"))
+        list(data_root.glob("**/*sirene*commune*.csv"))
+        + list(data_root.glob("**/*clap*commune*.csv"))
+        + list(data_root.glob("**/*etab*commune*.csv"))
+        + list(data_root.glob("**/*entreprises*idf*.csv"))
+        + list(data_root.glob("**/*etablissements*actifs*.csv"))
     )
 
     if not candidates:
@@ -69,12 +69,18 @@ def extract_entreprises(data_root: Path) -> pd.DataFrame | None:
     df.columns = [c.strip().lower() for c in df.columns]
 
     # Colonnes clés (nommage variable)
-    col_commune = next((c for c in df.columns if "commune" in c or "codecom" in c), None)
-    col_naf     = next((c for c in df.columns if "naf" in c or "activite" in c or "section" in c), None)
-    col_etat    = next((c for c in df.columns if "etat" in c or "statut" in c), None)
+    col_commune = next(
+        (c for c in df.columns if "commune" in c or "codecom" in c), None
+    )
+    col_naf = next(
+        (c for c in df.columns if "naf" in c or "activite" in c or "section" in c), None
+    )
+    col_etat = next((c for c in df.columns if "etat" in c or "statut" in c), None)
 
     if not col_commune:
-        log.error(f"Colonne commune introuvable — skip entreprises. Colonnes: {list(df.columns)[:10]}")
+        log.error(
+            f"Colonne commune introuvable — skip entreprises. Colonnes: {list(df.columns)[:10]}"
+        )
         return None
 
     # Filtrer IDF via le code département (2 premiers chiffres du code commune)
@@ -91,13 +97,33 @@ def extract_entreprises(data_root: Path) -> pd.DataFrame | None:
         total = len(grp)
         naf_section = grp[col_naf].str[:1] if col_naf else pd.Series(dtype=str)
 
-        rows.append({
-            "code_commune":             str(commune_code).zfill(5),
-            "nb_entreprises_actives":   total,
-            "pct_entreprises_commerce": round((naf_section.isin(NAF_COMMERCE).sum() / max(total, 1)) * 100, 2) if col_naf else None,
-            "pct_entreprises_services": round((naf_section.isin(NAF_SERVICES).sum() / max(total, 1)) * 100, 2) if col_naf else None,
-            "pct_entreprises_industrie": round((naf_section.isin(NAF_INDUSTRIE).sum() / max(total, 1)) * 100, 2) if col_naf else None,
-        })
+        rows.append(
+            {
+                "code_commune": str(commune_code).zfill(5),
+                "nb_entreprises_actives": total,
+                "pct_entreprises_commerce": (
+                    round(
+                        (naf_section.isin(NAF_COMMERCE).sum() / max(total, 1)) * 100, 2
+                    )
+                    if col_naf
+                    else None
+                ),
+                "pct_entreprises_services": (
+                    round(
+                        (naf_section.isin(NAF_SERVICES).sum() / max(total, 1)) * 100, 2
+                    )
+                    if col_naf
+                    else None
+                ),
+                "pct_entreprises_industrie": (
+                    round(
+                        (naf_section.isin(NAF_INDUSTRIE).sum() / max(total, 1)) * 100, 2
+                    )
+                    if col_naf
+                    else None
+                ),
+            }
+        )
 
     result = pd.DataFrame(rows)
     if result.empty:

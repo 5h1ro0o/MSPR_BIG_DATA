@@ -673,11 +673,17 @@ def _log_summary(results: dict[str, bool]) -> None:
     required_keys = {cfg["key"] for cfg in OTHER_DATASETS if cfg.get("required", True)}
     required_keys.add("elections")
     ok = [k for k, v in results.items() if v]
-    nok_required  = [k for k, v in results.items() if not v and k in required_keys]
-    nok_optional  = [k for k, v in results.items() if not v and k not in required_keys]
-    log.info(f"=== FETCH terminé | OK: {len(ok)} | KO: {len(nok_required)+len(nok_optional)} ===")
+    nok_required = [k for k, v in results.items() if not v and k in required_keys]
+    nok_optional = [k for k, v in results.items() if not v and k not in required_keys]
+    log.info(
+        f"=== FETCH terminé | OK: {len(ok)} | KO: {len(nok_required)+len(nok_optional)} ==="
+    )
     if nok_required:
         log.warning(f"  Datasets REQUIS manquants : {nok_required}")
-        log.warning("  → Placez ces fichiers manuellement dans DATA_ROOT si disponibles localement.")
+        log.warning(
+            "  → Placez ces fichiers manuellement dans DATA_ROOT si disponibles localement."
+        )
     if nok_optional:
-        log.info(f"  Sources optionnelles non chargées : {nok_optional} (enrichissement désactivé)")
+        log.info(
+            f"  Sources optionnelles non chargées : {nok_optional} (enrichissement désactivé)"
+        )

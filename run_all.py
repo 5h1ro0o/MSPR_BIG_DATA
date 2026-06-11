@@ -73,12 +73,15 @@ def step_datamart() -> bool:
     t0 = time.time()
     try:
         from db.populate_datamart import run as populate_datamart
+
         ok = populate_datamart()
         elapsed = time.time() - t0
         if ok:
             log.info(f"Datamart alimenté en {elapsed:.1f}s")
         else:
-            log.warning("Datamart non alimenté (CSV ou DB indisponible) — pipeline continue")
+            log.warning(
+                "Datamart non alimenté (CSV ou DB indisponible) — pipeline continue"
+            )
         return True  # non-bloquant : le frontend fonctionne sans le datamart
     except Exception as e:
         log.warning(f"Datamart ERREUR (non-bloquant) : {e}")
@@ -152,6 +155,7 @@ def step_train() -> bool:
         log.info("  Projections temporelles (T+1 / T+2 / T+3)…")
         try:
             from ml.projection.generate_projections import generate as gen_projections
+
             gen_projections()
         except Exception as e:
             log.warning(f"  Projections ERREUR: {e}")

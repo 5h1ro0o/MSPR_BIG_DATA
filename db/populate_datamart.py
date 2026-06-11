@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT))
 try:
     import psycopg2
     import psycopg2.extras
+
     HAS_PSYCOPG2 = True
 except ImportError:
     HAS_PSYCOPG2 = False
@@ -41,49 +42,53 @@ except ImportError:
 # Mapping colonne CSV → nom_candidat dans dim_candidat
 CANDIDATS_T2_2022 = {
     "cible_t2_pct_macron": "Emmanuel Macron",
-    "cible_t2_pct_lepen":  "Marine Le Pen",
+    "cible_t2_pct_lepen": "Marine Le Pen",
 }
 CANDIDATS_T1_2022 = {
-    "cible_t1_pct_macron":    "Emmanuel Macron",
-    "cible_t1_pct_lepen":     "Marine Le Pen",
+    "cible_t1_pct_macron": "Emmanuel Macron",
+    "cible_t1_pct_lepen": "Marine Le Pen",
     "cible_t1_pct_melenchon": "Jean-Luc Mélenchon",
-    "cible_t1_pct_zemmour":   "Éric Zemmour",
-    "cible_t1_pct_pecresse":  "Valérie Pécresse",
-    "cible_t1_pct_jadot":     "Yannick Jadot",
+    "cible_t1_pct_zemmour": "Éric Zemmour",
+    "cible_t1_pct_pecresse": "Valérie Pécresse",
+    "cible_t1_pct_jadot": "Yannick Jadot",
 }
 CANDIDATS_T2_2017 = {
     "h17_t2_pct_macron": "Emmanuel Macron",
-    "h17_t2_pct_lepen":  "Marine Le Pen",
+    "h17_t2_pct_lepen": "Marine Le Pen",
 }
 CANDIDATS_T1_2017 = {
-    "h17_t1_pct_macron":    "Emmanuel Macron",
-    "h17_t1_pct_lepen":     "Marine Le Pen",
+    "h17_t1_pct_macron": "Emmanuel Macron",
+    "h17_t1_pct_lepen": "Marine Le Pen",
     "h17_t1_pct_melenchon": "Jean-Luc Mélenchon",
-    "h17_t1_pct_fillon":    "François Fillon",
-    "h17_t1_pct_hamon":     "Benoît Hamon",
+    "h17_t1_pct_fillon": "François Fillon",
+    "h17_t1_pct_hamon": "Benoît Hamon",
 }
 CANDIDATS_T2_2012 = {
     "h12_t2_pct_hollande": "François Hollande",
-    "h12_t2_pct_sarkozy":  "Nicolas Sarkozy",
+    "h12_t2_pct_sarkozy": "Nicolas Sarkozy",
 }
 CANDIDATS_T1_2012 = {
-    "h12_t1_pct_hollande":  "François Hollande",
-    "h12_t1_pct_sarkozy":   "Nicolas Sarkozy",
-    "h12_t1_pct_lepen":     "Marine Le Pen",
+    "h12_t1_pct_hollande": "François Hollande",
+    "h12_t1_pct_sarkozy": "Nicolas Sarkozy",
+    "h12_t1_pct_lepen": "Marine Le Pen",
     "h12_t1_pct_melenchon": "Jean-Luc Mélenchon",
-    "h12_t1_pct_bayrou":    "Autres candidats",
+    "h12_t1_pct_bayrou": "Autres candidats",
 }
 
 
 def _col(df: pd.DataFrame, name: str, default=None):
     """Retourne df[name] si la colonne existe, sinon une Série remplie de default."""
-    return df[name] if name in df.columns else pd.Series([default] * len(df), index=df.index)
+    return (
+        df[name]
+        if name in df.columns
+        else pd.Series([default] * len(df), index=df.index)
+    )
 
 
 def load_gold(csv_path: Path) -> pd.DataFrame:
     print(f"[load] Lecture du CSV gold : {csv_path}")
     df = pd.read_csv(csv_path, dtype={"code_commune": str, "code_departement": str})
-    df["code_commune"]     = df["code_commune"].str.zfill(5)
+    df["code_commune"] = df["code_commune"].str.zfill(5)
     df["code_departement"] = df["code_departement"].str.zfill(2)
     print(f"[load] {len(df)} communes × {len(df.columns)} colonnes")
     return df
@@ -91,26 +96,29 @@ def load_gold(csv_path: Path) -> pd.DataFrame:
 
 # ─── Populate dim_commune ─────────────────────────────────────────────────────
 
+
 def populate_dim_commune(cur, df: pd.DataFrame) -> dict[str, int]:
     """Insère les communes dans dim_commune. Retourne {code_commune: sk_commune}."""
     rows = []
     for _, r in df.iterrows():
-        rows.append((
-            str(r["code_commune"]),
-            str(r["code_departement"]),
-            r.get("libelle_departement"),
-            r.get("libelle_commune"),
-            r.get("revenu_median_2021") or r.get("revenu_median"),
-            r.get("taux_chomage_rp2022"),
-            r.get("taux_pauvrete_2017"),
-            r.get("pct_dipl_superieur"),
-            r.get("pct_csp_cadres"),
-            r.get("pct_log_hlm"),
-            r.get("pop_totale"),
-            r.get("taux_crimes_total"),
-            r.get("nb_entreprises_actives"),
-            r.get("nb_associations_actives"),
-        ))
+        rows.append(
+            (
+                str(r["code_commune"]),
+                str(r["code_departement"]),
+                r.get("libelle_departement"),
+                r.get("libelle_commune"),
+                r.get("revenu_median_2021") or r.get("revenu_median"),
+                r.get("taux_chomage_rp2022"),
+                r.get("taux_pauvrete_2017"),
+                r.get("pct_dipl_superieur"),
+                r.get("pct_csp_cadres"),
+                r.get("pct_log_hlm"),
+                r.get("pop_totale"),
+                r.get("taux_crimes_total"),
+                r.get("nb_entreprises_actives"),
+                r.get("nb_associations_actives"),
+            )
+        )
 
     psycopg2.extras.execute_batch(
         cur,
@@ -144,33 +152,40 @@ def populate_dim_commune(cur, df: pd.DataFrame) -> dict[str, int]:
 
 # ─── Populate dim_contexte ────────────────────────────────────────────────────
 
+
 def populate_dim_contexte(cur, df: pd.DataFrame) -> dict[tuple, int]:
     """Insère le contexte socio-éco par commune × millésime (2017, 2022)."""
     rows = []
     for _, r in df.iterrows():
         commune = str(r["code_commune"])
         # Millésime 2017
-        rows.append((
-            commune, 2017,
-            r.get("revenu_median_2017"),
-            r.get("taux_chomage_2009"),      # proxy si pas de 2017
-            r.get("taux_pauvrete_2017"),
-            r.get("pct_dipl_superieur"),
-            r.get("pct_csp_cadres"),
-            r.get("pct_pop_senior_60p"),
-            r.get("pct_log_hlm"),
-        ))
+        rows.append(
+            (
+                commune,
+                2017,
+                r.get("revenu_median_2017"),
+                r.get("taux_chomage_2009"),  # proxy si pas de 2017
+                r.get("taux_pauvrete_2017"),
+                r.get("pct_dipl_superieur"),
+                r.get("pct_csp_cadres"),
+                r.get("pct_pop_senior_60p"),
+                r.get("pct_log_hlm"),
+            )
+        )
         # Millésime 2022
-        rows.append((
-            commune, 2022,
-            r.get("revenu_median_2021"),
-            r.get("taux_chomage_rp2022"),
-            r.get("taux_pauvrete_2017"),     # dernière valeur disponible
-            r.get("pct_dipl_superieur"),
-            r.get("pct_csp_cadres"),
-            r.get("pct_pop_senior_60p"),
-            r.get("pct_log_hlm"),
-        ))
+        rows.append(
+            (
+                commune,
+                2022,
+                r.get("revenu_median_2021"),
+                r.get("taux_chomage_rp2022"),
+                r.get("taux_pauvrete_2017"),  # dernière valeur disponible
+                r.get("pct_dipl_superieur"),
+                r.get("pct_csp_cadres"),
+                r.get("pct_pop_senior_60p"),
+                r.get("pct_log_hlm"),
+            )
+        )
 
     psycopg2.extras.execute_batch(
         cur,
@@ -185,11 +200,14 @@ def populate_dim_contexte(cur, df: pd.DataFrame) -> dict[tuple, int]:
         page_size=500,
     )
 
-    cur.execute("SELECT code_commune, millesime, sk_contexte FROM datamart.dim_contexte")
+    cur.execute(
+        "SELECT code_commune, millesime, sk_contexte FROM datamart.dim_contexte"
+    )
     return {(row[0], row[1]): row[2] for row in cur.fetchall()}
 
 
 # ─── Populate fait_resultats_electoraux ───────────────────────────────────────
+
 
 def _insert_faits(cur, faits: list[tuple]) -> None:
     psycopg2.extras.execute_batch(
@@ -222,22 +240,61 @@ def populate_faits(
 
     elections = [
         # (annee, tour, millesime_contexte, candidats_map, col_particip, col_abstention, col_vainqueur, col_marge)
-        (2022, 2, 2022, CANDIDATS_T2_2022,
-         "taux_participation_t2", "taux_abstention_t2", "cible_t2_vainqueur", "cible_t2_marge"),
-        (2022, 1, 2022, CANDIDATS_T1_2022,
-         "taux_participation_t1", "taux_abstention_t1", None, None),
-        (2017, 2, 2017, CANDIDATS_T2_2017,
-         None, None, "h17_t2_vainqueur", "h17_t2_marge"),
-        (2017, 1, 2017, CANDIDATS_T1_2017,
-         None, None, None, None),
-        (2012, 2, 2017, CANDIDATS_T2_2012,
-         None, None, "h12_t2_vainqueur", "h12_t2_marge"),
-        (2012, 1, 2017, CANDIDATS_T1_2012,
-         None, None, None, None),
+        (
+            2022,
+            2,
+            2022,
+            CANDIDATS_T2_2022,
+            "taux_participation_t2",
+            "taux_abstention_t2",
+            "cible_t2_vainqueur",
+            "cible_t2_marge",
+        ),
+        (
+            2022,
+            1,
+            2022,
+            CANDIDATS_T1_2022,
+            "taux_participation_t1",
+            "taux_abstention_t1",
+            None,
+            None,
+        ),
+        (
+            2017,
+            2,
+            2017,
+            CANDIDATS_T2_2017,
+            None,
+            None,
+            "h17_t2_vainqueur",
+            "h17_t2_marge",
+        ),
+        (2017, 1, 2017, CANDIDATS_T1_2017, None, None, None, None),
+        (
+            2012,
+            2,
+            2017,
+            CANDIDATS_T2_2012,
+            None,
+            None,
+            "h12_t2_vainqueur",
+            "h12_t2_marge",
+        ),
+        (2012, 1, 2017, CANDIDATS_T1_2012, None, None, None, None),
     ]
 
     total_faits = 0
-    for annee, tour, millesime, cands_map, col_part, col_abs, col_vainq, col_marge in elections:
+    for (
+        annee,
+        tour,
+        millesime,
+        cands_map,
+        col_part,
+        col_abs,
+        col_vainq,
+        col_marge,
+    ) in elections:
         sk_t = sk_temps.get((annee, tour))
         if sk_t is None:
             print(f"[faits] WARN: sk_temps introuvable pour ({annee}, {tour})")
@@ -263,15 +320,20 @@ def populate_faits(
                 if sk_cand is None:
                     continue
                 pct = r.get(col_pct)
-                faits.append((
-                    sk_c, sk_cand, sk_t, sk_ctx,
-                    None,    # nb_voix non disponible dans le gold agrégé
-                    float(pct) if pd.notna(pct) else None,
-                    float(particip) if pd.notna(particip) else None,
-                    float(abstention) if pd.notna(abstention) else None,
-                    int(vainq) if pd.notna(vainq) else None,
-                    float(marge) if pd.notna(marge) else None,
-                ))
+                faits.append(
+                    (
+                        sk_c,
+                        sk_cand,
+                        sk_t,
+                        sk_ctx,
+                        None,  # nb_voix non disponible dans le gold agrégé
+                        float(pct) if pd.notna(pct) else None,
+                        float(particip) if pd.notna(particip) else None,
+                        float(abstention) if pd.notna(abstention) else None,
+                        int(vainq) if pd.notna(vainq) else None,
+                        float(marge) if pd.notna(marge) else None,
+                    )
+                )
 
         _insert_faits(cur, faits)
         total_faits += len(faits)
@@ -282,15 +344,16 @@ def populate_faits(
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _build_db_url() -> str:
     """Construit l'URL PostgreSQL depuis DATABASE_URL ou les var. d'env. Docker."""
     if os.environ.get("DATABASE_URL"):
         return os.environ["DATABASE_URL"]
     host = os.environ.get("POSTGRES_HOST", "localhost")
     port = os.environ.get("POSTGRES_PORT", "5432")
-    db   = os.environ.get("POSTGRES_DB",   "elections_idf")
+    db = os.environ.get("POSTGRES_DB", "elections_idf")
     user = os.environ.get("POSTGRES_USER", "etl_admin")
-    pwd  = os.environ.get("POSTGRES_PASSWORD", "elections2022")
+    pwd = os.environ.get("POSTGRES_PASSWORD", "elections2022")
     return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
 
 
@@ -303,6 +366,7 @@ def _default_csv() -> Path:
 
 
 # ─── API programmatique (appelée depuis run_all.py) ───────────────────────────
+
 
 def run(csv_path: Path | None = None, db_url: str | None = None) -> bool:
     """
@@ -340,12 +404,19 @@ def run(csv_path: Path | None = None, db_url: str | None = None) -> bool:
 
 # ─── Main CLI ─────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Alimente le schéma datamart en étoile.")
-    parser.add_argument("--csv", default=None,
-                        help="Chemin vers le CSV gold (défaut: DATA_PATH ou ../dataset_elections_2022_idf.csv)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Valide la lecture sans écrire en base")
+    parser = argparse.ArgumentParser(
+        description="Alimente le schéma datamart en étoile."
+    )
+    parser.add_argument(
+        "--csv",
+        default=None,
+        help="Chemin vers le CSV gold (défaut: DATA_PATH ou ../dataset_elections_2022_idf.csv)",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Valide la lecture sans écrire en base"
+    )
     args = parser.parse_args()
 
     csv_path = Path(args.csv) if args.csv else _default_csv()

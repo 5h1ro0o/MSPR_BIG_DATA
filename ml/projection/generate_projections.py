@@ -30,10 +30,12 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-ML_DIR    = Path(__file__).parent.parent
+ML_DIR = Path(__file__).parent.parent
 ARTIFACTS = ML_DIR / "artifacts"
 DATA_PATH = Path(
-    os.environ.get("DATA_PATH", str(ML_DIR.parent.parent / "dataset_elections_2022_idf.csv"))
+    os.environ.get(
+        "DATA_PATH", str(ML_DIR.parent.parent / "dataset_elections_2022_idf.csv")
+    )
 )
 
 # Horizons de projection (en années depuis la dernière donnée ≈ 2022)
@@ -43,34 +45,34 @@ HORIZONS = {1: "2025", 2: "2026", 3: "2027"}
 # Format : feature_actuelle → (feature_ancienne, année_ancienne, année_actuelle)
 TRENDABLE = {
     "taux_chomage_rp2022": ("taux_chomage_2009", 2009, 2022),
-    "revenu_median_2021":  ("revenu_median_2017", 2017, 2021),
+    "revenu_median_2021": ("revenu_median_2017", 2017, 2021),
 }
 
 # Tendances démographiques nationales IDF annuelles (source : projections INSEE 2020-2050)
 # Valeurs en points de pourcentage par an
 DEMO_TRENDS = {
-    "pct_pop_0014":      -0.05,
-    "pct_pop_1529":      -0.03,
-    "pct_pop_3044":      -0.02,
-    "pct_pop_4559":      -0.04,
-    "pct_pop_6074":      +0.06,
-    "pct_pop_7589":      +0.04,
-    "pct_pop_90p":       +0.02,
+    "pct_pop_0014": -0.05,
+    "pct_pop_1529": -0.03,
+    "pct_pop_3044": -0.02,
+    "pct_pop_4559": -0.04,
+    "pct_pop_6074": +0.06,
+    "pct_pop_7589": +0.04,
+    "pct_pop_90p": +0.02,
     "pct_pop_senior_60p": +0.07,
 }
 
 # Plages valides pour clipper les valeurs projetées (évite les extrapolations absurdes)
 FEATURE_BOUNDS = {
-    "taux_chomage_rp2022":  (2.0, 35.0),
-    "revenu_median_2021":   (10_000, 100_000),
-    "pct_pop_0014":         (0.0, 35.0),
-    "pct_pop_1529":         (0.0, 35.0),
-    "pct_pop_3044":         (0.0, 35.0),
-    "pct_pop_4559":         (0.0, 35.0),
-    "pct_pop_6074":         (0.0, 30.0),
-    "pct_pop_7589":         (0.0, 20.0),
-    "pct_pop_90p":          (0.0, 10.0),
-    "pct_pop_senior_60p":   (0.0, 50.0),
+    "taux_chomage_rp2022": (2.0, 35.0),
+    "revenu_median_2021": (10_000, 100_000),
+    "pct_pop_0014": (0.0, 35.0),
+    "pct_pop_1529": (0.0, 35.0),
+    "pct_pop_3044": (0.0, 35.0),
+    "pct_pop_4559": (0.0, 35.0),
+    "pct_pop_6074": (0.0, 30.0),
+    "pct_pop_7589": (0.0, 20.0),
+    "pct_pop_90p": (0.0, 10.0),
+    "pct_pop_senior_60p": (0.0, 50.0),
 }
 
 
@@ -86,7 +88,9 @@ def compute_per_commune_trends(df: pd.DataFrame) -> dict[str, pd.Series]:
         n_years = yr_current - yr_old
         delta = (df[feat_current] - df[feat_old]) / n_years
         deltas[feat_current] = delta
-        print(f"  Tendance {feat_current}: delta/an = {delta.mean():.3f} (mediane {delta.median():.3f})")
+        print(
+            f"  Tendance {feat_current}: delta/an = {delta.mean():.3f} (mediane {delta.median():.3f})"
+        )
     return deltas
 
 
@@ -123,7 +127,7 @@ def project_features(
 def load_model_and_data() -> tuple:
     """Charge le modèle GB pré-vote et le dataset gold."""
     model_path = ARTIFACTS / "gradient_boosting_pre_vote_classification_t2.joblib"
-    meta_path  = ARTIFACTS / "gradient_boosting_pre_vote_classification_t2_meta.json"
+    meta_path = ARTIFACTS / "gradient_boosting_pre_vote_classification_t2_meta.json"
 
     if not model_path.exists():
         raise FileNotFoundError(
@@ -156,20 +160,27 @@ def load_model_and_data() -> tuple:
 
 def generate():
     """Génère les 3 CSVs de projections (T+1, T+2, T+3) et le CSV de synthèse."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  PROJECTIONS TEMPORELLES — T+1, T+2, T+3")
-    print("="*60)
+    print("=" * 60)
 
     pipeline, feature_names, df = load_model_and_data()
 
     # Colonnes identifiantes
-    id_cols = ["code_commune", "code_departement", "libelle_departement", "libelle_commune"]
-    id_df   = df[[c for c in id_cols if c in df.columns]].copy()
+    id_cols = [
+        "code_commune",
+        "code_departement",
+        "libelle_departement",
+        "libelle_commune",
+    ]
+    id_df = df[[c for c in id_cols if c in df.columns]].copy()
 
     # Vérifier que toutes les features du modèle sont disponibles
     missing = [f for f in feature_names if f not in df.columns]
     if missing:
-        print(f"  [WARN] {len(missing)} features absentes du dataset : {missing[:5]}...")
+        print(
+            f"  [WARN] {len(missing)} features absentes du dataset : {missing[:5]}..."
+        )
     available = [f for f in feature_names if f in df.columns]
 
     # Construire la matrice de features de base (2022)
@@ -193,19 +204,23 @@ def generate():
 
         # Imputer les NaN résiduels (colonne d'imputation du pipeline)
         proba = pipeline.predict_proba(X_proj)
-        pred  = pipeline.predict(X_proj)
+        pred = pipeline.predict(X_proj)
 
         result = id_base.copy()
-        result["horizon_years"]  = horizon
-        result["annee_cible"]    = annee
-        result["prediction"]     = pred
+        result["horizon_years"] = horizon
+        result["annee_cible"] = annee
+        result["prediction"] = pred
         result["vainqueur_predit"] = pd.Series(pred).map({0: "Macron", 1: "Le Pen"})
-        result["proba_macron"]   = proba[:, 0].round(4)
-        result["proba_lepen"]    = proba[:, 1].round(4)
+        result["proba_macron"] = proba[:, 0].round(4)
+        result["proba_lepen"] = proba[:, 1].round(4)
 
         # Indicateurs projetés (pour visualisation de l'évolution)
-        result["chomage_projete"] = X_proj.get("taux_chomage_rp2022", pd.Series(dtype=float)).round(2)
-        result["revenu_projete"]  = X_proj.get("revenu_median_2021",  pd.Series(dtype=float)).round(0)
+        result["chomage_projete"] = X_proj.get(
+            "taux_chomage_rp2022", pd.Series(dtype=float)
+        ).round(2)
+        result["revenu_projete"] = X_proj.get(
+            "revenu_median_2021", pd.Series(dtype=float)
+        ).round(0)
 
         # Résultat 2022 comme baseline
         result["baseline_2022_macron"] = X_base.get(
@@ -214,8 +229,10 @@ def generate():
         # On re-prédit sur la base 2022 pour avoir la comparaison
         proba_base = pipeline.predict_proba(X_base)
         result["proba_macron_2022"] = proba_base[:, 0].round(4)
-        result["proba_lepen_2022"]  = proba_base[:, 1].round(4)
-        result["delta_macron"]      = (result["proba_macron"] - result["proba_macron_2022"]).round(4)
+        result["proba_lepen_2022"] = proba_base[:, 1].round(4)
+        result["delta_macron"] = (
+            result["proba_macron"] - result["proba_macron_2022"]
+        ).round(4)
 
         out_path = ARTIFACTS / f"projections_{annee}_t{horizon}.csv"
         result.to_csv(out_path, index=False)
@@ -223,8 +240,10 @@ def generate():
 
         # Stats rapides
         n_macron = (pred == 0).sum()
-        n_lepen  = (pred == 1).sum()
-        print(f"    Macron prédit : {n_macron} communes ({n_macron/len(pred)*100:.1f}%)")
+        n_lepen = (pred == 1).sum()
+        print(
+            f"    Macron prédit : {n_macron} communes ({n_macron/len(pred)*100:.1f}%)"
+        )
         print(f"    Le Pen prédit : {n_lepen} communes ({n_lepen/len(pred)*100:.1f}%)")
 
         all_horizons.append(result)
@@ -234,43 +253,49 @@ def generate():
     dept_rows = []
     for horizon_df in all_horizons:
         horizon = int(horizon_df["horizon_years"].iloc[0])
-        annee   = str(horizon_df["annee_cible"].iloc[0])
+        annee = str(horizon_df["annee_cible"].iloc[0])
         for dept_code, group in horizon_df.groupby("code_departement"):
-            dept_rows.append({
-                "code_departement":    dept_code,
-                "libelle_departement": group["libelle_departement"].iloc[0],
-                "annee_cible":         annee,
-                "horizon_years":       horizon,
-                "n_communes":          len(group),
-                "proba_macron_mean":   group["proba_macron"].mean().round(4),
-                "proba_lepen_mean":    group["proba_lepen"].mean().round(4),
-                "proba_macron_2022":   group["proba_macron_2022"].mean().round(4),
-                "n_macron_predit":     (group["prediction"] == 0).sum(),
-                "n_lepen_predit":      (group["prediction"] == 1).sum(),
-            })
+            dept_rows.append(
+                {
+                    "code_departement": dept_code,
+                    "libelle_departement": group["libelle_departement"].iloc[0],
+                    "annee_cible": annee,
+                    "horizon_years": horizon,
+                    "n_communes": len(group),
+                    "proba_macron_mean": group["proba_macron"].mean().round(4),
+                    "proba_lepen_mean": group["proba_lepen"].mean().round(4),
+                    "proba_macron_2022": group["proba_macron_2022"].mean().round(4),
+                    "n_macron_predit": (group["prediction"] == 0).sum(),
+                    "n_lepen_predit": (group["prediction"] == 1).sum(),
+                }
+            )
 
     # Ajouter la ligne 2022 (baseline)
     proba_base_all = pipeline.predict_proba(X_base)
-    pred_base_all  = pipeline.predict(X_base)
+    pred_base_all = pipeline.predict(X_base)
     base_df = id_base.copy()
     base_df["proba_macron"] = proba_base_all[:, 0]
-    base_df["proba_lepen"]  = proba_base_all[:, 1]
-    base_df["prediction"]   = pred_base_all
+    base_df["proba_lepen"] = proba_base_all[:, 1]
+    base_df["prediction"] = pred_base_all
     for dept_code, group in base_df.groupby("code_departement"):
-        dept_rows.append({
-            "code_departement":    dept_code,
-            "libelle_departement": group["libelle_departement"].iloc[0],
-            "annee_cible":         "2022",
-            "horizon_years":       0,
-            "n_communes":          len(group),
-            "proba_macron_mean":   group["proba_macron"].mean().round(4),
-            "proba_lepen_mean":    group["proba_lepen"].mean().round(4),
-            "proba_macron_2022":   group["proba_macron"].mean().round(4),
-            "n_macron_predit":     (group["prediction"] == 0).sum(),
-            "n_lepen_predit":      (group["prediction"] == 1).sum(),
-        })
+        dept_rows.append(
+            {
+                "code_departement": dept_code,
+                "libelle_departement": group["libelle_departement"].iloc[0],
+                "annee_cible": "2022",
+                "horizon_years": 0,
+                "n_communes": len(group),
+                "proba_macron_mean": group["proba_macron"].mean().round(4),
+                "proba_lepen_mean": group["proba_lepen"].mean().round(4),
+                "proba_macron_2022": group["proba_macron"].mean().round(4),
+                "n_macron_predit": (group["prediction"] == 0).sum(),
+                "n_lepen_predit": (group["prediction"] == 1).sum(),
+            }
+        )
 
-    summary_df = pd.DataFrame(dept_rows).sort_values(["code_departement", "annee_cible"])
+    summary_df = pd.DataFrame(dept_rows).sort_values(
+        ["code_departement", "annee_cible"]
+    )
     summary_path = ARTIFACTS / "projections_synthese_depts.csv"
     summary_df.to_csv(summary_path, index=False)
     print(f"  Synthèse : {summary_path.name} ({len(summary_df)} lignes)")

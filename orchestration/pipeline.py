@@ -30,11 +30,13 @@ from etl.extract import (
     extract_emploi_2022,
     extract_pauvrete,
 )
+
 # Nouvelles sources — optionnelles (ignorées silencieusement si fichier absent)
 try:
-    from etl.extract.securite     import extract_securite
-    from etl.extract.entreprises  import extract_entreprises
+    from etl.extract.securite import extract_securite
+    from etl.extract.entreprises import extract_entreprises
     from etl.extract.associations import extract_associations
+
     _NEW_SOURCES_AVAILABLE = True
 except ImportError:
     _NEW_SOURCES_AVAILABLE = False
@@ -68,38 +70,74 @@ def _run_extract(name: str, fn, *args):
     return name, data
 
 
-def _persist_quality_checks(qc_report, ge_result: dict, run_id: str, database_url: str) -> None:
+def _persist_quality_checks(
+    qc_report, ge_result: dict, run_id: str, database_url: str
+) -> None:
     """Écrit les résultats qualité dans audit.quality_checks."""
     try:
         from sqlalchemy import create_engine, text
 
         checks = [
-            ("min_communes_1200",    qc_report.stats.get("n_communes", 0) >= 1200,
-             f"n={qc_report.stats.get('n_communes', 0)}"),
-            ("no_nulls",             qc_report.stats.get("n_nulls", 1) == 0,
-             f"nulls={qc_report.stats.get('n_nulls', '?')}"),
-            ("no_duplicates",        qc_report.stats.get("n_duplicates", 1) == 0,
-             f"dups={qc_report.stats.get('n_duplicates', '?')}"),
-            ("all_idf_depts",        len(qc_report.errors) == 0 or not any("dept" in e.lower() for e in qc_report.errors),
-             f"depts={qc_report.stats.get('depts_found', [])}"),
-            ("cible_cols_present",   not any("cible" in e.lower() for e in qc_report.errors),
-             "colonnes cibles présentes"),
-            ("t2_pct_coherence",     not any("t2" in e.lower() for e in qc_report.errors),
-             "cohérence T2 OK"),
-            ("value_ranges_ok",      not any("plage" in e.lower() or "range" in e.lower() for e in qc_report.errors),
-             "plages de valeurs valides"),
-            ("qc_global_passed",     qc_report.passed,
-             "OK" if qc_report.passed else f"Erreurs: {'; '.join(qc_report.errors[:3])}"),
+            (
+                "min_communes_1200",
+                qc_report.stats.get("n_communes", 0) >= 1200,
+                f"n={qc_report.stats.get('n_communes', 0)}",
+            ),
+            (
+                "no_nulls",
+                qc_report.stats.get("n_nulls", 1) == 0,
+                f"nulls={qc_report.stats.get('n_nulls', '?')}",
+            ),
+            (
+                "no_duplicates",
+                qc_report.stats.get("n_duplicates", 1) == 0,
+                f"dups={qc_report.stats.get('n_duplicates', '?')}",
+            ),
+            (
+                "all_idf_depts",
+                len(qc_report.errors) == 0
+                or not any("dept" in e.lower() for e in qc_report.errors),
+                f"depts={qc_report.stats.get('depts_found', [])}",
+            ),
+            (
+                "cible_cols_present",
+                not any("cible" in e.lower() for e in qc_report.errors),
+                "colonnes cibles présentes",
+            ),
+            (
+                "t2_pct_coherence",
+                not any("t2" in e.lower() for e in qc_report.errors),
+                "cohérence T2 OK",
+            ),
+            (
+                "value_ranges_ok",
+                not any(
+                    "plage" in e.lower() or "range" in e.lower()
+                    for e in qc_report.errors
+                ),
+                "plages de valeurs valides",
+            ),
+            (
+                "qc_global_passed",
+                qc_report.passed,
+                (
+                    "OK"
+                    if qc_report.passed
+                    else f"Erreurs: {'; '.join(qc_report.errors[:3])}"
+                ),
+            ),
         ]
 
         ge_total = ge_result.get("total", 0)
         ge_passed = ge_result.get("passed", 0)
         if not ge_result.get("skipped"):
-            checks.append((
-                f"great_expectations_{ge_passed}_sur_{ge_total}",
-                ge_result.get("success", False),
-                f"{ge_passed}/{ge_total} expectations passées",
-            ))
+            checks.append(
+                (
+                    f"great_expectations_{ge_passed}_sur_{ge_total}",
+                    ge_result.get("success", False),
+                    f"{ge_passed}/{ge_total} expectations passées",
+                )
+            )
 
         engine = create_engine(database_url, pool_pre_ping=True)
         now = datetime.utcnow()
@@ -110,7 +148,13 @@ def _persist_quality_checks(qc_report, ge_result: dict, run_id: str, database_ur
                         "INSERT INTO audit.quality_checks (run_id, check_name, passed, details, checked_at) "
                         "VALUES (:rid, :cn, :p, :d, :at)"
                     ),
-                    {"rid": run_id, "cn": check_name, "p": bool(passed), "d": details, "at": now},
+                    {
+                        "rid": run_id,
+                        "cn": check_name,
+                        "p": bool(passed),
+                        "d": details,
+                        "at": now,
+                    },
                 )
         log.info(f"[QC] {len(checks)} contrôles persistés dans audit.quality_checks")
     except Exception as exc:
@@ -138,11 +182,11 @@ def run_pipeline() -> dict:
     log.info("[extract] Lancement de 5 extractions en parallèle …")
 
     primary_tasks = {
-        "elections":     (extract_elections,         settings.elections_dir),
-        "demographique": (extract_demographique,     settings.demographique_file),
-        "pauvrete":      (extract_pauvrete,          settings.pauvrete_file),
-        "chomage_hist":  (extract_chomage_historique, settings.chomage_hist_file),
-        "emploi":        (extract_emploi_2022,       settings.emploi_file),
+        "elections": (extract_elections, settings.elections_dir),
+        "demographique": (extract_demographique, settings.demographique_file),
+        "pauvrete": (extract_pauvrete, settings.pauvrete_file),
+        "chomage_hist": (extract_chomage_historique, settings.chomage_hist_file),
+        "emploi": (extract_emploi_2022, settings.emploi_file),
     }
 
     extracts: dict = {}
@@ -159,18 +203,20 @@ def run_pipeline() -> dict:
     step.finish()
 
     raw_elections = extracts["elections"]
-    raw_demo      = extracts["demographique"]
-    raw_pauvrete  = extracts["pauvrete"]
-    raw_chomage   = extracts["chomage_hist"]
-    raw_emploi    = extracts["emploi"]
+    raw_demo = extracts["demographique"]
+    raw_pauvrete = extracts["pauvrete"]
+    raw_chomage = extracts["chomage_hist"]
+    raw_emploi = extracts["emploi"]
 
     # ── Phase 2 : Nouvelles sources optionnelles (parallèles entre elles) ────
     if _NEW_SOURCES_AVAILABLE:
         step = metrics.start_step("extract_new_sources_parallel")
-        log.info("[extract] Nouvelles sources (sécurité / entreprises / associations) en parallèle …")
+        log.info(
+            "[extract] Nouvelles sources (sécurité / entreprises / associations) en parallèle …"
+        )
 
         optional_tasks = {
-            "securite":    (extract_securite,    settings.data_root),
+            "securite": (extract_securite, settings.data_root),
             "entreprises": (extract_entreprises, settings.data_root),
             "associations": (extract_associations, settings.data_root),
         }
@@ -185,9 +231,7 @@ def run_pipeline() -> dict:
                 name, data = future.result()
                 opt_results[name] = data
 
-        step.rows_out = sum(
-            len(v) for v in opt_results.values() if v is not None
-        )
+        step.rows_out = sum(len(v) for v in opt_results.values() if v is not None)
         step.finish()
 
     # ── Phase 3 : Extractions candidats (même fichier source → séquentiel) ──

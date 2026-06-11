@@ -132,7 +132,9 @@ class GradientBoostingModel(BaseModel):
         print(f"\n{'='*60}")
         print(f"  Gradient Boosting — {self.task.upper()}")
         print(f"  Features : {len(clean_features)} (après anti-leakage)")
-        print(f"  Train : {len(X_tr):,} communes  (early stopping interne sur {int(len(X_tr)*GB_BEST_PARAMS.get('validation_fraction',0.1)*100):.0f}%)")
+        print(
+            f"  Train : {len(X_tr):,} communes  (early stopping interne sur {int(len(X_tr)*GB_BEST_PARAMS.get('validation_fraction',0.1)*100):.0f}%)"
+        )
         print(f"{'='*60}")
 
         t0 = time.time()
@@ -148,8 +150,12 @@ class GradientBoostingModel(BaseModel):
 
         # Early stopping: afficher le nombre d'itérations réellement utilisées
         gb_step = self.pipeline.named_steps["gb"]
-        n_estimators_used = getattr(gb_step, "n_estimators_", None) or getattr(gb_step, "n_estimators", "?")
-        print(f"  Entraînement terminé en {elapsed}s — {n_estimators_used} arbres utilisés")
+        n_estimators_used = getattr(gb_step, "n_estimators_", None) or getattr(
+            gb_step, "n_estimators", "?"
+        )
+        print(
+            f"  Entraînement terminé en {elapsed}s — {n_estimators_used} arbres utilisés"
+        )
 
         # Cross-validation sur l'ensemble d'entraînement (estimation robuste de la généralisation)
         scoring = "roc_auc" if self.task == "classification" else "r2"
@@ -160,30 +166,40 @@ class GradientBoostingModel(BaseModel):
         )
         print(f"  Cross-validation {CV_FOLDS}-fold sur train ({scoring})...")
         self.cv_scores_ = cross_val_score(
-            self.build(),   # pipeline vierge — pas le modèle déjà fitté
-            X_tr, y_train, cv=cv, scoring=scoring, n_jobs=-1,
+            self.build(),  # pipeline vierge — pas le modèle déjà fitté
+            X_tr,
+            y_train,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=-1,
         )
-        print(f"  CV {scoring} : {self.cv_scores_.mean():.4f} ± {self.cv_scores_.std():.4f}")
+        print(
+            f"  CV {scoring} : {self.cv_scores_.mean():.4f} ± {self.cv_scores_.std():.4f}"
+        )
 
         # Métriques train (diagnostique d'overfitting, non utilisées comme référence)
         y_pred_tr = self.pipeline.predict(X_tr)
         train_acc = round(float(accuracy_score(y_arr, y_pred_tr)), 4)
 
         self.metrics = {
-            "n_train":          len(X_tr),
-            "train_accuracy":   train_acc,   # indicateur d'overfitting, pas une performance cible
-            "cv_roc_auc":       round(float(self.cv_scores_.mean()), 4),
-            "cv_roc_auc_std":   round(float(self.cv_scores_.std()), 4),
-            "training_time_s":  elapsed,
-            "n_features":       len(clean_features),
+            "n_train": len(X_tr),
+            "train_accuracy": train_acc,  # indicateur d'overfitting, pas une performance cible
+            "cv_roc_auc": round(float(self.cv_scores_.mean()), 4),
+            "cv_roc_auc_std": round(float(self.cv_scores_.std()), 4),
+            "training_time_s": elapsed,
+            "n_features": len(clean_features),
             "n_estimators_used": n_estimators_used,
-            "best_params":      self.best_params_,
+            "best_params": self.best_params_,
         }
 
         self.model = self.pipeline
         self.is_trained = True
-        print(f"  train_accuracy = {train_acc:.4f} (un score de 1.0 signifie sur-apprentissage)")
-        print(f"  Référence robuste : CV AUC = {self.metrics['cv_roc_auc']:.4f} ± {self.metrics['cv_roc_auc_std']:.4f}")
+        print(
+            f"  train_accuracy = {train_acc:.4f} (un score de 1.0 signifie sur-apprentissage)"
+        )
+        print(
+            f"  Référence robuste : CV AUC = {self.metrics['cv_roc_auc']:.4f} ± {self.metrics['cv_roc_auc_std']:.4f}"
+        )
         return self.metrics
 
     def _run_search(self, X_tr, y_train, n_iter: int) -> Pipeline:
@@ -233,12 +249,14 @@ class GradientBoostingModel(BaseModel):
         Inclut : IC Wilson sur accuracy, IC bootstrap sur AUC, baseline, calibration.
         """
         X_clean = X_test[self.feature_names]
-        y_pred  = self.pipeline.predict(X_clean)
-        y_true  = np.asarray(y_test)
+        y_pred = self.pipeline.predict(X_clean)
+        y_true = np.asarray(y_test)
 
         if self.task == "classification":
             y_proba_2d = self.pipeline.predict_proba(X_clean)
-            metrics = robust_classification_eval(y_true, y_pred, y_proba_2d, split="test")
+            metrics = robust_classification_eval(
+                y_true, y_pred, y_proba_2d, split="test"
+            )
 
             # Baseline (classifieur naïf)
             bl = baseline_metrics(y_true)
@@ -255,9 +273,13 @@ class GradientBoostingModel(BaseModel):
 
             print(f"\n{'─'*55}")
             print(f"  SET DE TEST — {metrics['test_n_samples']} communes")
-            print(f"  Accuracy          : {metrics['test_accuracy']:.4f}  IC95% [{metrics['test_accuracy_ci_lo']:.4f}, {metrics['test_accuracy_ci_hi']:.4f}]")
+            print(
+                f"  Accuracy          : {metrics['test_accuracy']:.4f}  IC95% [{metrics['test_accuracy_ci_lo']:.4f}, {metrics['test_accuracy_ci_hi']:.4f}]"
+            )
             print(f"  Balanced accuracy : {metrics['test_balanced_accuracy']:.4f}")
-            print(f"  ROC-AUC           : {metrics.get('test_roc_auc','N/A')}  IC95% [{metrics.get('test_roc_auc_ci_lo','?')}, {metrics.get('test_roc_auc_ci_hi','?')}]")
+            print(
+                f"  ROC-AUC           : {metrics.get('test_roc_auc','N/A')}  IC95% [{metrics.get('test_roc_auc_ci_lo','?')}, {metrics.get('test_roc_auc_ci_hi','?')}]"
+            )
             print(f"  Cohen's κ         : {metrics['test_cohen_kappa']:.4f}")
             print(f"  Brier score       : {metrics.get('test_brier_score','N/A')}")
             print(f"  Baseline accuracy : {bl['baseline_accuracy']:.4f}")
@@ -265,12 +287,16 @@ class GradientBoostingModel(BaseModel):
             print(f"{'─'*55}")
         else:
             reg = {
-                "test_r2":   round(float(r2_score(y_true, y_pred)), 4),
-                "test_mae":  round(float(mean_absolute_error(y_true, y_pred)), 4),
-                "test_rmse": round(float(np.sqrt(mean_squared_error(y_true, y_pred))), 4),
+                "test_r2": round(float(r2_score(y_true, y_pred)), 4),
+                "test_mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
+                "test_rmse": round(
+                    float(np.sqrt(mean_squared_error(y_true, y_pred))), 4
+                ),
             }
             metrics = reg
-            print(f"  R²={metrics['test_r2']:.4f}  MAE={metrics['test_mae']:.4f}  RMSE={metrics['test_rmse']:.4f}")
+            print(
+                f"  R²={metrics['test_r2']:.4f}  MAE={metrics['test_mae']:.4f}  RMSE={metrics['test_rmse']:.4f}"
+            )
 
         self.metrics.update(metrics)
         return metrics

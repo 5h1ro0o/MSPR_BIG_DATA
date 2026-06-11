@@ -53,9 +53,11 @@ def extract_securite(data_root: Path) -> pd.DataFrame | None:
     Retourne None si le fichier source est introuvable.
     """
     # Cherche le fichier récursivement dans data_root et ses sous-dossiers
-    candidates = list(data_root.glob("**/*crime*delinquance*departement*.csv")) + \
-                 list(data_root.glob("**/*delin*departement*.csv")) + \
-                 list(data_root.glob("**/*crimes_delits*.csv"))
+    candidates = (
+        list(data_root.glob("**/*crime*delinquance*departement*.csv"))
+        + list(data_root.glob("**/*delin*departement*.csv"))
+        + list(data_root.glob("**/*crimes_delits*.csv"))
+    )
 
     if not candidates:
         log.warning(
@@ -76,14 +78,22 @@ def extract_securite(data_root: Path) -> pd.DataFrame | None:
     df.columns = [c.strip().lower() for c in df.columns]
 
     # Identifier les colonnes clés (nommage variable selon les millésimes)
-    col_dept  = next((c for c in df.columns if "dep" in c and len(c) < 10), None)
-    col_type  = next((c for c in df.columns if "classe" in c or "type" in c or "nature" in c), None)
-    col_count = next((c for c in df.columns if "faits" in c or "nombre" in c or "valeur" in c), None)
-    col_pop   = next((c for c in df.columns if "pop" in c), None)
-    col_year  = next((c for c in df.columns if "annee" in c or "année" in c or "an" == c), None)
+    col_dept = next((c for c in df.columns if "dep" in c and len(c) < 10), None)
+    col_type = next(
+        (c for c in df.columns if "classe" in c or "type" in c or "nature" in c), None
+    )
+    col_count = next(
+        (c for c in df.columns if "faits" in c or "nombre" in c or "valeur" in c), None
+    )
+    col_pop = next((c for c in df.columns if "pop" in c), None)
+    col_year = next(
+        (c for c in df.columns if "annee" in c or "année" in c or "an" == c), None
+    )
 
     if not all([col_dept, col_type, col_count]):
-        log.error(f"Colonnes attendues introuvables — skip sécurité. Colonnes dispo: {list(df.columns)[:10]}")
+        log.error(
+            f"Colonnes attendues introuvables — skip sécurité. Colonnes dispo: {list(df.columns)[:10]}"
+        )
         return None
 
     # Filtrer IDF
@@ -109,13 +119,21 @@ def extract_securite(data_root: Path) -> pd.DataFrame | None:
                 grp.loc[mask, col_count].sum() / max(pop, 1) * 1000
             )
 
-        rows.append({
-            "code_departement":      dept_code,
-            "taux_crimes_total":     round(total_faits / max(pop, 1) * 1000, 2),
-            "taux_crimes_personnes": round(faits_per_cat.get("taux_crimes_personnes", 0), 2),
-            "taux_crimes_biens":     round(faits_per_cat.get("taux_crimes_biens", 0), 2),
-            "taux_crimes_drogues":   round(faits_per_cat.get("taux_crimes_drogues", 0), 2),
-        })
+        rows.append(
+            {
+                "code_departement": dept_code,
+                "taux_crimes_total": round(total_faits / max(pop, 1) * 1000, 2),
+                "taux_crimes_personnes": round(
+                    faits_per_cat.get("taux_crimes_personnes", 0), 2
+                ),
+                "taux_crimes_biens": round(
+                    faits_per_cat.get("taux_crimes_biens", 0), 2
+                ),
+                "taux_crimes_drogues": round(
+                    faits_per_cat.get("taux_crimes_drogues", 0), 2
+                ),
+            }
+        )
 
     result = pd.DataFrame(rows)
     log.info(f"Sécurité : {len(result)} départements IDF extraits")
