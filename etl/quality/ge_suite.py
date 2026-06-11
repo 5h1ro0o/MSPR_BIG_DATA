@@ -11,6 +11,7 @@ traçables et réutilisables.
 from __future__ import annotations
 
 import logging
+
 import pandas as pd
 
 # ── Silencer AVANT l'import de GE ─────────────────────────────────────────────

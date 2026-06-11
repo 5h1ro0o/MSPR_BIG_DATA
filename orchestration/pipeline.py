@@ -33,9 +33,9 @@ from etl.extract import (
 
 # Nouvelles sources — optionnelles (ignorées silencieusement si fichier absent)
 try:
-    from etl.extract.securite import extract_securite
-    from etl.extract.entreprises import extract_entreprises
     from etl.extract.associations import extract_associations
+    from etl.extract.entreprises import extract_entreprises
+    from etl.extract.securite import extract_securite
 
     _NEW_SOURCES_AVAILABLE = True
 except ImportError:
