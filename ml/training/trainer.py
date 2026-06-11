@@ -35,6 +35,8 @@ def _add_context_cols(pred_df: pd.DataFrame, df: pd.DataFrame, index: pd.Index) 
         return pred_df
     ctx = df.loc[index, ctx_cols].reset_index(drop=True)
     return pd.concat([pred_df, ctx], axis=1)
+
+
 from ml.training.evaluate import (
     plot_confusion_matrix,
     plot_feature_importance,

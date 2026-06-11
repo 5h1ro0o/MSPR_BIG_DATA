@@ -70,7 +70,6 @@ def extract_entreprises(data_root: Path) -> pd.DataFrame | None:
 
     # Colonnes clés (nommage variable)
     col_commune = next((c for c in df.columns if "commune" in c or "codecom" in c), None)
-    col_dept    = next((c for c in df.columns if ("dep" in c and "code" in c) or c == "dep"), None)
     col_naf     = next((c for c in df.columns if "naf" in c or "activite" in c or "section" in c), None)
     col_etat    = next((c for c in df.columns if "etat" in c or "statut" in c), None)
 

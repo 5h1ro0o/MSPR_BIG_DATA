@@ -165,9 +165,6 @@ def run_pipeline() -> dict:
     raw_emploi    = extracts["emploi"]
 
     # ── Phase 2 : Nouvelles sources optionnelles (parallèles entre elles) ────
-    raw_securite    = None
-    raw_entreprises = None
-    raw_asso        = None
     if _NEW_SOURCES_AVAILABLE:
         step = metrics.start_step("extract_new_sources_parallel")
         log.info("[extract] Nouvelles sources (sécurité / entreprises / associations) en parallèle …")
@@ -175,7 +172,7 @@ def run_pipeline() -> dict:
         optional_tasks = {
             "securite":    (extract_securite,    settings.data_root),
             "entreprises": (extract_entreprises, settings.data_root),
-            "associations":(extract_associations, settings.data_root),
+            "associations": (extract_associations, settings.data_root),
         }
 
         opt_results: dict = {}
@@ -187,10 +184,6 @@ def run_pipeline() -> dict:
             for future in as_completed(futures):
                 name, data = future.result()
                 opt_results[name] = data
-
-        raw_securite    = opt_results.get("securite")
-        raw_entreprises = opt_results.get("entreprises")
-        raw_asso        = opt_results.get("associations")
 
         step.rows_out = sum(
             len(v) for v in opt_results.values() if v is not None

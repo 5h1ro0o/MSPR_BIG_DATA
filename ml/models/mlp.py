@@ -17,7 +17,6 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
-from sklearn.inspection import permutation_importance
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,

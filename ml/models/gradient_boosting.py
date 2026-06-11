@@ -28,7 +28,6 @@ from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
-    classification_report,
     confusion_matrix,
     f1_score,
     mean_absolute_error,

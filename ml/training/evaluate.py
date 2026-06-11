@@ -9,8 +9,6 @@ from pathlib import Path
 
 import matplotlib
 import numpy as np
-import pandas as pd
-
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -124,7 +122,6 @@ def robust_classification_eval(
     f1_w = f1_score(y_true, y_pred, average="weighted", zero_division=0)
     f1_m = f1_score(y_true, y_pred, average="macro", zero_division=0)
     kappa = cohen_kappa_score(y_true, y_pred)
-    cm = confusion_matrix(y_true, y_pred)
     prec_per_class = precision_score(y_true, y_pred, average=None, zero_division=0)
     rec_per_class  = recall_score(y_true, y_pred, average=None, zero_division=0)
     classes = np.unique(y_true)
