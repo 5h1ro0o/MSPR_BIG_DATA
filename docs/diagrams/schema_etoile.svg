@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 640" width="920" height="640" font-family="Segoe UI, Arial, sans-serif">
+  <title>Schéma en Étoile — Datamart Electio-Analytics</title>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000022"/>
+    </filter>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="920" height="640" fill="#F8F9FA" rx="12"/>
+
+  <!-- Titre -->
+  <text x="460" y="32" text-anchor="middle" font-size="17" font-weight="bold" fill="#1A1A2E">Modèle Multidimensionnel en Étoile — Datamart Electio-Analytics</text>
+  <text x="460" y="52" text-anchor="middle" font-size="11" fill="#666">Architecture décisionnelle · Résultats électoraux IDF 2012–2022</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TABLE DE FAITS CENTRALE
+       ══════════════════════════════════════════════════════════ -->
+  <g id="fait" filter="url(#shadow)">
+    <rect x="310" y="220" width="300" height="220" rx="8" fill="#1A1A2E" stroke="#3A3A6E" stroke-width="2"/>
+    <rect x="310" y="220" width="300" height="32" rx="8" fill="#E15759"/>
+    <rect x="310" y="244" width="300" height="8" fill="#E15759"/>
+    <text x="460" y="241" text-anchor="middle" font-size="12" font-weight="bold" fill="white">⭐ fait_resultats_electoraux</text>
+    <!-- Clés étrangères -->
+    <text x="322" y="272" font-size="10" fill="#A8D8FF">🔑 sk_commune  → dim_commune</text>
+    <text x="322" y="288" font-size="10" fill="#A8D8FF">🔑 sk_candidat → dim_candidat</text>
+    <text x="322" y="304" font-size="10" fill="#A8D8FF">🔑 sk_temps    → dim_temps</text>
+    <text x="322" y="320" font-size="10" fill="#A8D8FF">🔑 sk_contexte → dim_contexte</text>
+    <!-- Mesures -->
+    <line x1="322" y1="328" x2="598" y2="328" stroke="#444" stroke-width="1"/>
+    <text x="322" y="342" font-size="10" fill="#BBE0BB">📊 nb_voix</text>
+    <text x="322" y="356" font-size="10" fill="#BBE0BB">📊 pct_voix</text>
+    <text x="322" y="370" font-size="10" fill="#BBE0BB">📊 taux_participation</text>
+    <text x="322" y="384" font-size="10" fill="#BBE0BB">📊 taux_abstention</text>
+    <text x="322" y="398" font-size="10" fill="#BBE0BB">📊 vainqueur_t2 · marge_vainqueur_t2</text>
+    <text x="322" y="412" font-size="10" fill="#FFD9A0">🤖 proba_macron_gb · proba_lepen_gb</text>
+    <!-- Grain -->
+    <text x="460" y="430" text-anchor="middle" font-size="9" fill="#888" font-style="italic">Grain : commune × candidat × tour × élection</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DIM COMMUNE (gauche)
+       ══════════════════════════════════════════════════════════ -->
+  <g id="dim_commune" filter="url(#shadow)">
+    <rect x="30" y="195" width="230" height="250" rx="8" fill="#2B3A67" stroke="#5B9BD5" stroke-width="2"/>
+    <rect x="30" y="195" width="230" height="30" rx="8" fill="#5B9BD5"/>
+    <rect x="30" y="217" width="230" height="8" fill="#5B9BD5"/>
+    <text x="145" y="214" text-anchor="middle" font-size="11" font-weight="bold" fill="white">dim_commune</text>
+    <text x="42" y="242" font-size="10" fill="#FFD700">🗝 sk_commune (PK)</text>
+    <text x="42" y="257" font-size="10" fill="#A8D8FF">code_commune (CHAR 5)</text>
+    <text x="42" y="271" font-size="10" fill="#A8D8FF">code_departement</text>
+    <text x="42" y="285" font-size="10" fill="#A8D8FF">libelle_commune</text>
+    <text x="42" y="299" font-size="10" fill="#A8D8FF">libelle_departement</text>
+    <line x1="42" y1="307" x2="248" y2="307" stroke="#444" stroke-width="1"/>
+    <text x="42" y="320" font-size="10" fill="#BBE0BB">revenu_median</text>
+    <text x="42" y="334" font-size="10" fill="#BBE0BB">taux_chomage</text>
+    <text x="42" y="348" font-size="10" fill="#BBE0BB">taux_pauvrete</text>
+    <text x="42" y="362" font-size="10" fill="#BBE0BB">pct_dipl_superieur</text>
+    <text x="42" y="376" font-size="10" fill="#BBE0BB">pct_csp_cadres · pct_log_hlm</text>
+    <text x="42" y="390" font-size="10" fill="#BBE0BB">pop_totale</text>
+    <line x1="42" y1="398" x2="248" y2="398" stroke="#444" stroke-width="1"/>
+    <text x="42" y="411" font-size="9" fill="#FFD9A0">taux_crimes_total (sécurité)</text>
+    <text x="42" y="424" font-size="9" fill="#FFD9A0">nb_entreprises · nb_associations</text>
+    <text x="145" y="438" text-anchor="middle" font-size="9" fill="#888" font-style="italic">1 268 communes IDF</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DIM CANDIDAT (droite)
+       ══════════════════════════════════════════════════════════ -->
+  <g id="dim_candidat" filter="url(#shadow)">
+    <rect x="660" y="195" width="230" height="185" rx="8" fill="#2B3A67" stroke="#E15759" stroke-width="2"/>
+    <rect x="660" y="195" width="230" height="30" rx="8" fill="#E15759"/>
+    <rect x="660" y="217" width="230" height="8" fill="#E15759"/>
+    <text x="775" y="214" text-anchor="middle" font-size="11" font-weight="bold" fill="white">dim_candidat</text>
+    <text x="672" y="242" font-size="10" fill="#FFD700">🗝 sk_candidat (PK)</text>
+    <text x="672" y="257" font-size="10" fill="#A8D8FF">nom_candidat</text>
+    <text x="672" y="271" font-size="10" fill="#A8D8FF">parti</text>
+    <text x="672" y="285" font-size="10" fill="#A8D8FF">orientation</text>
+    <text x="672" y="299" font-size="10" fill="#A8D8FF">couleur_hex</text>
+    <line x1="672" y1="307" x2="878" y2="307" stroke="#444" stroke-width="1"/>
+    <text x="775" y="324" text-anchor="middle" font-size="9" fill="#888" font-style="italic">11 candidats pré-chargés</text>
+    <text x="775" y="337" text-anchor="middle" font-size="9" fill="#999">(Macron, Le Pen, Mélenchon…)</text>
+    <text x="672" y="355" font-size="9" fill="#FFD9A0">Orientations :</text>
+    <text x="672" y="368" font-size="9" fill="#ccc">centre · gauche · droite</text>
+    <text x="672" y="372" font-size="9" fill="#ccc"> </text>
+    <text x="672" y="372" font-size="9" fill="#ccc">extreme_gauche · extreme_droite</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DIM TEMPS (haut)
+       ══════════════════════════════════════════════════════════ -->
+  <g id="dim_temps" filter="url(#shadow)">
+    <rect x="330" y="60" width="260" height="130" rx="8" fill="#2B3A67" stroke="#59A14F" stroke-width="2"/>
+    <rect x="330" y="60" width="260" height="30" rx="8" fill="#59A14F"/>
+    <rect x="330" y="82" width="260" height="8" fill="#59A14F"/>
+    <text x="460" y="79" text-anchor="middle" font-size="11" font-weight="bold" fill="white">dim_temps</text>
+    <text x="342" y="106" font-size="10" fill="#FFD700">🗝 sk_temps (PK)</text>
+    <text x="342" y="120" font-size="10" fill="#A8D8FF">annee · tour (CHECK IN 1,2)</text>
+    <text x="342" y="134" font-size="10" fill="#A8D8FF">type_election · date_scrutin</text>
+    <text x="342" y="148" font-size="10" fill="#A8D8FF">label (ex. "T2 2022")</text>
+    <line x1="342" y1="156" x2="578" y2="156" stroke="#444" stroke-width="1"/>
+    <text x="460" y="170" text-anchor="middle" font-size="9" fill="#888" font-style="italic">6 scrutins : 2012 T1/T2 · 2017 T1/T2 · 2022 T1/T2</text>
+    <text x="460" y="183" text-anchor="middle" font-size="9" fill="#888">pré-chargé par init.sql</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DIM CONTEXTE (bas)
+       ══════════════════════════════════════════════════════════ -->
+  <g id="dim_contexte" filter="url(#shadow)">
+    <rect x="310" y="480" width="300" height="135" rx="8" fill="#2B3A67" stroke="#F28E2B" stroke-width="2"/>
+    <rect x="310" y="480" width="300" height="30" rx="8" fill="#F28E2B"/>
+    <rect x="310" y="502" width="300" height="8" fill="#F28E2B"/>
+    <text x="460" y="499" text-anchor="middle" font-size="11" font-weight="bold" fill="white">dim_contexte</text>
+    <text x="322" y="525" font-size="10" fill="#FFD700">🗝 sk_contexte (PK)</text>
+    <text x="322" y="539" font-size="10" fill="#A8D8FF">code_commune · millesime</text>
+    <line x1="322" y1="547" x2="598" y2="547" stroke="#444" stroke-width="1"/>
+    <text x="322" y="560" font-size="10" fill="#BBE0BB">revenu_median · taux_chomage</text>
+    <text x="322" y="574" font-size="10" fill="#BBE0BB">taux_pauvrete · pct_dipl_superieur</text>
+    <text x="322" y="588" font-size="10" fill="#BBE0BB">pct_csp_cadres · pct_log_hlm</text>
+    <text x="460" y="607" text-anchor="middle" font-size="9" fill="#888" font-style="italic">Grain : (commune, millésime) — 2017 + 2022</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LIAISONS (flèches)
+       ══════════════════════════════════════════════════════════ -->
+  <!-- dim_commune → fait (droite de dim_commune vers gauche de fait) -->
+  <line x1="260" y1="330" x2="308" y2="330" stroke="#5B9BD5" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="265" y="320" font-size="9" fill="#5B9BD5">N:1</text>
+
+  <!-- dim_candidat → fait (gauche de dim_candidat vers droite de fait) -->
+  <line x1="660" y1="310" x2="612" y2="310" stroke="#E15759" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="620" y="303" font-size="9" fill="#E15759">N:1</text>
+
+  <!-- dim_temps → fait (bas de dim_temps vers haut de fait) -->
+  <line x1="460" y1="190" x2="460" y2="218" stroke="#59A14F" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="465" y="210" font-size="9" fill="#59A14F">N:1</text>
+
+  <!-- dim_contexte → fait (haut de dim_contexte vers bas de fait) -->
+  <line x1="460" y1="480" x2="460" y2="442" stroke="#F28E2B" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="465" y="465" font-size="9" fill="#F28E2B">N:1</text>
+
+  <!-- Légende -->
+  <g transform="translate(30, 555)">
+    <rect width="260" height="70" rx="6" fill="#1A1A2E" stroke="#333" stroke-width="1"/>
+    <text x="130" y="18" text-anchor="middle" font-size="10" font-weight="bold" fill="#FFF">Légende</text>
+    <rect x="10" y="26" width="12" height="8" fill="#FFD700" rx="2"/>
+    <text x="26" y="34" font-size="9" fill="#CCC">Clé primaire surrogate</text>
+    <rect x="10" y="38" width="12" height="8" fill="#A8D8FF" rx="2"/>
+    <text x="26" y="46" font-size="9" fill="#CCC">Attribut descriptif</text>
+    <rect x="10" y="50" width="12" height="8" fill="#BBE0BB" rx="2"/>
+    <text x="26" y="58" font-size="9" fill="#CCC">Mesure / indicateur</text>
+    <rect x="130" y="26" width="12" height="8" fill="#FFD9A0" rx="2"/>
+    <text x="146" y="34" font-size="9" fill="#CCC">Nouvelles sources</text>
+    <rect x="130" y="38" width="12" height="8" fill="#E15759" rx="2"/>
+    <text x="146" y="46" font-size="9" fill="#CCC">Table de faits (centre)</text>
+    <rect x="130" y="50" width="12" height="8" fill="#5B9BD5" rx="2"/>
+    <text x="146" y="58" font-size="9" fill="#CCC">Tables dimensions</text>
+  </g>
+</svg>

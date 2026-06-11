@@ -179,3 +179,139 @@ CREATE INDEX IF NOT EXISTS idx_communes_dept
     ON silver.communes (code_departement);
 CREATE INDEX IF NOT EXISTS idx_runs_status
     ON audit.pipeline_runs (status, started_at);
+
+-- ============================================================
+-- SCHÉMA EN ÉTOILE (DATAMART) — Modèle multidimensionnel
+-- Couche analytique/décisionnelle distincte de la couche gold ML
+-- Architecture : 1 table de faits centrale + 4 tables de dimensions
+-- ============================================================
+CREATE SCHEMA IF NOT EXISTS datamart;
+
+-- ── Dimension Commune ─────────────────────────────────────────────────────────
+-- Grain : 1 ligne par commune IDF (1 268 communes)
+CREATE TABLE IF NOT EXISTS datamart.dim_commune (
+    sk_commune          SERIAL       PRIMARY KEY,
+    code_commune        CHAR(5)      NOT NULL UNIQUE,
+    code_departement    CHAR(2)      NOT NULL,
+    libelle_departement VARCHAR(100),
+    libelle_commune     VARCHAR(100),
+    -- Indicateurs socio-économiques de référence (millésime 2022)
+    revenu_median       NUMERIC(10,2),
+    taux_chomage        NUMERIC(6,2),
+    taux_pauvrete       NUMERIC(6,2),
+    pct_dipl_superieur  NUMERIC(6,2),
+    pct_csp_cadres      NUMERIC(6,2),
+    pct_log_hlm         NUMERIC(6,2),
+    pop_totale          INTEGER,
+    -- Nouvelles sources (nullable si données non encore chargées)
+    taux_crimes_total   NUMERIC(8,2),
+    nb_entreprises      INTEGER,
+    nb_associations     INTEGER,
+    updated_at          TIMESTAMPTZ  DEFAULT NOW()
+);
+
+-- ── Dimension Candidat ────────────────────────────────────────────────────────
+-- Grain : 1 ligne par candidat ayant participé à au moins une élection couverte
+CREATE TABLE IF NOT EXISTS datamart.dim_candidat (
+    sk_candidat         SERIAL       PRIMARY KEY,
+    nom_candidat        VARCHAR(100) NOT NULL,
+    parti               VARCHAR(50),
+    orientation         VARCHAR(30), -- gauche / centre / droite / extreme_gauche / extreme_droite
+    couleur_hex         CHAR(7),
+    UNIQUE (nom_candidat, parti)
+);
+
+-- ── Dimension Temps ───────────────────────────────────────────────────────────
+-- Grain : 1 ligne par scrutin (année + tour)
+CREATE TABLE IF NOT EXISTS datamart.dim_temps (
+    sk_temps            SERIAL       PRIMARY KEY,
+    annee               SMALLINT     NOT NULL,
+    tour                SMALLINT     NOT NULL CHECK (tour IN (1, 2)),
+    type_election       VARCHAR(50)  DEFAULT 'présidentielle',
+    date_scrutin        DATE,
+    label               VARCHAR(50)  NOT NULL, -- ex. "T1 2022"
+    UNIQUE (annee, tour)
+);
+
+-- ── Dimension Contexte Socio-Économique ───────────────────────────────────────
+-- Grain : 1 ligne par (commune, millésime) — permet comparaison historique
+CREATE TABLE IF NOT EXISTS datamart.dim_contexte (
+    sk_contexte         SERIAL       PRIMARY KEY,
+    code_commune        CHAR(5)      NOT NULL,
+    millesime           SMALLINT     NOT NULL, -- année de la donnée (ex. 2017, 2022)
+    revenu_median       NUMERIC(10,2),
+    taux_chomage        NUMERIC(6,2),
+    taux_pauvrete       NUMERIC(6,2),
+    pct_dipl_superieur  NUMERIC(6,2),
+    pct_csp_cadres      NUMERIC(6,2),
+    pct_pop_senior_60p  NUMERIC(6,2),
+    pct_log_hlm         NUMERIC(6,2),
+    UNIQUE (code_commune, millesime)
+);
+
+-- ── Table de Faits : Résultats Électoraux ─────────────────────────────────────
+-- Grain : 1 ligne par (commune × candidat × tour × élection)
+-- Mesures : votes exprimés, % obtenu, participation, résultats agrégés
+CREATE TABLE IF NOT EXISTS datamart.fait_resultats_electoraux (
+    sk_fait             BIGSERIAL    PRIMARY KEY,
+    -- Clés étrangères vers les dimensions
+    sk_commune          INTEGER      NOT NULL REFERENCES datamart.dim_commune(sk_commune),
+    sk_candidat         INTEGER      NOT NULL REFERENCES datamart.dim_candidat(sk_candidat),
+    sk_temps            INTEGER      NOT NULL REFERENCES datamart.dim_temps(sk_temps),
+    sk_contexte         INTEGER      REFERENCES datamart.dim_contexte(sk_contexte),
+    -- Mesures électorales
+    nb_inscrits         INTEGER,
+    nb_votants          INTEGER,
+    nb_exprimes         INTEGER,
+    nb_voix             INTEGER,
+    pct_voix            NUMERIC(6,3), -- % des voix exprimées
+    pct_inscrits        NUMERIC(6,3), -- % des inscrits
+    taux_participation  NUMERIC(6,3),
+    taux_abstention     NUMERIC(6,3),
+    -- Résultat binaire T2 (Macron=0, Le Pen=1) — uniquement pour le T2
+    vainqueur_t2        SMALLINT,
+    marge_vainqueur_t2  NUMERIC(6,3),
+    -- Prédiction modèle (jointure possible)
+    proba_macron_gb     NUMERIC(6,4),
+    proba_lepen_gb      NUMERIC(6,4),
+    -- Audit
+    loaded_at           TIMESTAMPTZ  DEFAULT NOW()
+);
+
+-- ── Pré-remplissage des dimensions statiques ─────────────────────────────────
+INSERT INTO datamart.dim_temps (annee, tour, label, date_scrutin)
+VALUES
+    (2012, 1, 'T1 2012', '2012-04-22'),
+    (2012, 2, 'T2 2012', '2012-05-06'),
+    (2017, 1, 'T1 2017', '2017-04-23'),
+    (2017, 2, 'T2 2017', '2017-05-07'),
+    (2022, 1, 'T1 2022', '2022-04-10'),
+    (2022, 2, 'T2 2022', '2022-04-24')
+ON CONFLICT (annee, tour) DO NOTHING;
+
+INSERT INTO datamart.dim_candidat (nom_candidat, parti, orientation, couleur_hex)
+VALUES
+    ('Emmanuel Macron',       'LREM/Renaissance', 'centre',          '#5B9BD5'),
+    ('Marine Le Pen',         'RN',               'extreme_droite',  '#E15759'),
+    ('Jean-Luc Mélenchon',    'LFI',              'extreme_gauche',  '#59A14F'),
+    ('Éric Zemmour',          'Reconquête',       'extreme_droite',  '#9B59B6'),
+    ('Valérie Pécresse',      'LR',               'droite',          '#F28E2B'),
+    ('Yannick Jadot',         'EELV',             'gauche',          '#76B7B2'),
+    ('François Hollande',     'PS',               'gauche',          '#E05C5C'),
+    ('Nicolas Sarkozy',       'UMP/LR',           'droite',          '#3366CC'),
+    ('François Fillon',       'LR',               'droite',          '#B07AA1'),
+    ('Benoît Hamon',          'PS',               'gauche',          '#FF9DA7'),
+    ('Autres candidats',      'divers',           'divers',          '#BAB0AC')
+ON CONFLICT (nom_candidat, parti) DO NOTHING;
+
+-- ── Index pour performances des requêtes analytiques ─────────────────────────
+CREATE INDEX IF NOT EXISTS idx_fait_commune
+    ON datamart.fait_resultats_electoraux (sk_commune);
+CREATE INDEX IF NOT EXISTS idx_fait_temps
+    ON datamart.fait_resultats_electoraux (sk_temps);
+CREATE INDEX IF NOT EXISTS idx_fait_candidat
+    ON datamart.fait_resultats_electoraux (sk_candidat);
+CREATE INDEX IF NOT EXISTS idx_dim_commune_dept
+    ON datamart.dim_commune (code_departement);
+CREATE INDEX IF NOT EXISTS idx_contexte_commune
+    ON datamart.dim_contexte (code_commune, millesime);

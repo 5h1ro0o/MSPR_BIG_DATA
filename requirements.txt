@@ -31,3 +31,5 @@ plotly>=5.17.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
 
+great-expectations>=0.18.0   # Data Quality Management (DQM) — outil reconnu
+

@@ -13,6 +13,8 @@ x-env-common: &env-common
   PYTHONDONTWRITEBYTECODE: "1"
 
 services:
+
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: elections_postgres
@@ -33,6 +35,8 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  # ─── Pipeline ETL + ML ───────────────────────────────────────────────────────
+  # Job one-shot : Fetch → ETL → Datamart → Train → Projections
   pipeline:
     build:
       context: .
@@ -44,15 +48,13 @@ services:
       <<: *env-common
     volumes:
       - ${DATA_ROOT_HOST:-../}:/data
-      - ./ml/artifacts:/app/ml/artifacts   # persiste modèles et CSVs de prédictions entre runs
+      - ./ml/artifacts:/app/ml/artifacts
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
-    # Le pipeline est un job one-shot : il s'exécute, produit les artefacts, puis s'arrête.
-    # Relancer : docker compose up --build (reconstruction image si code changé)
-    #            docker compose run --rm pipeline (sans rebuild)
 
+  # ─── Frontend React (Nginx) ───────────────────────────────────────────────────
   nginx:
     image: nginx:1.25-alpine
     container_name: elections_nginx
@@ -66,7 +68,7 @@ services:
       postgres:
         condition: service_healthy
       pipeline:
-        condition: service_completed_successfully  # attend la fin du pipeline (ETL + train)
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost/index.html || exit 1"]
@@ -74,6 +76,39 @@ services:
       timeout:  5s
       retries:  3
 
+  # ─── Grafana BI ───────────────────────────────────────────────────────────────
+  # Tableau de bord analytique — alternative BI au frontend React
+  # Accès : http://localhost:3001  (admin / elections2022)
+  grafana:
+    image: grafana/grafana-oss:10.4.2
+    container_name: elections_grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER:     admin
+      GF_SECURITY_ADMIN_PASSWORD: ${POSTGRES_PASSWORD:-elections2022}
+      GF_AUTH_ANONYMOUS_ENABLED:  "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SERVER_ROOT_URL:         http://localhost:3001
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/elections_idf.json
+      GF_FEATURE_TOGGLES_ENABLE:  publicDashboards
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout:  10s
+      retries:  5
+      start_period: 30s
+
 volumes:
   postgres_data:
+    driver: local
+  grafana_data:
     driver: local

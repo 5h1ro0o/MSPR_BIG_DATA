@@ -249,6 +249,106 @@ def train_lstm(
     return model.metrics
 
 
+def train_decision_tree(
+    feature_set: str = "pre_vote",
+    target: str = "classification_t2",
+    use_grid_search: bool = True,
+    save: bool = True,
+) -> dict:
+    """Entraîne le Decision Tree avec GridSearchCV. Exporte les règles textuelles."""
+    from ml.models.decision_tree import DecisionTreeModel
+
+    df = load_dataset()
+    tag = f"{feature_set}_{target}"
+
+    X, y, features = build_X_y(df, feature_set=feature_set, target=target)
+    X_train, X_test, y_train, y_test = split_data(X, y)
+
+    model = DecisionTreeModel(task="classification", artifact_dir=ARTIFACTS)
+    model.train(X_train, y_train, use_grid_search=use_grid_search)
+    model.evaluate(X_test, y_test)
+
+    y_pred = model.predict(X_test)
+    plot_confusion_matrix(y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "decision_tree", ARTIFACTS)
+    y_proba = model.predict_proba(X_test)
+    if y_proba is not None:
+        try:
+            plot_roc_curve(y_test, y_proba, "decision_tree", ARTIFACTS)
+        except Exception:
+            pass
+
+    df_imp = model.get_feature_importance(top_n=25)
+    plot_feature_importance(df_imp, "decision_tree", ARTIFACTS)
+
+    X_all, y_all, _ = build_X_y(df, feature_set=feature_set, target=target)
+    comm = get_commune_info(df).loc[y_all.index].reset_index(drop=True)
+    pred_df = model.get_predictions_with_communes(X_all, comm)
+    pred_df["ground_truth"] = y_all.reset_index(drop=True)
+    pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    split_col = pd.Series("train", index=y_all.index)
+    split_col.loc[X_test.index] = "test"
+    pred_df["split"] = split_col.values
+    pred_df = _add_context_cols(pred_df, df, y_all.index)
+    pred_df.to_csv(ARTIFACTS / f"dt_predictions_{tag}.csv", index=False)
+
+    if save:
+        model.save(tag=tag)
+    _save_metrics(model.metrics, "decision_tree", tag)
+    _store_to_db(pred_df, model.metrics, "decision_tree", feature_set, target, tag)
+    print(f"\n  Artefacts DT sauvegardés dans : {ARTIFACTS}")
+    return model.metrics
+
+
+def train_mlp(
+    feature_set: str = "pre_vote",
+    target: str = "classification_t2",
+    use_grid_search: bool = False,
+    save: bool = True,
+) -> dict:
+    """Entraîne le MLP (MLPClassifier sklearn) avec StandardScaler intégré."""
+    from ml.models.mlp import MLPModel
+
+    df = load_dataset()
+    tag = f"{feature_set}_{target}"
+
+    X, y, features = build_X_y(df, feature_set=feature_set, target=target)
+    X_train, X_test, y_train, y_test = split_data(X, y)
+
+    model = MLPModel(task="classification", artifact_dir=ARTIFACTS)
+    model.train(X_train, y_train, use_grid_search=use_grid_search)
+    model.evaluate(X_test, y_test)
+
+    y_pred = model.predict(X_test)
+    plot_confusion_matrix(y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "mlp", ARTIFACTS)
+    y_proba = model.predict_proba(X_test)
+    if y_proba is not None:
+        try:
+            plot_roc_curve(y_test, y_proba, "mlp", ARTIFACTS)
+        except Exception:
+            pass
+
+    df_imp = model.get_feature_importance(top_n=25)
+    plot_feature_importance(df_imp, "mlp", ARTIFACTS)
+
+    X_all, y_all, _ = build_X_y(df, feature_set=feature_set, target=target)
+    comm = get_commune_info(df).loc[y_all.index].reset_index(drop=True)
+    pred_df = model.get_predictions_with_communes(X_all, comm)
+    pred_df["ground_truth"] = y_all.reset_index(drop=True)
+    pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    split_col = pd.Series("train", index=y_all.index)
+    split_col.loc[X_test.index] = "test"
+    pred_df["split"] = split_col.values
+    pred_df = _add_context_cols(pred_df, df, y_all.index)
+    pred_df.to_csv(ARTIFACTS / f"mlp_predictions_{tag}.csv", index=False)
+
+    if save:
+        model.save(tag=tag)
+    _save_metrics(model.metrics, "mlp", tag)
+    _store_to_db(pred_df, model.metrics, "mlp", feature_set, target, tag)
+    print(f"\n  Artefacts MLP sauvegardés dans : {ARTIFACTS}")
+    return model.metrics
+
+
 def compare_all_models(results: dict[str, dict]) -> None:
     """Génère les graphiques de comparaison entre modèles."""
     if len(results) < 2:

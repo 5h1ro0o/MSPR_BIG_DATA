@@ -104,7 +104,19 @@ function Architecture() {
         'gold.model_predictions · résultats modèles',
         'gold.model_metrics · métriques par run',
       ],
-      stats: '0 null · 0 doublon · QC 14/14 · PostgreSQL 16'
+      stats: '0 null · 0 doublon · QC 14/14 + GE 15/15 · PostgreSQL 16'
+    },
+    {
+      tag: 'RESTITUTION', color: 'var(--status-ok)',
+      title: 'Couche 3 — Outils de restitution',
+      sources: [
+        'React 18 — frontend interactif · 7 pages (port 3000)',
+        'Grafana 10 — BI analytique · 11 panels (port 3001)',
+        'Jupyter Notebooks — exploration & modélisation',
+        'CSV exports — dataset gold + prédictions + projections',
+        'Nginx 1.25 — reverse proxy · HTTPS · gzip',
+      ],
+      stats: 'ELT · Méthodologie Medallion · Docker multi-container'
     },
   ];
 
@@ -113,10 +125,10 @@ function Architecture() {
       <div className="section-head">
         <div>
           <span className="eyebrow">Architecture</span>
-          <h2>Pipeline Medallion — fetch → bronze → silver → gold</h2>
+          <h2>Pipeline Medallion ELT — fetch → bronze → silver → gold → restitution</h2>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
         {layers.map((l, i) => (
           <div key={l.tag} className="panel" style={{ position: 'relative', paddingTop: 40 }}>
             <div style={{
@@ -284,6 +296,302 @@ function History() {
   );
 }
 
+// ── Diagramme de flux BPM (Étape 3) ──────────────────────────────────────────
+function BPMDiagram() {
+  const nodes = [
+    // Sources
+    { id:'src1', x:30,  y:50,  w:120, h:36, label:'data.gouv.fr API', type:'source' },
+    { id:'src2', x:30,  y:100, w:120, h:36, label:'INSEE (CSV/Excel)', type:'source' },
+    { id:'src3', x:30,  y:150, w:120, h:36, label:'Filosofi 2017',     type:'source' },
+    { id:'src4', x:30,  y:200, w:120, h:36, label:'Sirene / RNA',      type:'source', optional:true },
+    // Bronze
+    { id:'br1',  x:200, y:50,  w:130, h:36, label:'Elections raw',     type:'bronze' },
+    { id:'br2',  x:200, y:100, w:130, h:36, label:'Démographie raw',   type:'bronze' },
+    { id:'br3',  x:200, y:150, w:130, h:36, label:'Pauvreté raw',      type:'bronze' },
+    { id:'br4',  x:200, y:200, w:130, h:36, label:'Candidats raw',     type:'bronze' },
+    // Silver
+    { id:'si1',  x:380, y:50,  w:130, h:36, label:'Participation',     type:'silver' },
+    { id:'si2',  x:380, y:100, w:130, h:36, label:'Socio-éco',         type:'silver' },
+    { id:'si3',  x:380, y:150, w:130, h:36, label:'Historique votes',  type:'silver' },
+    { id:'si4',  x:380, y:200, w:130, h:36, label:'Cibles 2022',       type:'silver' },
+    // QC
+    { id:'qc',   x:560, y:120, w:100, h:52, label:'QC Gates\n(14 checks)', type:'qc' },
+    // Gold
+    { id:'gold', x:710, y:120, w:130, h:52, label:'Gold dataset\n1 268 × 113', type:'gold' },
+    // Outputs
+    { id:'out1', x:890, y:85,  w:110, h:36, label:'CSV export', type:'output' },
+    { id:'out2', x:890, y:135, w:110, h:36, label:'PostgreSQL',  type:'output' },
+    { id:'out3', x:890, y:185, w:110, h:36, label:'ML training', type:'output' },
+  ];
+  const colors = {
+    source:'var(--bg-3)', bronze:'#92602c22', silver:'#88888822',
+    gold:'#b8860b22', qc:'color-mix(in srgb,var(--status-warn) 15%,transparent)',
+    output:'color-mix(in srgb,var(--d-1) 12%,transparent)',
+  };
+  const strokes = {
+    source:'var(--ink-5)', bronze:'#92602c', silver:'#888', gold:'#b8860b', qc:'var(--status-warn)', output:'var(--d-1)'
+  };
+  const arrows = [
+    ['src1','br1'],['src2','br2'],['src3','br3'],['src4','br4'],
+    ['br1','si1'],['br2','si2'],['br3','si2'],['br4','si3'],['br4','si4'],
+    ['si1','qc'],['si2','qc'],['si3','qc'],['si4','qc'],
+    ['qc','gold'],['gold','out1'],['gold','out2'],['gold','out3'],
+  ];
+  const cx = n => n.x + n.w / 2;
+  const cy = n => n.y + n.h / 2;
+  const byId = {};
+  nodes.forEach(n => { byId[n.id] = n; });
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Diagramme de flux BPM</span>
+          <h2>Architecture du pipeline — flux de données source → gold</h2></div>
+        <span className="chip">Modèle BPM · 5 couches · sources publiques</span>
+      </div>
+      <div className="panel" style={{ overflowX: 'auto' }}>
+        <svg viewBox="0 0 1020 260" style={{ width: '100%', minWidth: 700, display: 'block' }}>
+          {/* Fond couches */}
+          {[
+            { x:20,  label:'Sources', color:'#f5f5f5' },
+            { x:190, label:'BRONZE',  color:'#fdf3e7' },
+            { x:370, label:'SILVER',  color:'#f5f5f5' },
+            { x:550, label:'QC',      color:'#fffbf0' },
+            { x:700, label:'GOLD',    color:'#fefce8' },
+            { x:880, label:'Sorties', color:'#f0f7ff' },
+          ].map(({ x, label, color }, i, arr) => {
+            const w = (arr[i+1]?.x ?? 1010) - x;
+            return (
+              <g key={label}>
+                <rect x={x} y={10} width={w-5} height={240} rx={4} fill={color} opacity="0.6" />
+                <text x={x+8} y={25} fill="var(--ink-5)" fontSize="9" fontWeight="700"
+                  fontFamily="var(--mono)" textTransform="uppercase">{label}</text>
+              </g>
+            );
+          })}
+          {/* Flèches */}
+          {arrows.map(([a, b]) => {
+            const na = byId[a], nb = byId[b];
+            if (!na || !nb) return null;
+            const x1 = na.x + na.w, y1 = cy(na);
+            const x2 = nb.x, y2 = cy(nb);
+            const mx = (x1 + x2) / 2;
+            return (
+              <path key={a+b}
+                d={`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`}
+                fill="none" stroke="var(--ink-4)" strokeWidth="1.2"
+                markerEnd="url(#arrow)" opacity="0.7" />
+            );
+          })}
+          {/* Marker flèche */}
+          <defs>
+            <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L6,3 z" fill="var(--ink-4)" />
+            </marker>
+          </defs>
+          {/* Noeuds */}
+          {nodes.map(n => (
+            <g key={n.id}>
+              <rect x={n.x} y={n.y} width={n.w} height={n.h} rx="5"
+                fill={colors[n.type] || '#fff'} stroke={strokes[n.type] || '#999'}
+                strokeWidth={n.type === 'gold' ? 2 : 1.2}
+                strokeDasharray={n.optional ? '4 3' : 'none'} />
+              {n.label.split('\n').map((line, i) => (
+                <text key={i} x={cx(n)} y={n.y + n.h/2 + (n.label.includes('\n') ? (i-0.5)*12 : 0) + 4}
+                  fill="var(--ink)" fontSize="9.5" fontFamily="var(--sans)" textAnchor="middle"
+                  fontWeight={n.type === 'gold' ? '700' : '400'}>{line}</text>
+              ))}
+            </g>
+          ))}
+        </svg>
+        <div style={{ marginTop: 12, display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 11, color: 'var(--ink-4)' }}>
+          {[['Sources','var(--bg-3)'],['Bronze','#92602c'],['Silver','#888'],['QC Gates','var(--status-warn)'],['Gold','#b8860b'],['Sorties','var(--d-1)']].map(([l,c]) => (
+            <span key={l} style={{ display:'flex', alignItems:'center', gap:5 }}>
+              <i style={{ width:14, height:10, borderRadius:2, background:c, opacity:.6 }} />{l}
+            </span>
+          ))}
+          <span style={{ marginLeft:'auto' }}>Tirets = sources optionnelles (sécurité, entreprises, associations)</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Conformité RGPD (Étape 4) ─────────────────────────────────────────────────
+function Conformite() {
+  const items = [
+    {
+      title: 'Données publiques — aucune donnée personnelle',
+      detail: 'Toutes les sources utilisées sont en open data : résultats électoraux agrégés par commune (Ministère de l\'Intérieur), données INSEE RP 2022, Filosofi 2017, Sirene. Aucune donnée nominative individuelle n\'est collectée ni traitée.',
+      icon: '🔒', ok: true,
+    },
+    {
+      title: 'Base légale — Article 89 RGPD (recherche / statistique)',
+      detail: 'Le traitement des données démographiques et socio-économiques agrégées est couvert par l\'article 89 du RGPD (finalité de recherche, statistique et intérêt public). Les données restent à l\'échelle communale : aucun ré-identification individuelle n\'est possible.',
+      icon: '📜', ok: true,
+    },
+    {
+      title: 'Licences — Licence Ouverte Etalab v2',
+      detail: 'L\'ensemble des données data.gouv.fr est publié sous Licence Ouverte Etalab v2.0 (compatible CC BY). Les données INSEE sont diffusées sous licence ODBL. La réutilisation est libre à condition de citer la source, ce que fait chaque page de la plateforme.',
+      icon: '✅', ok: true,
+    },
+    {
+      title: 'Absence de croisement ré-identificateur',
+      detail: 'Le dataset gold contient uniquement des statistiques agrégées au niveau de la commune (population minimale : plusieurs centaines d\'habitants). Il est impossible de retrouver les opinions politiques d\'un individu à partir des données traitées.',
+      icon: '🛡️', ok: true,
+    },
+    {
+      title: 'Sécurité des données en transit',
+      detail: 'Les API data.gouv.fr sont consultées en HTTPS. Les containers Docker tournent en réseau isolé. Aucune donnée n\'est transmise à un service tiers. Le code source est public sur GitHub (pas de secrets embarqués).',
+      icon: '🔐', ok: true,
+    },
+    {
+      title: 'Propriété intellectuelle — sources citées',
+      detail: 'Ministère de l\'Intérieur, INSEE (RP 2022, Filosofi 2017), data.gouv.fr. Toutes les sources sont citées dans le footer de la plateforme et dans la section Sources de chaque page.',
+      icon: '📚', ok: true,
+    },
+  ];
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Conformité & Sécurité</span>
+          <h2>Méthodologie RGPD et sécurité des données</h2></div>
+        <span className="chip ok"><span className="live-dot" />Données 100% publiques · Open Data</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {items.map(({ title, detail, icon, ok }) => (
+          <div key={title} style={{ padding: 16, borderRadius: 'var(--r)',
+            border: '1px solid ' + (ok ? 'color-mix(in srgb,var(--status-ok) 30%,transparent)' : 'var(--line)'),
+            background: ok ? 'color-mix(in srgb,var(--status-ok) 5%,transparent)' : 'var(--bg-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 5 }}>{title}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.6 }}>{detail}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ── Critères de sélection des données (Étape 5) ───────────────────────────────
+function CriteresSelection() {
+  const sources = [
+    {
+      nom: 'Résultats électoraux 2012/2017/2022',
+      source: 'Ministère de l\'Intérieur via data.gouv.fr',
+      justification: 'Variable cible directe (vainqueur T2) et features historiques (h12, h17). Couverture intégrale IDF.',
+      correlation: 'Toutes les colonnes historiques h12/h17 ont r > 0.6 avec le vainqueur T2 2022.',
+      qualite: 'Couverture 100% des communes IDF · 0 valeurs manquantes après ETL',
+      colonnes: 'h12_t1_pct_*, h17_t2_pct_*, cible_t1_pct_*, cible_t2_vainqueur',
+      retenu: true,
+    },
+    {
+      nom: 'Recensement de la Population INSEE RP 2022',
+      source: 'INSEE — données communales RP 2022',
+      justification: 'CSP, diplômes, âge, logement : indicateurs socio-économiques fortement corrélés au vote (r = 0.72 pour cadres×Macron, r = -0.61 pour cadres×Le Pen).',
+      correlation: 'pct_csp_cadres r=+0.72, pct_dipl_superieur r=+0.78 avec Macron T2.',
+      qualite: 'Couverture 99.8% · imputation médiane sur 0.2% de valeurs manquantes',
+      colonnes: 'pct_csp_*, pct_dipl_*, pct_pop_*, pct_log_*, pop_totale',
+      retenu: true,
+    },
+    {
+      nom: 'Filosofi 2017 — revenus et pauvreté',
+      source: 'INSEE — Fichier localisé social et fiscal',
+      justification: 'Le revenu médian est la 3ème variable la plus prédictive après les votes historiques. Taux de pauvreté corrélé à Le Pen.',
+      correlation: 'revenu_median r=+0.67 avec Macron T2 · taux_pauvrete r=+0.55 avec Le Pen T2.',
+      qualite: 'Couverture 95% · communes < 500 hab. partiellement manquantes (imputation)',
+      colonnes: 'revenu_median_*, taux_pauvrete_*, decile_*, part_rev_*',
+      retenu: true,
+    },
+    {
+      nom: 'Emploi et chômage (RP + DS)',
+      source: 'INSEE — Données de structure des emplois 2022',
+      justification: 'Le taux de chômage est corrélé au vote Le Pen (r=+0.41). Données multi-années permettant le calcul de tendances pour les projections.',
+      correlation: 'taux_chomage_rp2022 r=+0.41 avec Le Pen T2.',
+      qualite: 'Couverture 100% · séries historiques 2009-2022 disponibles',
+      colonnes: 'taux_chomage_*, nb_chomeurs_*, evol_chomage_*',
+      retenu: true,
+    },
+    {
+      nom: 'Données de sécurité (criminalité)',
+      source: 'Ministère de l\'Intérieur — base délinquance',
+      justification: 'Le sentiment d\'insécurité est un déterminant documenté du vote RN. Granularité département.',
+      correlation: 'Corrélation attendue r~0.3-0.4 avec Le Pen — à valider après chargement.',
+      qualite: 'Granularité département (pas commune) · agrégation nécessaire',
+      colonnes: 'taux_crimes_total, taux_crimes_personnes, taux_crimes_biens',
+      retenu: true,
+    },
+    {
+      nom: 'Activité économique (Sirene)',
+      source: 'INSEE — Stock établissements actifs',
+      justification: 'La densité entrepreneuriale est associée à la dynamique économique locale, indicateur de l\'environnement de vote.',
+      correlation: 'Corrélation à documenter — indicateur complémentaire.',
+      qualite: 'Fichier volumétrique (>2 Go) · traitement chunked nécessaire',
+      colonnes: 'nb_entreprises_actives, densite_entreprises, pct_entreprises_*',
+      retenu: true,
+    },
+    {
+      nom: 'Données de sécurité (RNA associations)',
+      source: 'Ministère de l\'Intérieur — RNA',
+      justification: 'La densité associative est un proxy du capital social territorial, facteur d\'engagement civique.',
+      correlation: 'Corrélation à documenter — indicateur de contexte social.',
+      qualite: 'Fichier complet disponible · filtrage IDF nécessaire',
+      colonnes: 'nb_associations_actives, pct_asso_sportives, pct_asso_culturelles',
+      retenu: true,
+    },
+    {
+      nom: 'Données non retenues : réseaux sociaux',
+      source: 'Twitter/X API, Facebook Insights',
+      justification: 'Disponibilité limitée, biais de représentativité (sous-représentation des classes populaires), coût d\'accès API.',
+      correlation: 'Non mesurée — trop de bruit vs signal électoral.',
+      qualite: 'Non retenu : biais et non-représentativité',
+      colonnes: '—',
+      retenu: false,
+    },
+  ];
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Référentiel de données</span>
+          <h2>Critères de sélection et validation des indicateurs</h2></div>
+        <p>Chaque source est évaluée sur 4 critères : pertinence électorale, corrélation mesurée, qualité/couverture, disponibilité open data.</p>
+      </div>
+      <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Justification</th>
+              <th>Corrélation</th>
+              <th>Qualité</th>
+              <th style={{ width: 70, textAlign: 'center' }}>Retenu</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sources.map(s => (
+              <tr key={s.nom} style={!s.retenu ? { background: 'color-mix(in srgb,var(--status-err) 3%,transparent)', opacity: 0.8 } : {}}>
+                <td>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{s.nom}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 2 }}>{s.source}</div>
+                  <div style={{ fontSize: 10, color: 'var(--ink-5)', marginTop: 2, fontFamily: 'var(--mono)' }}>{s.colonnes}</div>
+                </td>
+                <td style={{ fontSize: 12, color: 'var(--ink-3)', maxWidth: 200 }}>{s.justification}</td>
+                <td style={{ fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic' }}>{s.correlation}</td>
+                <td style={{ fontSize: 11, color: 'var(--ink-4)' }}>{s.qualite}</td>
+                <td style={{ textAlign: 'center', fontSize: 18 }}>{s.retenu ? '✅' : '❌'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function App() {
   return (
     <>
@@ -291,9 +599,12 @@ function App() {
       <main className="shell">
         <Header />
         <KPIs />
+        <BPMDiagram />
         <Architecture />
         <Steps />
         <History />
+        <CriteresSelection />
+        <Conformite />
       </main>
       <Footer />
     </>

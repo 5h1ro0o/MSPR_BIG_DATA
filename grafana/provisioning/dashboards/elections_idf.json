@@ -1,0 +1,469 @@
+{
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.4.0" },
+    { "type": "datasource", "id": "postgres", "name": "PostgreSQL", "version": "1.0.0" },
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+    { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" },
+    { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Analyse décisionnelle — Résultats électoraux IDF 2022, modèles ML et projections 2025-2027",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [
+    {
+      "icon": "external link",
+      "tags": [],
+      "title": "Frontend React",
+      "tooltip": "Ouvrir le frontend interactif",
+      "type": "link",
+      "url": "http://localhost:3000"
+    }
+  ],
+  "panels": [
+
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Communes Macron gagnant (GB post-T1)",
+      "description": "Nombre de communes IDF prédites Macron par le modèle Gradient Boosting post-T1",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"Communes Macron\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' AND prediction = '0'",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#5B9BD5", "mode": "fixed" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Communes Le Pen gagnant (GB post-T1)",
+      "description": "Nombre de communes IDF prédites Le Pen par le modèle Gradient Boosting post-T1",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"Communes Le Pen\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' AND prediction = '1'",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#E15759", "mode": "fixed" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Accuracy — GB post-T1 (set de test)",
+      "description": "Pourcentage de communes correctement classées sur le set de test (20%)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT ROUND(metric_value * 100, 1) AS \"Accuracy (%)\" FROM gold.latest_model_metrics WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND metric_name = 'test_accuracy' LIMIT 1",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#59A14F", "mode": "fixed" },
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 50 }] }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Quality Gates réussis",
+      "description": "Nombre de vérifications qualité ETL ayant réussi sur le dernier run",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS \"Checks OK\" FROM audit.quality_checks WHERE passed = true AND run_id = (SELECT run_id FROM audit.quality_checks ORDER BY checked_at DESC LIMIT 1)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#F28E2B", "mode": "fixed" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Prédictions Macron vs Le Pen par département (GB post-T1)",
+      "description": "Nombre de communes par département prédites pour chaque candidat. Source : gold.model_predictions",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT code_departement AS \"Département\", SUM(CASE WHEN prediction = '0' THEN 1 ELSE 0 END) AS \"Macron\", SUM(CASE WHEN prediction = '1' THEN 1 ELSE 0 END) AS \"Le Pen\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' GROUP BY code_departement ORDER BY code_departement",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "barRadius": 0.05,
+        "barWidth": 0.7,
+        "fillOpacity": 85,
+        "groupWidth": 0.7,
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "orientation": "auto",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "xTickLabelRotation": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisBorderShow": false, "fillOpacity": 80, "gradientMode": "none" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Macron" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5B9BD5", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Le Pen" }, "properties": [{ "id": "color", "value": { "fixedColor": "#E15759", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Top 20 communes — probabilité Le Pen la plus élevée",
+      "description": "Communes où le modèle prédit Le Pen avec la plus forte probabilité. Source : gold.model_predictions",
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT libelle_commune AS \"Commune\", code_departement AS \"Dept\", ROUND(probability::numeric * 100, 1) AS \"Proba Le Pen (%)\", CASE WHEN correct THEN '✓' ELSE '✗' END AS \"Correct ?\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' AND prediction = '1' ORDER BY probability DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Proba Le Pen (%)" }]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 70 }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Proba Le Pen (%)" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "color-background" } },
+              { "id": "color", "value": { "mode": "continuous-RdYlGn" } }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Métriques comparatives des modèles ML",
+      "description": "Accuracy, F1, AUC-ROC pour tous les modèles entraînés. Source : gold.latest_model_metrics",
+      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT model_name AS \"Modèle\", feature_set AS \"Feature set\", metric_name AS \"Métrique\", ROUND(metric_value::numeric, 4) AS \"Valeur\" FROM gold.latest_model_metrics WHERE target = 'classification_t2' AND metric_name IN ('test_accuracy', 'test_roc_auc', 'test_f1_weighted', 'test_balanced_accuracy') ORDER BY model_name, feature_set, metric_name",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "show": false },
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" } },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Valeur" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "color-background" } },
+              { "id": "color", "value": { "mode": "continuous-GrYlRd" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 0.7 }, { "color": "green", "value": 0.9 }] } }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Revenu médian par département (dim_commune — datamart)",
+      "description": "Revenu médian moyen par département IDF. Indicateur corrélé positivement avec le vote Macron (r=+0.67). Source : datamart.dim_commune",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 26 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT code_departement AS \"Département\", ROUND(AVG(revenu_median)::numeric, 0) AS \"Revenu médian (€)\", ROUND(AVG(taux_chomage)::numeric, 1) AS \"Taux chômage (%)\" FROM datamart.dim_commune WHERE revenu_median IS NOT NULL GROUP BY code_departement ORDER BY code_departement",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "barRadius": 0.05,
+        "barWidth": 0.7,
+        "fillOpacity": 80,
+        "groupWidth": 0.7,
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "orientation": "auto",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": { "mode": "multi" },
+        "xTickLabelRotation": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 80 }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 10,
+      "type": "barchart",
+      "title": "★ Résultats T2 2022 par département — DATAMART (fait_resultats_electoraux)",
+      "description": "Pourcentage moyen des voix Macron / Le Pen par département IDF au T2 2022. Source : datamart.fait_resultats_electoraux JOIN dim_commune JOIN dim_candidat JOIN dim_temps",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 35 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT c.code_departement AS \"Département\", cand.nom_candidat AS \"Candidat\", ROUND(AVG(f.pct_voix)::numeric, 1) AS \"% moyen des voix\" FROM datamart.fait_resultats_electoraux f JOIN datamart.dim_commune c ON f.sk_commune = c.sk_commune JOIN datamart.dim_candidat cand ON f.sk_candidat = cand.sk_candidat JOIN datamart.dim_temps t ON f.sk_temps = t.sk_temps WHERE t.annee = 2022 AND t.tour = 2 AND cand.nom_candidat IN ('Emmanuel Macron', 'Marine Le Pen') GROUP BY c.code_departement, cand.nom_candidat ORDER BY c.code_departement, cand.nom_candidat",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "barRadius": 0.05,
+        "barWidth": 0.65,
+        "fillOpacity": 85,
+        "groupWidth": 0.7,
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "orientation": "auto",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "xTickLabelRotation": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 80 },
+          "unit": "percent"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Emmanuel Macron" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5B9BD5", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Marine Le Pen" },   "properties": [{ "id": "color", "value": { "fixedColor": "#E15759", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 11,
+      "type": "table",
+      "title": "★ Historique électoraux 2012–2022 — DATAMART (fait_resultats_electoraux)",
+      "description": "Évolution des résultats des candidats principaux sur 3 élections (2012 T2, 2017 T2, 2022 T2). Source : datamart.fait_resultats_electoraux JOIN dim_candidat JOIN dim_temps",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 35 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT t.label AS \"Scrutin\", cand.nom_candidat AS \"Candidat\", cand.orientation AS \"Orientation\", ROUND(AVG(f.pct_voix)::numeric, 1) AS \"% moyen IDF\", COUNT(DISTINCT f.sk_commune) AS \"Nb communes\" FROM datamart.fait_resultats_electoraux f JOIN datamart.dim_candidat cand ON f.sk_candidat = cand.sk_candidat JOIN datamart.dim_temps t ON f.sk_temps = t.sk_temps WHERE t.tour = 2 AND cand.nom_candidat IN ('Emmanuel Macron','Marine Le Pen','François Hollande','Nicolas Sarkozy') GROUP BY t.label, t.annee, t.tour, cand.nom_candidat, cand.orientation ORDER BY t.annee, t.tour, cand.nom_candidat",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": false, "displayName": "Scrutin" }]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" } },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "% moyen IDF" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "color-background" } },
+              { "id": "color", "value": { "mode": "continuous-BlPu" } }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 12,
+      "type": "barchart",
+      "title": "Comparaison accuracy des modèles ML (tous les modèles)",
+      "description": "Accuracy sur le set de test (20 %) pour chaque modèle entraîné. Source : gold.latest_model_metrics",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 45 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT CONCAT(model_name, ' / ', feature_set) AS \"Modèle\", ROUND(metric_value::numeric * 100, 1) AS \"Accuracy (%)\" FROM gold.latest_model_metrics WHERE target = 'classification_t2' AND metric_name = 'test_accuracy' ORDER BY metric_value DESC",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "barRadius": 0.05, "barWidth": 0.7, "fillOpacity": 85,
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "orientation": "auto", "showValue": "always", "stacking": "none",
+        "tooltip": { "mode": "single" }, "xTickLabelRotation": -20
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 80 },
+          "unit": "percent", "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 70 }, { "color": "green", "value": 90 }] }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Audit qualité ETL — quality gates (dernier run)",
+      "description": "Résultats des vérifications automatiques sur le dataset gold. Source : audit.quality_checks",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 26 },
+      "datasource": { "type": "postgres", "uid": "elections-postgres" },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT check_name AS \"Vérification\", CASE WHEN passed THEN '✅ OK' ELSE '❌ FAIL' END AS \"Statut\", COALESCE(details, '—') AS \"Détails\", TO_CHAR(checked_at, 'HH24:MI:SS') AS \"Heure\" FROM audit.quality_checks WHERE run_id = (SELECT run_id FROM audit.quality_checks ORDER BY checked_at DESC LIMIT 1) ORDER BY passed, check_name",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "show": false },
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" } },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      }
+    }
+
+  ],
+
+  "refresh": false,
+  "schemaVersion": 39,
+  "tags": ["elections", "idf", "ml", "etl"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1y", "to": "now" },
+  "timepicker": {},
+  "timezone": "Europe/Paris",
+  "title": "Electio-Analytics — Elections IDF 2022",
+  "uid": "elections-idf-2022",
+  "version": 1,
+  "weekStart": ""
+}

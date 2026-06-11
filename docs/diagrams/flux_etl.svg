@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 580" width="980" height="580" font-family="Segoe UI, Arial, sans-serif">
+  <title>Diagramme de Flux ETL — Electio-Analytics</title>
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="6" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 9 3, 0 6" fill="#666"/>
+    </marker>
+    <marker id="arr-green" markerWidth="9" markerHeight="6" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 9 3, 0 6" fill="#59A14F"/>
+    </marker>
+    <filter id="sh" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#00000018"/>
+    </filter>
+  </defs>
+
+  <rect width="980" height="580" fill="#F0F2F5" rx="10"/>
+
+  <!-- Titre -->
+  <text x="490" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#1A1A2E">Pipeline ETL — Flux de Données</text>
+  <text x="490" y="48" text-anchor="middle" font-size="10" fill="#666">Architecture Médaillon : Bronze → Silver → Gold · Electio-Analytics MSPR TPRE813</text>
+
+  <!-- ═══ COUCHE SOURCES ═══ -->
+  <text x="70" y="80" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A1A2E">SOURCES</text>
+
+  <!-- Source 1 : data.gouv.fr -->
+  <g filter="url(#sh)">
+    <rect x="10" y="90" width="120" height="55" rx="6" fill="#3A6186" stroke="#5B9BD5" stroke-width="1.5"/>
+    <text x="70" y="111" text-anchor="middle" font-size="10" font-weight="bold" fill="white">data.gouv.fr</text>
+    <text x="70" y="124" text-anchor="middle" font-size="9" fill="#A8D8FF">Résultats électoraux</text>
+    <text x="70" y="136" text-anchor="middle" font-size="9" fill="#A8D8FF">2012 · 2017 · 2022</text>
+  </g>
+
+  <!-- Source 2 : INSEE -->
+  <g filter="url(#sh)">
+    <rect x="10" y="158" width="120" height="55" rx="6" fill="#3A6186" stroke="#5B9BD5" stroke-width="1.5"/>
+    <text x="70" y="179" text-anchor="middle" font-size="10" font-weight="bold" fill="white">INSEE</text>
+    <text x="70" y="192" text-anchor="middle" font-size="9" fill="#A8D8FF">RP 2022 · Filosofi</text>
+    <text x="70" y="204" text-anchor="middle" font-size="9" fill="#A8D8FF">Chômage · Démographie</text>
+  </g>
+
+  <!-- Source 3 : Sécurité -->
+  <g filter="url(#sh)">
+    <rect x="10" y="226" width="120" height="42" rx="6" fill="#3A6186" stroke="#E15759" stroke-width="1.5"/>
+    <text x="70" y="247" text-anchor="middle" font-size="10" font-weight="bold" fill="white">Min. Intérieur</text>
+    <text x="70" y="260" text-anchor="middle" font-size="9" fill="#FFB3B3">Crimes &amp; délits / dept</text>
+  </g>
+
+  <!-- Source 4 : Entreprises -->
+  <g filter="url(#sh)">
+    <rect x="10" y="281" width="120" height="42" rx="6" fill="#3A6186" stroke="#F28E2B" stroke-width="1.5"/>
+    <text x="70" y="302" text-anchor="middle" font-size="10" font-weight="bold" fill="white">INSEE Sirene</text>
+    <text x="70" y="315" text-anchor="middle" font-size="9" fill="#FFD9A0">Établissements actifs</text>
+  </g>
+
+  <!-- Source 5 : Associations -->
+  <g filter="url(#sh)">
+    <rect x="10" y="336" width="120" height="42" rx="6" fill="#3A6186" stroke="#59A14F" stroke-width="1.5"/>
+    <text x="70" y="357" text-anchor="middle" font-size="10" font-weight="bold" fill="white">RNA</text>
+    <text x="70" y="370" text-anchor="middle" font-size="9" fill="#BBE0BB">Répertoire national asso.</text>
+  </g>
+
+  <!-- ═══ FLÈCHES SOURCES → BRONZE ═══ -->
+  <line x1="131" y1="118" x2="188" y2="155" stroke="#5B9BD5" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+  <line x1="131" y1="185" x2="188" y2="165" stroke="#5B9BD5" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+  <line x1="131" y1="247" x2="188" y2="180" stroke="#E15759" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+  <line x1="131" y1="302" x2="188" y2="192" stroke="#F28E2B" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+  <line x1="131" y1="357" x2="188" y2="200" stroke="#59A14F" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+
+  <!-- ═══ COUCHE BRONZE ═══ -->
+  <rect x="188" y="80" width="3" height="300" fill="#CD853F" rx="2"/>
+  <text x="204" y="95" font-size="11" font-weight="bold" fill="#CD853F">BRONZE</text>
+  <g filter="url(#sh)">
+    <rect x="200" y="105" width="130" height="255" rx="6" fill="#2C1A0A" stroke="#CD853F" stroke-width="1.5"/>
+    <text x="265" y="125" text-anchor="middle" font-size="10" font-weight="bold" fill="#CD853F">Fichiers bruts</text>
+    <text x="265" y="141" text-anchor="middle" font-size="9" fill="#DEB887">CSV originaux</text>
+    <text x="265" y="153" text-anchor="middle" font-size="9" fill="#DEB887">(non transformés)</text>
+    <line x1="210" y1="160" x2="320" y2="160" stroke="#5A3A1A" stroke-width="1"/>
+    <text x="215" y="175" font-size="8.5" fill="#DEB887">• resultats_elections.csv</text>
+    <text x="215" y="189" font-size="8.5" fill="#DEB887">• insee_rp2022.csv</text>
+    <text x="215" y="203" font-size="8.5" fill="#DEB887">• filosofi_2021.csv</text>
+    <text x="215" y="217" font-size="8.5" fill="#DEB887">• chomage_2009_2022.csv</text>
+    <text x="215" y="231" font-size="8.5" fill="#FFB3B3">• crimes_delits_dept.csv</text>
+    <text x="215" y="245" font-size="8.5" fill="#FFD9A0">• sirene_commune.csv</text>
+    <text x="215" y="259" font-size="8.5" fill="#BBE0BB">• rna_associations.csv</text>
+    <text x="215" y="275" font-size="8.5" fill="#DEB887">• h12_resultats.csv</text>
+    <text x="215" y="289" font-size="8.5" fill="#DEB887">• h17_resultats.csv</text>
+    <line x1="210" y1="297" x2="320" y2="297" stroke="#5A3A1A" stroke-width="1"/>
+    <text x="265" y="310" text-anchor="middle" font-size="8" fill="#888">Ingestion brute</text>
+    <text x="265" y="322" text-anchor="middle" font-size="8" fill="#888">sans transformation</text>
+    <text x="265" y="349" text-anchor="middle" font-size="8" fill="#666">Format : CSV, JSON</text>
+  </g>
+
+  <!-- ═══ FLÈCHE BRONZE → ETL ═══ -->
+  <line x1="330" y1="230" x2="380" y2="230" stroke="#666" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══ COUCHE ETL ═══ -->
+  <rect x="378" y="80" width="3" height="300" fill="#4A90D9" rx="2"/>
+  <text x="394" y="95" font-size="11" font-weight="bold" fill="#4A90D9">TRANSFORM</text>
+
+  <!-- Extract -->
+  <g filter="url(#sh)">
+    <rect x="390" y="105" width="115" height="45" rx="5" fill="#1A2A4A" stroke="#4A90D9" stroke-width="1.5"/>
+    <text x="448" y="124" text-anchor="middle" font-size="9" font-weight="bold" fill="#A8D8FF">1. EXTRACT</text>
+    <text x="448" y="138" text-anchor="middle" font-size="8" fill="#7BB8F0">etl/extract/*.py</text>
+  </g>
+  <line x1="448" y1="150" x2="448" y2="165" stroke="#4A90D9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Transform -->
+  <g filter="url(#sh)">
+    <rect x="390" y="165" width="115" height="45" rx="5" fill="#1A2A4A" stroke="#4A90D9" stroke-width="1.5"/>
+    <text x="448" y="184" text-anchor="middle" font-size="9" font-weight="bold" fill="#A8D8FF">2. TRANSFORM</text>
+    <text x="448" y="198" text-anchor="middle" font-size="8" fill="#7BB8F0">etl/transform/*.py</text>
+  </g>
+  <line x1="448" y1="210" x2="448" y2="225" stroke="#4A90D9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Quality -->
+  <g filter="url(#sh)">
+    <rect x="390" y="225" width="115" height="45" rx="5" fill="#1A2A4A" stroke="#FFD700" stroke-width="1.5"/>
+    <text x="448" y="244" text-anchor="middle" font-size="9" font-weight="bold" fill="#FFD700">3. QUALITY</text>
+    <text x="448" y="258" text-anchor="middle" font-size="8" fill="#FFE77A">etl/quality/checks.py</text>
+  </g>
+  <line x1="448" y1="270" x2="448" y2="285" stroke="#4A90D9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Load -->
+  <g filter="url(#sh)">
+    <rect x="390" y="285" width="115" height="45" rx="5" fill="#1A2A4A" stroke="#59A14F" stroke-width="1.5"/>
+    <text x="448" y="304" text-anchor="middle" font-size="9" font-weight="bold" fill="#BBE0BB">4. LOAD</text>
+    <text x="448" y="318" text-anchor="middle" font-size="8" fill="#90D090">etl/load/*.py</text>
+  </g>
+
+  <!-- Orchestration label -->
+  <text x="448" y="365" text-anchor="middle" font-size="8" fill="#888" font-style="italic">orchestration/pipeline.py</text>
+  <rect x="390" y="370" width="115" height="18" rx="3" fill="#1A1A2E" stroke="#555" stroke-width="1"/>
+  <text x="448" y="382" text-anchor="middle" font-size="8" fill="#AAA">Docker · run_all.py</text>
+
+  <!-- ═══ FLÈCHES ETL → SILVER ═══ -->
+  <line x1="505" y1="230" x2="555" y2="230" stroke="#666" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══ COUCHE SILVER ═══ -->
+  <rect x="553" y="80" width="3" height="300" fill="#C0C0C0" rx="2"/>
+  <text x="569" y="95" font-size="11" font-weight="bold" fill="#888">SILVER</text>
+  <g filter="url(#sh)">
+    <rect x="565" y="105" width="115" height="190" rx="6" fill="#1E1E1E" stroke="#C0C0C0" stroke-width="1.5"/>
+    <text x="622" y="124" text-anchor="middle" font-size="10" font-weight="bold" fill="#DDD">Données nettoyées</text>
+    <line x1="575" y1="132" x2="670" y2="132" stroke="#444" stroke-width="1"/>
+    <text x="578" y="147" font-size="8.5" fill="#CCC">communes</text>
+    <text x="578" y="161" font-size="8.5" fill="#CCC">participation_elections</text>
+    <text x="578" y="175" font-size="8.5" fill="#CCC">resultats_candidats</text>
+    <text x="578" y="189" font-size="8.5" fill="#CCC">features_socioeco</text>
+    <line x1="575" y1="197" x2="670" y2="197" stroke="#444" stroke-width="1"/>
+    <text x="622" y="212" text-anchor="middle" font-size="8" fill="#888">PostgreSQL</text>
+    <text x="622" y="224" text-anchor="middle" font-size="8" fill="#888">schema silver</text>
+    <text x="622" y="240" text-anchor="middle" font-size="8" fill="#888">Normalisé · typé</text>
+    <text x="622" y="254" text-anchor="middle" font-size="8" fill="#888">clés étrangères</text>
+    <text x="622" y="275" text-anchor="middle" font-size="8" fill="#666">Couverture : 1 268</text>
+    <text x="622" y="287" text-anchor="middle" font-size="8" fill="#666">communes IDF</text>
+  </g>
+
+  <!-- ═══ FLÈCHE SILVER → GOLD ═══ -->
+  <line x1="680" y1="200" x2="725" y2="200" stroke="#59A14F" stroke-width="2" marker-end="url(#arr-green)"/>
+
+  <!-- ═══ COUCHE GOLD ═══ -->
+  <rect x="723" y="80" width="3" height="300" fill="#FFD700" rx="2"/>
+  <text x="739" y="95" font-size="11" font-weight="bold" fill="#B8860B">GOLD</text>
+
+  <!-- Gold ML Features -->
+  <g filter="url(#sh)">
+    <rect x="735" y="105" width="130" height="130" rx="6" fill="#1A2200" stroke="#FFD700" stroke-width="1.5"/>
+    <text x="800" y="124" text-anchor="middle" font-size="10" font-weight="bold" fill="#FFD700">ml_features (CSV)</text>
+    <line x1="745" y1="132" x2="855" y2="132" stroke="#444" stroke-width="1"/>
+    <text x="800" y="147" text-anchor="middle" font-size="8.5" fill="#EEE">1 268 communes × 113 cols</text>
+    <text x="800" y="161" text-anchor="middle" font-size="8.5" fill="#CCC">features socio-éco</text>
+    <text x="800" y="175" text-anchor="middle" font-size="8.5" fill="#CCC">historique 2012 · 2017</text>
+    <text x="800" y="189" text-anchor="middle" font-size="8.5" fill="#CCC">résultats T1/T2 2022</text>
+    <text x="800" y="206" text-anchor="middle" font-size="8" fill="#B8860B">dataset_elections_2022_idf.csv</text>
+    <text x="800" y="218" text-anchor="middle" font-size="8" fill="#888">PostgreSQL · schema gold</text>
+  </g>
+
+  <!-- Gold Datamart -->
+  <g filter="url(#sh)">
+    <rect x="735" y="248" width="130" height="110" rx="6" fill="#1A2200" stroke="#F28E2B" stroke-width="1.5"/>
+    <text x="800" y="267" text-anchor="middle" font-size="10" font-weight="bold" fill="#F28E2B">datamart ★</text>
+    <line x1="745" y1="275" x2="855" y2="275" stroke="#444" stroke-width="1"/>
+    <text x="800" y="289" text-anchor="middle" font-size="8.5" fill="#CCC">dim_commune</text>
+    <text x="800" y="303" text-anchor="middle" font-size="8.5" fill="#CCC">dim_candidat · dim_temps</text>
+    <text x="800" y="317" text-anchor="middle" font-size="8.5" fill="#CCC">dim_contexte</text>
+    <text x="800" y="331" text-anchor="middle" font-size="8.5" fill="#CCC">fait_resultats_electoraux</text>
+    <text x="800" y="349" text-anchor="middle" font-size="8" fill="#888">schema datamart (étoile)</text>
+  </g>
+
+  <!-- ═══ SORTIES ═══ -->
+  <text x="910" y="95" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A1A2E">SORTIES</text>
+
+  <!-- ML -->
+  <g filter="url(#sh)">
+    <rect x="875" y="105" width="95" height="50" rx="5" fill="#0A2030" stroke="#A8D8FF" stroke-width="1.5"/>
+    <text x="922" y="127" text-anchor="middle" font-size="9" font-weight="bold" fill="#A8D8FF">ML Models</text>
+    <text x="922" y="141" text-anchor="middle" font-size="8" fill="#7BB8F0">GB · RF · LSTM</text>
+    <text x="922" y="150" text-anchor="middle" font-size="7" fill="#555">ml/artifacts/*.joblib</text>
+  </g>
+
+  <!-- Projections -->
+  <g filter="url(#sh)">
+    <rect x="875" y="163" width="95" height="50" rx="5" fill="#0A2030" stroke="#59A14F" stroke-width="1.5"/>
+    <text x="922" y="185" text-anchor="middle" font-size="9" font-weight="bold" fill="#BBE0BB">Projections</text>
+    <text x="922" y="199" text-anchor="middle" font-size="8" fill="#90D090">2025 · 2026 · 2027</text>
+    <text x="922" y="208" text-anchor="middle" font-size="7" fill="#555">projections_*.csv</text>
+  </g>
+
+  <!-- Frontend -->
+  <g filter="url(#sh)">
+    <rect x="875" y="221" width="95" height="50" rx="5" fill="#0A2030" stroke="#E15759" stroke-width="1.5"/>
+    <text x="922" y="243" text-anchor="middle" font-size="9" font-weight="bold" fill="#FFB3B3">Frontend</text>
+    <text x="922" y="257" text-anchor="middle" font-size="8" fill="#FFB3B3">Nginx · React</text>
+    <text x="922" y="266" text-anchor="middle" font-size="7" fill="#555">frontend/*.html</text>
+  </g>
+
+  <!-- Notebooks -->
+  <g filter="url(#sh)">
+    <rect x="875" y="279" width="95" height="50" rx="5" fill="#0A2030" stroke="#F28E2B" stroke-width="1.5"/>
+    <text x="922" y="301" text-anchor="middle" font-size="9" font-weight="bold" fill="#FFD9A0">Notebooks</text>
+    <text x="922" y="315" text-anchor="middle" font-size="8" fill="#FFD9A0">Jupyter · .ipynb</text>
+    <text x="922" y="324" text-anchor="middle" font-size="7" fill="#555">notebooks/*.ipynb</text>
+  </g>
+
+  <!-- Flèches gold → sorties -->
+  <line x1="865" y1="155" x2="874" y2="140" stroke="#A8D8FF" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="865" y1="165" x2="874" y2="185" stroke="#59A14F" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="865" y1="260" x2="874" y2="250" stroke="#F28E2B" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="865" y1="265" x2="874" y2="295" stroke="#F28E2B" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Audit -->
+  <g filter="url(#sh)">
+    <rect x="380" y="430" width="380" height="40" rx="5" fill="#0A0A1A" stroke="#666" stroke-width="1.5"/>
+    <text x="570" y="447" text-anchor="middle" font-size="9" font-weight="bold" fill="#AAA">AUDIT — audit.pipeline_runs · audit.quality_checks</text>
+    <text x="570" y="461" text-anchor="middle" font-size="8" fill="#666">Traçabilité · run_id · métriques par étape · QC passé/échoué · error_message</text>
+  </g>
+
+  <!-- Légende couches -->
+  <g transform="translate(10, 430)">
+    <rect width="355" height="120" rx="6" fill="#1A1A2E" stroke="#333" stroke-width="1"/>
+    <text x="177" y="18" text-anchor="middle" font-size="10" font-weight="bold" fill="#FFF">Couches &amp; Acronymes</text>
+    <rect x="10" y="26" width="14" height="10" fill="#CD853F" rx="2"/>
+    <text x="28" y="36" font-size="9" fill="#CCC">Bronze — fichiers bruts, sans transformation</text>
+    <rect x="10" y="42" width="14" height="10" fill="#C0C0C0" rx="2"/>
+    <text x="28" y="52" font-size="9" fill="#CCC">Silver — données nettoyées, normalisées, typées en DB</text>
+    <rect x="10" y="58" width="14" height="10" fill="#FFD700" rx="2"/>
+    <text x="28" y="68" font-size="9" fill="#CCC">Gold — features prêtes pour le ML + datamart analytique</text>
+    <rect x="10" y="74" width="14" height="10" fill="#4A90D9" rx="2"/>
+    <text x="28" y="84" font-size="9" fill="#CCC">ETL — Extract · Transform · Quality checks · Load</text>
+    <text x="10" y="100" font-size="8.5" fill="#888">Sources : data.gouv.fr · INSEE · Min. Intérieur · Sirene · RNA</text>
+    <text x="10" y="113" font-size="8.5" fill="#888">Licences : Licence Ouverte Etalab v2.0 (Open Data)</text>
+  </g>
+</svg>

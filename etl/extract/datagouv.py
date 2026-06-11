@@ -95,6 +95,42 @@ OTHER_DATASETS = [
         "target": "chomage/chomage-nombre-de-chomeurs-exhaustif-des-communes-dile-de-france-donnee-insee.csv",
         "required": True,
     },
+    # ── Sources optionnelles (enrichissement — non bloquantes) ────────────────
+    {
+        "key": "securite",
+        "slugs": [
+            "bases-statistiques-communales-de-la-delinquance-enregistree-par-la-police-et-la-gendarmerie-nationales",
+            "stat-crimes-delits",
+            "crimes-et-delits-enregistres-par-les-services-de-gendarmerie-et-de-police",
+        ],
+        "resource_hints": ["departement", "crimes", "delits", "delinquance"],
+        "formats": ["csv", "zip"],
+        "target": "securite/crimes_delits_departements.csv",
+        "required": False,
+    },
+    {
+        "key": "associations",
+        "slugs": [
+            "repertoire-national-des-associations",
+            "rna-repertoire-national-associations",
+        ],
+        "resource_hints": ["associations", "commune", "departement", "RNA"],
+        "formats": ["csv", "zip"],
+        "target": "associations/rna_associations_idf.csv",
+        "required": False,
+    },
+    {
+        "key": "entreprises",
+        "slugs": [
+            "nombre-detablissements-actifs-par-tranche-deffectif-salariale-et-par-commune",
+            "etablissements-actifs-par-commune",
+            "base-sirene-par-unite-legale",
+        ],
+        "resource_hints": ["commune", "etablissements", "entreprises", "sirene"],
+        "formats": ["csv", "zip"],
+        "target": "entreprises/etablissements_actifs_commune.csv",
+        "required": False,
+    },
 ]
 
 
@@ -119,8 +155,14 @@ def fetch_all_datasets(data_root: Path) -> dict[str, bool]:
             log.info(f"  [SKIP] {cfg['key']} déjà présent : {target.name}")
             results[cfg["key"]] = True
             continue
+        required = cfg.get("required", True)
         ok = _fetch_other_dataset(cfg, data_root)
         results[cfg["key"]] = ok
+        if not ok and not required:
+            log.info(
+                f"  [INFO] {cfg['key']} non téléchargé (source optionnelle — "
+                "pipeline non bloqué, enrichissement désactivé pour ce run)"
+            )
 
     _log_summary(results)
     return results
@@ -628,11 +670,14 @@ def _get_with_retry(
 
 
 def _log_summary(results: dict[str, bool]) -> None:
+    required_keys = {cfg["key"] for cfg in OTHER_DATASETS if cfg.get("required", True)}
+    required_keys.add("elections")
     ok = [k for k, v in results.items() if v]
-    nok = [k for k, v in results.items() if not v]
-    log.info(f"=== FETCH terminé | OK: {len(ok)} | KO: {len(nok)} ===")
-    if nok:
-        log.warning(f"  Datasets manquants : {nok}")
-        log.warning(
-            "  → Placez ces fichiers manuellement dans DATA_ROOT si disponibles localement."
-        )
+    nok_required  = [k for k, v in results.items() if not v and k in required_keys]
+    nok_optional  = [k for k, v in results.items() if not v and k not in required_keys]
+    log.info(f"=== FETCH terminé | OK: {len(ok)} | KO: {len(nok_required)+len(nok_optional)} ===")
+    if nok_required:
+        log.warning(f"  Datasets REQUIS manquants : {nok_required}")
+        log.warning("  → Placez ces fichiers manuellement dans DATA_ROOT si disponibles localement.")
+    if nok_optional:
+        log.info(f"  Sources optionnelles non chargées : {nok_optional} (enrichissement désactivé)")

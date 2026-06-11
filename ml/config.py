@@ -40,6 +40,29 @@ LEAKAGE_KEYWORDS = [
     "ratio_blancs_nuls_t2",
 ]
 
+FEATURES_SECURITE = [
+    "taux_crimes_personnes",
+    "taux_crimes_biens",
+    "taux_crimes_total",
+    "taux_crimes_drogues",
+]
+
+FEATURES_ENTREPRISES = [
+    "nb_entreprises_actives",
+    "pct_entreprises_commerce",
+    "pct_entreprises_services",
+    "pct_entreprises_industrie",
+]
+
+FEATURES_ASSOCIATIONS = [
+    "nb_associations_actives",
+    "pct_asso_sportives",
+    "pct_asso_culturelles",
+    "pct_asso_sociales",
+]
+
+FEATURES_NOUVELLES_SOURCES = FEATURES_SECURITE + FEATURES_ENTREPRISES + FEATURES_ASSOCIATIONS
+
 FEATURES_SOCIO = [
     "pct_pop_0014",
     "pct_pop_1529",
@@ -150,11 +173,13 @@ FEATURES_2022_T1 = [
 
 FEATURE_SETS = {
     "pre_vote": FEATURES_SOCIO + FEATURES_HIST_2012 + FEATURES_HIST_2017,
+    "pre_vote_extended": FEATURES_SOCIO + FEATURES_NOUVELLES_SOURCES + FEATURES_HIST_2012 + FEATURES_HIST_2017,
     "post_t1": FEATURES_SOCIO
     + FEATURES_HIST_2012
     + FEATURES_HIST_2017
     + FEATURES_2022_T1,
     "full": FEATURES_SOCIO + FEATURES_HIST_2012 + FEATURES_HIST_2017 + FEATURES_2022_T1,
+    "full_extended": FEATURES_SOCIO + FEATURES_NOUVELLES_SOURCES + FEATURES_HIST_2012 + FEATURES_HIST_2017 + FEATURES_2022_T1,
     "hist_only": FEATURES_HIST_2012 + FEATURES_HIST_2017,
     "lstm": (
         FEATURES_HIST_2012
@@ -178,11 +203,12 @@ RF_PARAM_GRID = {
     "class_weight": ["balanced", None],
 }
 RF_PARAM_GRID_FAST = {
-    "n_estimators": [100, 200],
-    "max_depth": [None, 15],
-    "min_samples_split": [2, 5],
-    "min_samples_leaf": [1, 2],
-    "max_features": ["sqrt"],
+    "n_estimators": [100, 200, 300],
+    "max_depth": [None, 10, 20],
+    "min_samples_split": [2, 5, 10],
+    "min_samples_leaf": [1, 2, 4],
+    "max_features": ["sqrt", "log2"],
+    "class_weight": ["balanced", None],
 }
 
 GB_BEST_PARAMS = {

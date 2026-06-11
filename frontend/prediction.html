@@ -33,7 +33,7 @@ function Header({ loaded }) {
       </div>
       <h1 className="headline-1">Prédire le vainqueur du T2, commune par commune.</h1>
       <p className="dek">
-        4 configurations entraînées sur les profils socio-économiques et l'historique électoral 2012/2017.
+        6 configurations entraînées (Random Forest, Gradient Boosting, Decision Tree, MLP, LSTM) sur les profils socio-économiques et l'historique électoral 2012/2017.
         Cible : <code style={{ background: 'var(--bg-2)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>cible_t2_vainqueur</code>
         — Macron (0) ou Le Pen (1). Split train/test 80/20 stratifié. CV 5 folds.
       </p>
@@ -154,13 +154,21 @@ function FeatureImportance({ features }) {
 function Artifacts({ images }) {
   if (!images) return null;
   const charts = [
-    { src: images.gb_results,    title: 'Gradient Boosting — analyse complète (importance · confusion · ROC)' },
-    { src: images.rf_confusion,  title: 'Random Forest — matrice de confusion' },
-    { src: images.rf_roc,        title: 'Random Forest — courbe ROC' },
-    { src: images.gb_confusion,  title: 'Gradient Boosting — matrice de confusion' },
-    { src: images.gb_roc,        title: 'Gradient Boosting — courbe ROC' },
+    { src: images.cmp_accuracy,  title: 'Comparaison accuracy — tous les modèles' },
+    { src: images.cmp_auc,       title: 'Comparaison AUC-ROC — tous les modèles' },
+    { src: images.gb_results,    title: 'Gradient Boosting — analyse complète' },
     { src: images.gb_importance, title: 'Gradient Boosting — importance des features' },
-  ];
+    { src: images.dt_importance, title: 'Decision Tree — importance des features' },
+    { src: images.mlp_importance,title: 'MLP — importance des features' },
+    { src: images.rf_confusion,  title: 'Random Forest — matrice de confusion' },
+    { src: images.gb_confusion,  title: 'Gradient Boosting — matrice de confusion' },
+    { src: images.dt_confusion,  title: 'Decision Tree — matrice de confusion' },
+    { src: images.mlp_confusion, title: 'MLP — matrice de confusion' },
+    { src: images.rf_roc,        title: 'Random Forest — courbe ROC' },
+    { src: images.gb_roc,        title: 'Gradient Boosting — courbe ROC' },
+    { src: images.dt_roc,        title: 'Decision Tree — courbe ROC' },
+    { src: images.mlp_roc,       title: 'MLP — courbe ROC' },
+  ].filter(c => c.src);
   return (
     <section className="section">
       <div className="section-head">
@@ -190,14 +198,17 @@ function CommuneLookup({ predictions }) {
   const [suggestions, setSuggestions] = useState([]);
 
   const modelList = predictions
-    ? ['gb_post_t1','gb_pre_vote','rf_post_t1','lstm'].filter(id => predictions[id])
+    ? ['gb_post_t1','gb_pre_vote','rf_post_t1','rf_pre_vote','dt_pre_vote','mlp_pre_vote','lstm'].filter(id => predictions[id])
     : [];
 
   const modelNames = {
-    gb_post_t1:  'GB post-T1',
-    gb_pre_vote: 'GB pré-vote',
-    rf_post_t1:  'RF post-T1',
-    lstm:        'LSTM',
+    gb_post_t1:   'GB post-T1',
+    gb_pre_vote:  'GB pré-vote',
+    rf_post_t1:   'RF post-T1',
+    rf_pre_vote:  'RF pré-vote',
+    dt_pre_vote:  'Decision Tree',
+    mlp_pre_vote: 'MLP',
+    lstm:         'LSTM',
   };
 
   const allRows = predictions?.[selectedModel]?.rows ?? [];

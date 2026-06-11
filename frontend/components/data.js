@@ -111,6 +111,18 @@ window.MOCK = (function () {
       accuracy: 0.9016, f1: 0.9014, auc: 0.9720, cv_auc: 0.9758, cv_std: 0.0098,
       time: '0.4s', feat: 69, best: false,
     },
+    {
+      key: 'decision_tree', fset: 'pre_vote',
+      name: 'Decision Tree pré-vote',
+      accuracy: null, f1: null, auc: null, cv_auc: null, cv_std: null,
+      time: null, feat: 69, best: false,
+    },
+    {
+      key: 'mlp', fset: 'pre_vote',
+      name: 'MLP pré-vote',
+      accuracy: null, f1: null, auc: null, cv_auc: null, cv_std: null,
+      time: null, feat: 69, best: false,
+    },
   ];
 
   // Features — initialisées vides, remplies par loadArtifacts() depuis gb_top_features.csv
@@ -213,12 +225,16 @@ window.loadArtifacts = async function () {
     { key: 'gradient_boosting', fset: 'pre_vote', file: 'gradient_boosting_metrics_pre_vote_classification_t2.json' },
     { key: 'random_forest',     fset: 'post_t1',  file: 'random_forest_metrics_post_t1_classification_t2.json' },
     { key: 'random_forest',     fset: 'pre_vote', file: 'random_forest_metrics_pre_vote_classification_t2.json' },
+    { key: 'decision_tree',     fset: 'pre_vote', file: 'decision_tree_metrics_pre_vote_classification_t2.json' },
+    { key: 'mlp',               fset: 'pre_vote', file: 'mlp_metrics_pre_vote_classification_t2.json' },
   ];
   const NAMES = {
     'gradient_boosting|post_t1':  'Gradient Boosting post-T1',
     'gradient_boosting|pre_vote': 'Gradient Boosting pré-vote',
     'random_forest|post_t1':      'Random Forest post-T1',
     'random_forest|pre_vote':     'Random Forest pré-vote',
+    'decision_tree|pre_vote':     'Decision Tree pré-vote',
+    'mlp|pre_vote':               'MLP pré-vote',
   };
   const pick = (m, keys) => { for (const k of keys) if (m[k] != null) return m[k]; return null; };
   const results = [];
@@ -233,7 +249,7 @@ window.loadArtifacts = async function () {
       results.push({
         key, fset, name: NAMES[key + '|' + fset] || key,
         accuracy: pick(m, ['val_accuracy', 'test_accuracy']),
-        f1:       pick(m, ['val_f1', 'test_f1']),
+        f1:       pick(m, ['val_f1', 'test_f1', 'test_f1_weighted']),
         auc:      pick(m, ['val_roc_auc', 'test_roc_auc', 'val_auc']),
         cv_auc:   m.cv_roc_auc || null,
         cv_std:   m.cv_roc_auc_std || null,
@@ -271,6 +287,12 @@ window.loadArtifacts = async function () {
     gb_roc:        '/artifacts/gradient_boosting_roc_curve.png',
     gb_importance: '/artifacts/gradient_boosting_feature_importance.png',
     gb_results:    '/artifacts/gradient_boosting_results.png',
+    dt_confusion:  '/artifacts/decision_tree_confusion_matrix.png',
+    dt_roc:        '/artifacts/decision_tree_roc_curve.png',
+    dt_importance: '/artifacts/decision_tree_feature_importance.png',
+    mlp_confusion: '/artifacts/mlp_confusion_matrix.png',
+    mlp_roc:       '/artifacts/mlp_roc_curve.png',
+    mlp_importance:'/artifacts/mlp_feature_importance.png',
     cmp_accuracy:  '/artifacts/model_comparison_test_accuracy.png',
     cmp_f1:        '/artifacts/model_comparison_test_f1.png',
     cmp_auc:       '/artifacts/model_comparison_test_roc_auc.png',
@@ -279,13 +301,16 @@ window.loadArtifacts = async function () {
   return MOCK;
 };
 
-// Charge les prédictions pour les 4 modèles depuis /artifacts/
+// Charge les prédictions pour tous les modèles depuis /artifacts/
 window.loadPredictions = async function () {
   const FILES = [
-    { id: 'gb_post_t1',  name: 'Gradient Boosting post-T1',  file: 'gb_predictions_post_t1_classification_t2.csv' },
-    { id: 'gb_pre_vote', name: 'Gradient Boosting pré-vote', file: 'gb_predictions_pre_vote_classification_t2.csv' },
-    { id: 'rf_post_t1',  name: 'Random Forest post-T1',      file: 'rf_predictions_post_t1_classification_t2.csv' },
-    { id: 'lstm',        name: 'LSTM',                        file: 'lstm_predictions_classification_t2.csv' },
+    { id: 'gb_post_t1',   name: 'Gradient Boosting post-T1',  file: 'gb_predictions_post_t1_classification_t2.csv' },
+    { id: 'gb_pre_vote',  name: 'Gradient Boosting pré-vote', file: 'gb_predictions_pre_vote_classification_t2.csv' },
+    { id: 'rf_post_t1',   name: 'Random Forest post-T1',      file: 'rf_predictions_post_t1_classification_t2.csv' },
+    { id: 'rf_pre_vote',  name: 'Random Forest pré-vote',     file: 'rf_predictions_pre_vote_classification_t2.csv' },
+    { id: 'lstm',         name: 'LSTM',                        file: 'lstm_predictions_classification_t2.csv' },
+    { id: 'dt_pre_vote',  name: 'Decision Tree pré-vote',     file: 'dt_predictions_pre_vote_classification_t2.csv' },
+    { id: 'mlp_pre_vote', name: 'MLP pré-vote',               file: 'mlp_predictions_pre_vote_classification_t2.csv' },
   ];
 
   const predictions = {};
