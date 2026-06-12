@@ -1,0 +1,25 @@
+digraph Tree {
+node [shape=box, style="filled, rounded", color="black", fontname="helvetica"] ;
+edge [fontname="helvetica"] ;
+0 [label="h17_t2_pct_lepen <= 42.13\ngini = 0.5\nsamples = 1014\nvalue = [507.0, 507.0]\nclass = Macron (0)", fillcolor="#ffffff"] ;
+1 [label="nb_chomeurs_2020 <= 13.105\ngini = 0.122\nsamples = 641\nvalue = [460.909, 32.069]\nclass = Macron (0)", fillcolor="#e78a47"] ;
+0 -> 1 [labeldistance=2.5, labelangle=45, headlabel="True"] ;
+2 [label="pct_csp_ouvriers <= 10.925\ngini = 0.465\nsamples = 59\nvalue = [34.196, 19.852]\nclass = Macron (0)", fillcolor="#f4caac"] ;
+1 -> 2 ;
+3 [label="gini = 0.24\nsamples = 41\nvalue = [28.249, 4.581]\nclass = Macron (0)", fillcolor="#e99559"] ;
+2 -> 3 ;
+4 [label="gini = 0.403\nsamples = 18\nvalue = [5.947, 15.271]\nclass = Le Pen (1)", fillcolor="#86c3ef"] ;
+2 -> 4 ;
+5 [label="h17_t2_pct_macron <= 61.35\ngini = 0.054\nsamples = 582\nvalue = [426.713, 12.217]\nclass = Macron (0)", fillcolor="#e6853f"] ;
+1 -> 5 ;
+6 [label="gini = 0.365\nsamples = 60\nvalue = [38.657, 12.217]\nclass = Macron (0)", fillcolor="#eda978"] ;
+5 -> 6 ;
+7 [label="gini = 0.0\nsamples = 522\nvalue = [388.056, 0.0]\nclass = Macron (0)", fillcolor="#e58139"] ;
+5 -> 7 ;
+8 [label="h17_t2_pct_lepen <= 45.16\ngini = 0.161\nsamples = 373\nvalue = [46.091, 474.931]\nclass = Le Pen (1)", fillcolor="#4ca7e8"] ;
+0 -> 8 [labeldistance=2.5, labelangle=-45, headlabel="False"] ;
+9 [label="gini = 0.429\nsamples = 81\nvalue = [28.993, 64.139]\nclass = Le Pen (1)", fillcolor="#93c9f1"] ;
+8 -> 9 ;
+10 [label="gini = 0.077\nsamples = 292\nvalue = [17.098, 410.792]\nclass = Le Pen (1)", fillcolor="#41a1e6"] ;
+8 -> 10 ;
+}

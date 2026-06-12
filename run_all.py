@@ -1,15 +1,16 @@
 """
 run_all.py — Orchestrateur Docker
 ==================================
-Enchaîne les 3 étapes au démarrage du container pipeline :
+Enchaîne les 4 étapes au démarrage du container pipeline :
 
-  1. FETCH   : télécharge les datasets manquants depuis data.gouv.fr
-  2. ETL     : pipeline Extract → Transform → Quality → Load (CSV + PostgreSQL)
-  3. TRAIN   : entraîne RF, Gradient Boosting (+ LSTM si TensorFlow disponible)
-               et stocke prédictions + métriques en base
+  1. FETCH    : télécharge les datasets manquants depuis data.gouv.fr
+  2. ETL      : pipeline Extract → Transform → Quality → Load (CSV + PostgreSQL)
+  3. DATAMART : alimente le schéma en étoile (datamart analytique)
+  4. TRAIN    : entraîne RF, Gradient Boosting (+ LSTM si TensorFlow disponible),
+                génère projections T+1/T+2/T+3 et stocke métriques en base
 
 Usage :
-    python -X utf8 run_all.py [--skip-fetch] [--skip-etl] [--skip-train]
+    python -X utf8 run_all.py
     python -X utf8 run_all.py --only-train   # utile pour re-train rapide
 """
 
@@ -34,7 +35,7 @@ log = logging.getLogger("run_all")
 
 
 def step_fetch(data_root: Path) -> bool:
-    log.info("━━━ ÉTAPE 1/3 : FETCH data.gouv.fr ━━━")
+    log.info("━━━ ÉTAPE 1/4 : FETCH data.gouv.fr ━━━")
     t0 = time.time()
     try:
         from etl.extract.datagouv import fetch_all_datasets
@@ -51,7 +52,7 @@ def step_fetch(data_root: Path) -> bool:
 
 
 def step_etl() -> bool:
-    log.info("━━━ ÉTAPE 2/3 : ETL (Extract → Transform → Load) ━━━")
+    log.info("━━━ ÉTAPE 2/4 : ETL (Extract → Transform → Load) ━━━")
     t0 = time.time()
     try:
         from orchestration.pipeline import run_pipeline
@@ -67,14 +68,36 @@ def step_etl() -> bool:
         return False
 
 
+def step_datamart() -> bool:
+    log.info("━━━ ÉTAPE 3/4 : DATAMART (schéma en étoile) ━━━")
+    t0 = time.time()
+    try:
+        from db.populate_datamart import run as populate_datamart
+
+        ok = populate_datamart()
+        elapsed = time.time() - t0
+        if ok:
+            log.info(f"Datamart alimenté en {elapsed:.1f}s")
+        else:
+            log.warning(
+                "Datamart non alimenté (CSV ou DB indisponible) — pipeline continue"
+            )
+        return True  # non-bloquant : le frontend fonctionne sans le datamart
+    except Exception as e:
+        log.warning(f"Datamart ERREUR (non-bloquant) : {e}")
+        return True
+
+
 def step_train() -> bool:
-    log.info("━━━ ÉTAPE 3/3 : ENTRAÎNEMENT ML ━━━")
+    log.info("━━━ ÉTAPE 4/4 : ENTRAÎNEMENT ML ━━━")
     t0 = time.time()
     try:
         from ml.training.trainer import (
             compare_all_models,
+            train_decision_tree,
             train_gradient_boosting,
             train_lstm,
+            train_mlp,
             train_random_forest,
         )
 
@@ -87,7 +110,7 @@ def step_train() -> bool:
                     feature_set=fset,
                     target="classification_t2",
                     fast_search=True,
-                    n_iter=20,
+                    n_iter=30,  # 30 itérations (vs 20) pour une meilleure couverture
                 )
                 results[f"rf_{fset}"] = m
             except Exception as e:
@@ -109,6 +132,33 @@ def step_train() -> bool:
                 results["lstm"] = m
         except ImportError:
             log.info("  TensorFlow absent — LSTM ignoré")
+
+        log.info("  Decision Tree — feature_set=pre_vote")
+        try:
+            m = train_decision_tree(feature_set="pre_vote", target="classification_t2")
+            results["decision_tree"] = m
+        except Exception as e:
+            log.warning(f"  DT ERREUR: {e}")
+
+        log.info("  MLP — feature_set=pre_vote (avec recherche d'hyperparamètres)")
+        try:
+            m = train_mlp(
+                feature_set="pre_vote",
+                target="classification_t2",
+                use_grid_search=True,  # recherche architecture + régularisation optimale
+            )
+            results["mlp"] = m
+        except Exception as e:
+            log.warning(f"  MLP ERREUR: {e}")
+
+        # Projections temporelles T+1/T+2/T+3 (après entraînement GB pré-vote)
+        log.info("  Projections temporelles (T+1 / T+2 / T+3)…")
+        try:
+            from ml.projection.generate_projections import generate as gen_projections
+
+            gen_projections()
+        except Exception as e:
+            log.warning(f"  Projections ERREUR: {e}")
 
         if len(results) > 1:
             compare_all_models(results)
@@ -160,6 +210,7 @@ def main():
         if not ok:
             log.error("ETL échoué — arrêt du pipeline")
             sys.exit(1)
+        step_datamart()
 
     if not args.skip_train:
         ok = step_train()

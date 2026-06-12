@@ -16,6 +16,8 @@
 <div id="root"></div>
 <script type="text/babel" src="components/shared.jsx"></script>
 <script type="text/babel">
+const { useState, useEffect } = React;
+
 function Hero() {
   return (
     <section className="page-header">
@@ -47,8 +49,28 @@ function HeroVisual() {
   const sparks = {
     a: [72.0, 84.5, 80.4, 78.9, 73.6],
     b: [55.4, 60.2, 62.8, 64.0, 64.18],
-    c: [0.88, 0.90, 0.91, 0.94, 0.957],
   };
+  const [mlStats, setMlStats] = useState({ acc: 95.7, auc: 0.985, cv: '0,984±0,007', name: 'GB post-T1' });
+
+  useEffect(() => {
+    loadArtifacts().then(() => {
+      const best = (MOCK.models || []).reduce((b, m) => (!b || (m.accuracy || 0) > (b.accuracy || 0)) ? m : b, null);
+      if (best) {
+        setMlStats({
+          acc:  best.accuracy ? (best.accuracy * 100) : 95.7,
+          auc:  best.auc  ?? 0.985,
+          cv:   best.cv_auc != null
+            ? best.cv_auc.toFixed(3) + (best.cv_std != null ? '±' + best.cv_std.toFixed(3) : '')
+            : '0,984±0,007',
+          name: best.name || 'GB post-T1',
+        });
+      }
+    });
+  }, []);
+
+  const accFmt   = typeof mlStats.acc === 'number' ? mlStats.acc.toFixed(1).replace('.', ',') : mlStats.acc;
+  const sparkMl  = [88, 90, 91, 94, mlStats.acc];
+
   return (
     <div className="glass" style={{ padding: 28, marginBottom: 48 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -83,11 +105,16 @@ function HeroVisual() {
         <div style={{ padding: '18px 20px', background: 'var(--bg-2)', borderRadius: 'var(--r)', border: '1px solid var(--line)' }}>
           <div className="label">Meilleur modèle — Accuracy</div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 6 }}>
-            <span className="metric" style={{ fontSize: 28 }}>95,7<span style={{ fontSize: 14, color: 'var(--ink-4)' }}>%</span></span>
-            <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>GB post-T1</span>
+            <span className="metric" style={{ fontSize: 28 }}>
+              {accFmt}<span style={{ fontSize: 14, color: 'var(--ink-4)' }}>%</span>
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{mlStats.name}</span>
           </div>
-          <Sparkline data={sparks.c} color="var(--d-4)" height={28} />
-          <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 4 }}>AUC-ROC : 0,985 · CV : 0,984±0,007</div>
+          <Sparkline data={sparkMl} color="var(--d-4)" height={28} />
+          <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 4 }}>
+            AUC-ROC : {typeof mlStats.auc === 'number' ? mlStats.auc.toFixed(3) : mlStats.auc}
+            {' · '}CV : {mlStats.cv}
+          </div>
         </div>
       </div>
     </div>
@@ -103,8 +130,8 @@ function Cards() {
     },
     {
       num: '02', href: 'comparison.html',
-      t: 'Candidats & partis',
-      d: 'Classement T1 complet, comparaison donut T1 vs T2, profil socio-économique des électorats, communes emblématiques filtrables.',
+      t: 'Réalité vs Prédictions',
+      d: 'Comparaison commune par commune entre le vainqueur réel du T2 et les prédictions des modèles ML. Matrice de confusion, accuracy par département, filtres.',
     },
     {
       num: '03', href: 'map.html',
@@ -119,7 +146,12 @@ function Cards() {
     {
       num: '05', href: 'prediction.html',
       t: 'Modèles ML',
-      d: 'Comparaison RF et GB (pre-vote / post-T1), feature importance, graphiques de performance, sandbox de prédiction live.',
+      d: 'Comparaison RF et GB (pre-vote / post-T1), feature importance, graphiques de performance, recherche de commune par prédiction.',
+    },
+    {
+      num: '06', href: 'projections.html',
+      t: 'Projections 2025–2027',
+      d: 'Scénarios prospectifs T+1/T+2/T+3 générés par le GB pré-vote sur la base des tendances socio-économiques. Courbes temporelles, heatmaps, diagrammes de probabilité.',
     },
   ];
   return (

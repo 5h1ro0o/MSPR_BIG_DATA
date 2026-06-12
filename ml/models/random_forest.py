@@ -27,7 +27,6 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
     accuracy_score,
-    classification_report,
     confusion_matrix,
     f1_score,
     mean_absolute_error,
@@ -54,6 +53,11 @@ from ml.config import (
     RF_PARAM_GRID_FAST,
 )
 from ml.models.base import BaseModel
+from ml.training.evaluate import (
+    baseline_metrics,
+    plot_calibration,
+    robust_classification_eval,
+)
 
 
 class RandomForestModel(BaseModel):
@@ -86,17 +90,19 @@ class RandomForestModel(BaseModel):
         self.label_classes_: Optional[np.ndarray] = None
 
     def build(self, **kwargs) -> Pipeline:
-        """Construit le pipeline sklearn complet."""
+        """Construit le pipeline sklearn complet. OOB activé pour estimation gratuite."""
         if self.task == "classification":
             estimator = RandomForestClassifier(
                 random_state=RANDOM_STATE,
                 n_jobs=self.n_jobs,
+                oob_score=True,  # estimation non biaisée de la généralisation, gratuite
                 **kwargs,
             )
         else:
             estimator = RandomForestRegressor(
                 random_state=RANDOM_STATE,
                 n_jobs=self.n_jobs,
+                oob_score=True,
                 **kwargs,
             )
 
@@ -113,28 +119,20 @@ class RandomForestModel(BaseModel):
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
-        X_val: Optional[pd.DataFrame] = None,
+        X_val: Optional[pd.DataFrame] = None,  # ignoré — RF n'a pas d'early stopping
         y_val: Optional[pd.Series] = None,
         use_grid_search: bool = True,
         fast_search: bool = True,
         n_iter_random: int = 30,
     ) -> dict:
         """
-        Entraîne le Random Forest.
+        Entraîne le Random Forest sur X_train uniquement.
 
-        Args:
-            X_train:         features d'entraînement
-            y_train:         cible d'entraînement
-            X_val:           features de validation (optionnel, pour métriques finales)
-            y_val:           cible de validation
-            use_grid_search: True = GridSearch / RandomizedSearch, False = paramètres par défaut
-            fast_search:     True = grille réduite (RF_PARAM_GRID_FAST), False = grille complète
-            n_iter_random:   nombre d'itérations pour RandomizedSearchCV
-
-        Returns:
-            Dictionnaire de métriques d'entraînement.
+        X_val/y_val ne sont PAS utilisés ici — réservés pour evaluate().
+        La CV interne à RandomizedSearchCV remplace la double CV.
         """
         self.feature_names = list(X_train.columns)
+        y_arr = np.asarray(y_train)
 
         print(f"\n{'='*60}")
         print(f"  Random Forest — {self.task.upper()}")
@@ -144,6 +142,7 @@ class RandomForestModel(BaseModel):
         t0 = time.time()
 
         if use_grid_search:
+            # RandomizedSearchCV fait déjà la CV → pas besoin d'une 2ème CV après
             self.pipeline = self._run_search(
                 X_train, y_train, fast_search, n_iter_random
             )
@@ -154,39 +153,40 @@ class RandomForestModel(BaseModel):
         elapsed = time.time() - t0
         print(f"  Entraînement terminé en {elapsed:.1f}s")
 
-        y_pred_train = self.pipeline.predict(X_train)
-        y_proba_train = (
-            self.pipeline.predict_proba(X_train)
-            if self.task == "classification"
-            else None
-        )
-        train_metrics = self._compute_metrics(
-            y_train, y_pred_train, split="train", y_proba=y_proba_train
-        )
+        # Score OOB (gratuit avec RF, estimation non biaisée de la généralisation)
+        rf_step = self.pipeline.named_steps["rf"]
+        oob_score = getattr(rf_step, "oob_score_", None)
+        if oob_score is not None:
+            print(f"  OOB score (estimation généralisation) : {oob_score:.4f}")
 
-        val_metrics = {}
-        if X_val is not None and y_val is not None:
-            y_pred_val = self.pipeline.predict(X_val)
-            y_proba_val = (
-                self.pipeline.predict_proba(X_val)
+        # Métriques train — diagnostique d'overfitting uniquement
+        y_pred_tr = self.pipeline.predict(X_train)
+        train_acc = round(
+            float(
+                accuracy_score(y_arr, y_pred_tr)
                 if self.task == "classification"
-                else None
-            )
-            val_metrics = self._compute_metrics(
-                y_val, y_pred_val, split="val", y_proba=y_proba_val
-            )
+                else r2_score(y_arr, y_pred_tr)
+            ),
+            4,
+        )
 
-        cv_metrics = self._run_cross_validation(X_train, y_train)
-
-        self.metrics = {**train_metrics, **val_metrics, **cv_metrics}
-        self.metrics["training_time_s"] = round(elapsed, 2)
+        self.metrics = {
+            "n_train": len(X_train),
+            "train_accuracy": train_acc,
+            "training_time_s": round(elapsed, 2),
+        }
+        if oob_score is not None:
+            self.metrics["oob_score"] = round(float(oob_score), 4)
         if self.best_params_:
             self.metrics["best_params"] = self.best_params_
+        if self.cv_results_:
+            self.metrics["cv_best_score"] = self.cv_results_.get("best_score")
 
         self.model = self.pipeline
         self.is_trained = True
-
-        self._print_metrics_summary()
+        print(f"  train_accuracy = {train_acc:.4f}")
+        if oob_score:
+            print(f"  OOB (généralisation estimée) = {oob_score:.4f}")
         return self.metrics
 
     def _run_search(
@@ -348,35 +348,53 @@ class RandomForestModel(BaseModel):
 
         return result
 
-    def evaluate(
-        self,
-        X_test: pd.DataFrame,
-        y_test: pd.Series,
-    ) -> dict:
-        """Évaluation complète sur le jeu de test avec rapport détaillé."""
+    def evaluate(self, X_test: pd.DataFrame, y_test: pd.Series) -> dict:
+        """
+        Évaluation finale sur le set de test (jamais vu pendant l'entraînement).
+        Utilise robust_classification_eval avec IC, baseline et calibration.
+        """
         y_pred = self.predict(X_test)
         y_proba = self.predict_proba(X_test)
-        metrics = self._compute_metrics(y_test, y_pred, split="test", y_proba=y_proba)
-        self.metrics.update(metrics)
-
-        print(f"\n{'='*60}")
-        print(f"  Évaluation — {self.name.upper()} ({self.task})")
-        print(f"{'='*60}")
+        y_true = np.asarray(y_test)
 
         if self.task == "classification":
-            print(f"  Accuracy  : {metrics.get('test_accuracy', 'N/A'):.4f}")
-            print(f"  F1 (wtd)  : {metrics.get('test_f1', 'N/A'):.4f}")
-            print(f"  Precision : {metrics.get('test_precision', 'N/A'):.4f}")
-            print(f"  Recall    : {metrics.get('test_recall', 'N/A'):.4f}")
-            if "test_roc_auc" in metrics:
-                print(f"  ROC-AUC   : {metrics['test_roc_auc']:.4f}")
-            print("\n  Classification Report :")
-            print(classification_report(y_test, y_pred, zero_division=0))
+            metrics = robust_classification_eval(y_true, y_pred, y_proba, split="test")
+            bl = baseline_metrics(y_true)
+            metrics.update(bl)
+            metrics["improvement_over_baseline"] = round(
+                metrics["test_accuracy"] - bl["baseline_accuracy"], 4
+            )
+            try:
+                plot_calibration(y_true, y_proba, self.name, self.artifact_dir)
+            except Exception:
+                pass
+            print(f"\n{'─'*55}")
+            print(f"  SET DE TEST — {metrics['test_n_samples']} communes")
+            print(
+                f"  Accuracy          : {metrics['test_accuracy']:.4f}  IC95% [{metrics['test_accuracy_ci_lo']:.4f}, {metrics['test_accuracy_ci_hi']:.4f}]"
+            )
+            print(f"  Balanced accuracy : {metrics['test_balanced_accuracy']:.4f}")
+            print(
+                f"  ROC-AUC           : {metrics.get('test_roc_auc','N/A')}  IC95% [{metrics.get('test_roc_auc_ci_lo','?')}, {metrics.get('test_roc_auc_ci_hi','?')}]"
+            )
+            print(f"  Cohen's κ         : {metrics['test_cohen_kappa']:.4f}")
+            print(f"  Brier score       : {metrics.get('test_brier_score','N/A')}")
+            print(f"  Baseline accuracy : {bl['baseline_accuracy']:.4f}")
+            print(f"  Gain vs baseline  : +{metrics['improvement_over_baseline']:.4f}")
+            print(f"{'─'*55}")
         else:
-            print(f"  R²   : {metrics.get('test_r2', 'N/A'):.4f}")
-            print(f"  MAE  : {metrics.get('test_mae', 'N/A'):.4f}")
-            print(f"  RMSE : {metrics.get('test_rmse', 'N/A'):.4f}")
+            metrics = {
+                "test_r2": round(float(r2_score(y_true, y_pred)), 4),
+                "test_mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
+                "test_rmse": round(
+                    float(np.sqrt(mean_squared_error(y_true, y_pred))), 4
+                ),
+            }
+            print(
+                f"  R²={metrics['test_r2']:.4f}  MAE={metrics['test_mae']:.4f}  RMSE={metrics['test_rmse']:.4f}"
+            )
 
+        self.metrics.update(metrics)
         return metrics
 
     def get_feature_importance(self, top_n: int = 30) -> pd.DataFrame:

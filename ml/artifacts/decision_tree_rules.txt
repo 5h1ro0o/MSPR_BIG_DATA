@@ -1,0 +1,16 @@
+|--- h17_t2_pct_lepen <= 42.13
+|   |--- nb_chomeurs_2020 <= 13.11
+|   |   |--- pct_csp_ouvriers <= 10.92
+|   |   |   |--- class: 0
+|   |   |--- pct_csp_ouvriers >  10.92
+|   |   |   |--- class: 1
+|   |--- nb_chomeurs_2020 >  13.11
+|   |   |--- h17_t2_pct_macron <= 61.35
+|   |   |   |--- class: 0
+|   |   |--- h17_t2_pct_macron >  61.35
+|   |   |   |--- class: 0
+|--- h17_t2_pct_lepen >  42.13
+|   |--- h17_t2_pct_lepen <= 45.16
+|   |   |--- class: 1
+|   |--- h17_t2_pct_lepen >  45.16
+|   |   |--- class: 1

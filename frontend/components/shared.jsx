@@ -1,11 +1,12 @@
 window.Topbar = function Topbar({ active }) {
   const items = [
-    { id: 'index',      href: 'index.html',      label: 'Accueil' },
-    { id: 'overview',   href: 'overview.html',   label: 'Résultats 2022' },
-    { id: 'comparison', href: 'comparison.html', label: 'Réalité vs Prédictions' },
-    { id: 'map',        href: 'map.html',        label: 'Carte IDF' },
-    { id: 'pipeline',   href: 'pipeline.html',   label: 'Pipeline ETL' },
-    { id: 'prediction', href: 'prediction.html', label: 'Modèles ML' },
+    { id: 'index',       href: 'index.html',       label: 'Accueil' },
+    { id: 'overview',    href: 'overview.html',    label: 'Résultats 2022' },
+    { id: 'comparison',  href: 'comparison.html',  label: 'Réalité vs Prédictions' },
+    { id: 'map',         href: 'map.html',         label: 'Carte IDF' },
+    { id: 'pipeline',    href: 'pipeline.html',    label: 'Pipeline ETL' },
+    { id: 'prediction',  href: 'prediction.html',  label: 'Modèles ML' },
+    { id: 'projections', href: 'projections.html', label: 'Projections 2025–2027' },
   ];
   return (
     <div className="topbar">
@@ -21,6 +22,14 @@ window.Topbar = function Topbar({ active }) {
                 {it.label}
               </a>
             ))}
+            <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer"
+               style={{ display: 'flex', alignItems: 'center', gap: 5, opacity: 0.85 }}
+               title="Tableau de bord Grafana — outil BI analytique">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+              Grafana BI
+            </a>
           </div>
           <div className="nav-actions">
             <span className="chip ok"><span className="dot"></span>Pipeline actif</span>
@@ -54,7 +63,7 @@ window.Footer = function Footer() {
           <h4>Navigation</h4>
           <ul>
             <li><a href="overview.html">Vue d'ensemble</a></li>
-            <li><a href="comparison.html">Candidats &amp; partis</a></li>
+            <li><a href="comparison.html">Réalité vs Prédictions</a></li>
             <li><a href="map.html">Carte Île-de-France</a></li>
             <li><a href="pipeline.html">Pipeline ETL</a></li>
             <li><a href="prediction.html">Modèles ML</a></li>
@@ -76,6 +85,7 @@ window.Footer = function Footer() {
             <li><a href="https://sonarcloud.io/project/overview?id=5h1ro0o_MSPR_BIG_DATA" target="_blank">SonarCloud</a></li>
             <li><a href="pipeline.html">Quality gates (14/14)</a></li>
             <li><a href="prediction.html">Modèles (RF · GB)</a></li>
+            <li><a href="projections.html">Projections 2025–2027</a></li>
           </ul>
         </div>
       </div>

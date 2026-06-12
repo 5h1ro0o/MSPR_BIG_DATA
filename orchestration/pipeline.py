@@ -11,6 +11,7 @@ Usage Prefect :
 
 import sys
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -29,9 +30,20 @@ from etl.extract import (
     extract_emploi_2022,
     extract_pauvrete,
 )
+
+# Nouvelles sources — optionnelles (ignorées silencieusement si fichier absent)
+try:
+    from etl.extract.associations import extract_associations
+    from etl.extract.entreprises import extract_entreprises
+    from etl.extract.securite import extract_securite
+
+    _NEW_SOURCES_AVAILABLE = True
+except ImportError:
+    _NEW_SOURCES_AVAILABLE = False
 from etl.load import load_to_db, write_gold_csv
 from etl.load.db_loader import check_db_connection
 from etl.quality import run_quality_checks
+from etl.quality.ge_suite import run_ge_suite
 from etl.transform import (
     assemble_dataset,
     transform_chomage_hist,
@@ -49,10 +61,111 @@ setup_logger(settings.log_level, settings.log_dir)
 log = get_logger(__name__)
 
 
+def _run_extract(name: str, fn, *args):
+    """Wrapper thread-safe pour une extraction : retourne (name, DataFrame|None)."""
+    log.info(f"[extract|parallel] {name} …")
+    data = fn(*args)
+    n = len(data) if data is not None else 0
+    log.info(f"[extract|parallel] {name} → {n} lignes")
+    return name, data
+
+
+def _persist_quality_checks(
+    qc_report, ge_result: dict, run_id: str, database_url: str
+) -> None:
+    """Écrit les résultats qualité dans audit.quality_checks."""
+    try:
+        from sqlalchemy import create_engine, text
+
+        checks = [
+            (
+                "min_communes_1200",
+                qc_report.stats.get("n_communes", 0) >= 1200,
+                f"n={qc_report.stats.get('n_communes', 0)}",
+            ),
+            (
+                "no_nulls",
+                qc_report.stats.get("n_nulls", 1) == 0,
+                f"nulls={qc_report.stats.get('n_nulls', '?')}",
+            ),
+            (
+                "no_duplicates",
+                qc_report.stats.get("n_duplicates", 1) == 0,
+                f"dups={qc_report.stats.get('n_duplicates', '?')}",
+            ),
+            (
+                "all_idf_depts",
+                len(qc_report.errors) == 0
+                or not any("dept" in e.lower() for e in qc_report.errors),
+                f"depts={qc_report.stats.get('depts_found', [])}",
+            ),
+            (
+                "cible_cols_present",
+                not any("cible" in e.lower() for e in qc_report.errors),
+                "colonnes cibles présentes",
+            ),
+            (
+                "t2_pct_coherence",
+                not any("t2" in e.lower() for e in qc_report.errors),
+                "cohérence T2 OK",
+            ),
+            (
+                "value_ranges_ok",
+                not any(
+                    "plage" in e.lower() or "range" in e.lower()
+                    for e in qc_report.errors
+                ),
+                "plages de valeurs valides",
+            ),
+            (
+                "qc_global_passed",
+                qc_report.passed,
+                (
+                    "OK"
+                    if qc_report.passed
+                    else f"Erreurs: {'; '.join(qc_report.errors[:3])}"
+                ),
+            ),
+        ]
+
+        ge_total = ge_result.get("total", 0)
+        ge_passed = ge_result.get("passed", 0)
+        if not ge_result.get("skipped"):
+            checks.append(
+                (
+                    f"great_expectations_{ge_passed}_sur_{ge_total}",
+                    ge_result.get("success", False),
+                    f"{ge_passed}/{ge_total} expectations passées",
+                )
+            )
+
+        engine = create_engine(database_url, pool_pre_ping=True)
+        now = datetime.utcnow()
+        with engine.begin() as conn:
+            for check_name, passed, details in checks:
+                conn.execute(
+                    text(
+                        "INSERT INTO audit.quality_checks (run_id, check_name, passed, details, checked_at) "
+                        "VALUES (:rid, :cn, :p, :d, :at)"
+                    ),
+                    {
+                        "rid": run_id,
+                        "cn": check_name,
+                        "p": bool(passed),
+                        "d": details,
+                        "at": now,
+                    },
+                )
+        log.info(f"[QC] {len(checks)} contrôles persistés dans audit.quality_checks")
+    except Exception as exc:
+        log.warning("[QC] Impossible d'écrire dans audit.quality_checks : %s", exc)
+
+
 def run_pipeline() -> dict:
     """
     Exécute le pipeline ETL complet :
-      Extract → Transform → Quality → Load (CSV + optionnel PostgreSQL)
+      Extract (parallèle) → Transform → Quality (checks.py + Great Expectations)
+      → Load (CSV + optionnel PostgreSQL)
 
     Returns:
         Dictionnaire de métriques du run.
@@ -62,31 +175,66 @@ def run_pipeline() -> dict:
 
     log.info(f"=== PIPELINE START | run_id={run_id} ===")
 
-    step = metrics.start_step("extract_elections")
-    raw_elections = extract_elections(settings.elections_dir)
-    step.rows_out = len(raw_elections)
+    # ── Phase 1 : Extractions PARALLÈLES ─────────────────────────────────────
+    # Les 5 sources principales sont indépendantes (fichiers distincts).
+    # ThreadPoolExecutor les exécute simultanément — traitement distribué.
+    step = metrics.start_step("extract_parallel")
+    log.info("[extract] Lancement de 5 extractions en parallèle …")
+
+    primary_tasks = {
+        "elections": (extract_elections, settings.elections_dir),
+        "demographique": (extract_demographique, settings.demographique_file),
+        "pauvrete": (extract_pauvrete, settings.pauvrete_file),
+        "chomage_hist": (extract_chomage_historique, settings.chomage_hist_file),
+        "emploi": (extract_emploi_2022, settings.emploi_file),
+    }
+
+    extracts: dict = {}
+    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="etl_extract") as pool:
+        futures = {
+            pool.submit(_run_extract, name, fn, *args): name
+            for name, (fn, *args) in primary_tasks.items()
+        }
+        for future in as_completed(futures):
+            name, data = future.result()
+            extracts[name] = data
+
+    step.rows_out = sum(len(v) for v in extracts.values())
     step.finish()
 
-    step = metrics.start_step("extract_demographique")
-    raw_demo = extract_demographique(settings.demographique_file)
-    step.rows_out = len(raw_demo)
-    step.finish()
+    raw_elections = extracts["elections"]
+    raw_demo = extracts["demographique"]
+    raw_pauvrete = extracts["pauvrete"]
+    raw_chomage = extracts["chomage_hist"]
+    raw_emploi = extracts["emploi"]
 
-    step = metrics.start_step("extract_pauvrete")
-    raw_pauvrete = extract_pauvrete(settings.pauvrete_file)
-    step.rows_out = len(raw_pauvrete)
-    step.finish()
+    # ── Phase 2 : Nouvelles sources optionnelles (parallèles entre elles) ────
+    if _NEW_SOURCES_AVAILABLE:
+        step = metrics.start_step("extract_new_sources_parallel")
+        log.info(
+            "[extract] Nouvelles sources (sécurité / entreprises / associations) en parallèle …"
+        )
 
-    step = metrics.start_step("extract_chomage_hist")
-    raw_chomage = extract_chomage_historique(settings.chomage_hist_file)
-    step.rows_out = len(raw_chomage)
-    step.finish()
+        optional_tasks = {
+            "securite": (extract_securite, settings.data_root),
+            "entreprises": (extract_entreprises, settings.data_root),
+            "associations": (extract_associations, settings.data_root),
+        }
 
-    step = metrics.start_step("extract_emploi")
-    raw_emploi = extract_emploi_2022(settings.emploi_file)
-    step.rows_out = len(raw_emploi)
-    step.finish()
+        opt_results: dict = {}
+        with ThreadPoolExecutor(max_workers=3, thread_name_prefix="etl_opt") as pool:
+            futures = {
+                pool.submit(_run_extract, name, fn, *args): name
+                for name, (fn, *args) in optional_tasks.items()
+            }
+            for future in as_completed(futures):
+                name, data = future.result()
+                opt_results[name] = data
 
+        step.rows_out = sum(len(v) for v in opt_results.values() if v is not None)
+        step.finish()
+
+    # ── Phase 3 : Extractions candidats (même fichier source → séquentiel) ──
     step = metrics.start_step("extract_candidats_historique")
     raw_cands_hist = extract_candidats_raw(
         settings.candidats_file,
@@ -110,6 +258,7 @@ def run_pipeline() -> dict:
     step.rows_out = len(raw_cands_2022)
     step.finish()
 
+    # ── Phase 4 : Transformations (séquentielles — dépendances entre étapes) ─
     step = metrics.start_step("transform_participation")
     silver_participation = transform_participation(raw_elections)
     step.rows_out = len(silver_participation)
@@ -160,32 +309,46 @@ def run_pipeline() -> dict:
     step.cols_out = len(gold_dataset.columns)
     step.finish()
 
+    # ── Phase 5 : Qualité — checks maison + Great Expectations (DQM) ─────────
     step = metrics.start_step("quality_checks")
     qc_report = run_quality_checks(gold_dataset)
     step.finish()
 
     if not qc_report.passed:
-        log.error(f"Contrôles qualité ECHEC : {qc_report.errors}")
+        log.error("Contrôles qualité ECHEC : %s", qc_report.errors)
 
+    step = metrics.start_step("ge_validation")
+    ge_result = run_ge_suite(gold_dataset)
+    step.rows_out = ge_result.get("passed", 0)
+    step.finish()
+
+    # ── Phase 6 : Load ────────────────────────────────────────────────────────
     step = metrics.start_step("load_csv")
     write_gold_csv(gold_dataset, settings.output_file)
     step.finish()
 
+    db_ok = False
     try:
-        if check_db_connection(settings.database_url):
+        db_ok = check_db_connection(settings.database_url)
+        if db_ok:
             step = metrics.start_step("load_db")
             load_to_db(gold_dataset, settings.database_url)
             step.finish()
     except Exception as e:
-        log.warning(f"Chargement PostgreSQL ignoré (non disponible) : {e}")
+        log.warning("Chargement PostgreSQL ignoré (non disponible) : %s", e)
+
+    # ── Persistance des quality checks dans audit.quality_checks ─────────────
+    if db_ok:
+        _persist_quality_checks(qc_report, ge_result, run_id, settings.database_url)
 
     metrics_dict = metrics.to_dict()
     metrics.save(settings.log_dir / "metrics")
 
     log.info(
         f"=== PIPELINE END | run_id={run_id} | "
-        f"{len(gold_dataset):,} communes × {len(gold_dataset.columns)} colonnes | "
-        f"QC={'OK' if qc_report.passed else 'KO'} ==="
+        f"{len(gold_dataset)} communes × {len(gold_dataset.columns)} colonnes | "
+        f"QC={'OK' if qc_report.passed else 'KO'} | "
+        f"GE={ge_result.get('passed', 'n/a')}/{ge_result.get('total', 'n/a')} ==="
     )
 
     return metrics_dict

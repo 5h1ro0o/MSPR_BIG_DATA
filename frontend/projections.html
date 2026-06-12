@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Projections 2025–2027 — Electoral Observatory</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+<link rel="stylesheet" href="styles/components.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="components/data.js"></script>
+<style>
+/* ── Courbes temporelles ─────────────────────────────── */
+.temporal-chart { width:100%; overflow-x:auto }
+.temporal-svg   { display:block; min-width:420px }
+
+/* ── Heatmap depts ───────────────────────────────────── */
+.heatmap-proj { display:grid; gap:3px; font-size:12px }
+.hm-cell {
+  padding:10px 8px; border-radius:4px; text-align:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+}
+.hm-label { font-size:10px; color:var(--ink-4); font-weight:600; text-transform:uppercase; letter-spacing:.04em }
+.hm-value { font-size:14px; font-weight:700; font-family:var(--mono) }
+.hm-name  { font-size:10px; color:var(--ink-4) }
+
+/* ── Histogramme proba ───────────────────────────────── */
+.histo-bar { display:flex; align-items:flex-end; gap:2px; height:80px }
+.histo-bin { flex:1; min-width:14px; border-radius:2px 2px 0 0; transition:height .3s }
+
+/* ── Sélecteurs ──────────────────────────────────────── */
+.year-selector { display:flex; gap:8px; flex-wrap:wrap }
+.year-btn {
+  padding:8px 20px; font-size:13px; font-weight:600; border:2px solid var(--line);
+  border-radius:var(--r-sm); background:transparent; cursor:pointer; color:var(--ink-3);
+  transition:all .15s; font-family:var(--mono);
+}
+.year-btn.active { border-color:var(--ink); background:var(--ink); color:#fff }
+
+/* ── Delta badge ─────────────────────────────────────── */
+.delta-badge {
+  font-size:11px; padding:2px 7px; border-radius:3px; font-weight:600; font-family:var(--mono);
+}
+.delta-up   { background:color-mix(in srgb,var(--d-2) 12%,transparent); color:var(--d-2) }
+.delta-down { background:color-mix(in srgb,var(--d-1) 12%,transparent); color:var(--d-1) }
+.delta-flat { background:var(--bg-3); color:var(--ink-4) }
+
+/* ── Loading ─────────────────────────────────────────── */
+.loading-state { display:flex; align-items:center; justify-content:center;
+  min-height:320px; color:var(--ink-4); font-size:14px; gap:12px }
+@keyframes spin { to { transform:rotate(360deg) } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="components/shared.jsx"></script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const DEPT_ORDER = ['75','92','78','91','94','93','77','95'];
+const DEPT_NAMES = {
+  '75':'Paris','77':'Seine-et-Marne','78':'Yvelines','91':'Essonne',
+  '92':'Hauts-de-Seine','93':'Seine-Saint-Denis','94':'Val-de-Marne','95':"Val-d'Oise",
+};
+const YEARS = ['2022', '2025', '2026', '2027'];
+const YEAR_LABELS = { '2022':'Baseline 2022', '2025':'T+1 (2025)', '2026':'T+2 (2026)', '2027':'T+3 (2027)' };
+const MC = 'var(--d-1)', LP = 'var(--d-2)';
+
+// ── Parser CSV ────────────────────────────────────────────────────────────────
+function parseCSVSimple(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const values = line.split(',');
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (values[i] || '').trim(); });
+    return obj;
+  });
+}
+
+// ── Chargement des données de projection ─────────────────────────────────────
+async function loadProjections() {
+  const files = [
+    { year: '2025', file: 'projections_2025_t1.csv' },
+    { year: '2026', file: 'projections_2026_t2.csv' },
+    { year: '2027', file: 'projections_2027_t3.csv' },
+  ];
+  const synthFile = 'projections_synthese_depts.csv';
+  const metaFile  = 'projections_meta.json';
+
+  const [synthRes, metaRes, ...yearRes] = await Promise.all([
+    fetch('/artifacts/' + synthFile, { cache: 'no-store' }),
+    fetch('/artifacts/' + metaFile,  { cache: 'no-store' }),
+    ...files.map(f => fetch('/artifacts/' + f.file, { cache: 'no-store' })),
+  ]);
+
+  const communes = {};
+  for (let i = 0; i < files.length; i++) {
+    if (!yearRes[i].ok) continue;
+    const rows = parseCSVSimple(await yearRes[i].text()).map(r => ({
+      code_commune:       r.code_commune,
+      code_departement:   r.code_departement,
+      libelle_commune:    r.libelle_commune,
+      libelle_departement: r.libelle_departement,
+      horizon:            parseInt(r.horizon_years),
+      annee:              r.annee_cible,
+      prediction:         parseInt(r.prediction),
+      vainqueur_predit:   r.vainqueur_predit,
+      proba_macron:       parseFloat(r.proba_macron),
+      proba_lepen:        parseFloat(r.proba_lepen),
+      proba_macron_2022:  parseFloat(r.proba_macron_2022),
+      delta_macron:       parseFloat(r.delta_macron),
+      chomage_projete:    parseFloat(r.chomage_projete),
+      revenu_projete:     parseFloat(r.revenu_projete),
+    }));
+    communes[files[i].year] = rows;
+  }
+
+  let synthByDept = {};
+  if (synthRes.ok) {
+    const rows = parseCSVSimple(await synthRes.text());
+    rows.forEach(r => {
+      const key = r.code_departement + '|' + r.annee_cible;
+      synthByDept[key] = {
+        proba_macron: parseFloat(r.proba_macron_mean),
+        proba_lepen:  parseFloat(r.proba_lepen_mean),
+        proba_macron_2022: parseFloat(r.proba_macron_2022),
+        n_macron: parseInt(r.n_macron_predit),
+        n_lepen:  parseInt(r.n_lepen_predit),
+        n_total:  parseInt(r.n_communes),
+        libelle:  r.libelle_departement,
+      };
+    });
+  }
+
+  let meta = {};
+  if (metaRes.ok) meta = await metaRes.json();
+
+  // Ajouter 2022 dans communes depuis proba_macron_2022
+  if (communes['2025']) {
+    communes['2022'] = communes['2025'].map(r => ({
+      ...r,
+      annee: '2022',
+      horizon: 0,
+      prediction: r.proba_macron_2022 >= 0.5 ? 0 : 1,
+      vainqueur_predit: r.proba_macron_2022 >= 0.5 ? 'Macron' : 'Le Pen',
+      proba_macron: r.proba_macron_2022,
+      proba_lepen:  1 - r.proba_macron_2022,
+      delta_macron: 0,
+    }));
+  }
+
+  return { communes, synthByDept, meta };
+}
+
+// ── Courbes temporelles ───────────────────────────────────────────────────────
+function TemporalCurves({ synthByDept }) {
+  const depts = DEPT_ORDER.filter(d => synthByDept[d + '|2025']);
+  const W = 700, H = 220, PADL = 100, PADR = 20, PADT = 20, PADB = 36;
+  const chartW = W - PADL - PADR;
+  const chartH = H - PADT - PADB;
+  const years = ['2022','2025','2026','2027'];
+  const xOf = i => PADL + (i / (years.length - 1)) * chartW;
+  const yOf = v => PADT + (1 - v) * chartH;
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Courbes temporelles</span>
+          <h2>Probabilité Macron par département — 2022 → 2027</h2></div>
+        <span className="chip">Modèle GB pré-vote · tendances socio-économiques extrapolées</span>
+      </div>
+      <div className="panel">
+        <div className="temporal-chart">
+          <svg className="temporal-svg" viewBox={`0 0 ${W} ${H}`}>
+            {/* Grilles horizontales */}
+            {[0.3,0.4,0.5,0.6,0.7,0.8].map(v => (
+              <g key={v}>
+                <line x1={PADL} x2={W-PADR} y1={yOf(v)} y2={yOf(v)}
+                  stroke="var(--line)" strokeDasharray="3 5" strokeWidth={v === 0.5 ? 1.5 : 0.8} />
+                <text x={PADL-6} y={yOf(v)+4} fill="var(--ink-5)" fontSize="9"
+                  fontFamily="var(--mono)" textAnchor="end">{(v*100).toFixed(0)}%</text>
+              </g>
+            ))}
+            {/* Labels années */}
+            {years.map((y, i) => (
+              <text key={y} x={xOf(i)} y={H-6} fill="var(--ink-4)" fontSize="10"
+                fontFamily="var(--mono)" textAnchor="middle">{y}</text>
+            ))}
+            {/* Seuil 50% */}
+            <text x={PADL-6} y={yOf(0.5)+4} fill="var(--ink-3)" fontSize="9" fontFamily="var(--mono)" textAnchor="end" fontWeight="700">50%</text>
+            {/* Courbes par département */}
+            {depts.map((d, di) => {
+              const hue = di * (360 / depts.length);
+              const col = `hsl(${hue},60%,45%)`;
+              const vals = years.map(y => {
+                const key = d + '|' + y;
+                return synthByDept[key]?.proba_macron ?? null;
+              });
+              if (vals.some(v => v === null)) return null;
+              const pts = vals.map((v, i) => [xOf(i), yOf(v)]);
+              const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+              return (
+                <g key={d}>
+                  <path d={path} fill="none" stroke={col} strokeWidth="1.8" opacity="0.85" />
+                  {pts.map((p, i) => (
+                    <circle key={i} cx={p[0]} cy={p[1]} r="3" fill={col} />
+                  ))}
+                  <text x={pts[pts.length-1][0]+4} y={pts[pts.length-1][1]+4}
+                    fill={col} fontSize="9" fontFamily="var(--mono)">{d}</text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--ink-4)', lineHeight: 1.6 }}>
+          Chaque ligne représente un département IDF. La hausse de la probabilité Macron s'explique
+          par la tendance à la baisse du chômage et à la hausse des revenus médians extrapolée
+          depuis les données historiques.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Heatmap par département × année ──────────────────────────────────────────
+function HeatmapDepts({ synthByDept, selectedYear }) {
+  const depts = DEPT_ORDER.filter(d => synthByDept[d + '|2025']);
+  const displayYears = ['2022','2025','2026','2027'];
+
+  const pctToColor = (p) => {
+    const t = (p - 0.4) / 0.4;
+    const clamped = Math.max(0, Math.min(1, t));
+    return `color-mix(in srgb, var(--d-1) ${(clamped * 80).toFixed(0)}%, var(--d-2))`;
+  };
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Carte de chaleur</span>
+          <h2>Probabilité Macron — départements × années</h2></div>
+        <p>Gradient bleu (Macron fort) → rouge (Le Pen fort)</p>
+      </div>
+      <div className="panel" style={{ overflowX: 'auto' }}>
+        <div className="heatmap-proj"
+          style={{ gridTemplateColumns: `160px repeat(${displayYears.length}, 1fr)` }}>
+          {/* En-têtes années */}
+          <div className="hm-cell head" style={{ background: 'transparent' }}></div>
+          {displayYears.map(y => (
+            <div key={y} className="hm-cell" style={{ background: 'transparent', padding: '6px 4px' }}>
+              <span className="hm-label">{YEAR_LABELS[y]}</span>
+            </div>
+          ))}
+          {/* Lignes départements */}
+          {depts.map(d => (
+            <React.Fragment key={d}>
+              <div className="hm-cell" style={{ background: 'transparent', justifyContent: 'flex-start', padding: '8px 12px 8px 0' }}>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{d} · {DEPT_NAMES[d]}</span>
+              </div>
+              {displayYears.map(y => {
+                const key = d + '|' + y;
+                const data = synthByDept[key];
+                if (!data) return <div key={y} className="hm-cell"><span className="hm-label">—</span></div>;
+                const p = data.proba_macron;
+                const bg = pctToColor(p);
+                const textCol = p > 0.55 || p < 0.45 ? '#fff' : 'var(--ink)';
+                const baseline = synthByDept[d + '|2022']?.proba_macron;
+                const delta = y !== '2022' && baseline ? (p - baseline) : null;
+                return (
+                  <div key={y} className="hm-cell" style={{ background: bg }}>
+                    <span className="hm-value" style={{ color: textCol }}>{(p*100).toFixed(1)}%</span>
+                    {delta !== null && (
+                      <span style={{ fontSize: 9, color: textCol, opacity: .85 }}>
+                        {delta >= 0 ? '+' : ''}{(delta*100).toFixed(1)} pts
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+        <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--ink-4)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <i style={{ display: 'inline-block', width: 48, height: 8,
+              background: 'linear-gradient(90deg, var(--d-2), var(--d-1))', borderRadius: 2 }} />
+            Le Pen fort ← → Macron fort
+          </span>
+          <span>Paris (75) et Hauts-de-Seine (92) restent les bastions de probabilité Macron la plus élevée</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Histogrammes de distribution des probabilités ────────────────────────────
+function HistoProbas({ communes, selectedYear, onYearSelect }) {
+  const rows = communes[selectedYear] || [];
+  const macronRows = rows.filter(r => r.vainqueur_predit === 'Macron');
+  const lepenRows  = rows.filter(r => r.vainqueur_predit === 'Le Pen');
+
+  const makeBins = (data, key, n = 20) => {
+    const bins = Array(n).fill(0);
+    data.forEach(r => {
+      const idx = Math.min(n - 1, Math.floor(r[key] * n));
+      bins[idx]++;
+    });
+    return bins;
+  };
+
+  const macronBins = makeBins(rows, 'proba_macron');
+  const lepenBins  = makeBins(rows, 'proba_lepen');
+  const maxBin = Math.max(...macronBins, ...lepenBins, 1);
+
+  const Histo = ({ bins, color, label }) => (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color, marginBottom: 8 }}>{label}</div>
+      <div className="histo-bar">
+        {bins.map((v, i) => (
+          <div key={i} className="histo-bin"
+            title={`${(i*5).toFixed(0)}–${((i+1)*5).toFixed(0)}% : ${v} communes`}
+            style={{ height: (v / maxBin * 100) + '%', background: color, opacity: 0.85 }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: 'var(--ink-5)', fontFamily: 'var(--mono)' }}>
+        <span>0%</span><span>50%</span><span>100%</span>
+      </div>
+    </div>
+  );
+
+  // Pas de section wrapper — l'App fournit déjà le conteneur section+header+year-selector
+  return (
+    <>
+      <div className="grid-12">
+        <div className="panel">
+          <Histo bins={macronBins} color={MC} label={`Probabilité Macron — ${macronRows.length} communes prédites`} />
+        </div>
+        <div className="panel">
+          <Histo bins={lepenBins} color={LP} label={`Probabilité Le Pen — ${lepenRows.length} communes prédites`} />
+        </div>
+      </div>
+      <div className="panel" style={{ marginTop: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {YEARS.map(y => {
+            const yr = communes[y] || [];
+            const nM = yr.filter(r => r.vainqueur_predit === 'Macron').length;
+            const nL = yr.filter(r => r.vainqueur_predit === 'Le Pen').length;
+            const tot = nM + nL || 1;
+            const isSel = y === selectedYear;
+            return (
+              <div key={y} onClick={() => onYearSelect && onYearSelect(y)}
+                style={{ padding: 16, borderRadius: 'var(--r)', cursor: 'pointer',
+                  border: '2px solid ' + (isSel ? 'var(--ink)' : 'var(--line)'),
+                  background: isSel ? 'color-mix(in srgb,var(--ink) 4%,transparent)' : 'transparent' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-4)', marginBottom: 8 }}>{YEAR_LABELS[y]}</div>
+                <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+                  <div style={{ width: (nM/tot*100)+'%', background: MC }} />
+                  <div style={{ width: (nL/tot*100)+'%', background: LP }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: MC, fontWeight: 600 }}>{nM} communes</span>
+                  <span style={{ color: LP, fontWeight: 600 }}>{nL} communes</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Détail par commune ────────────────────────────────────────────────────────
+function CommuneProjection({ communes }) {
+  const [search, setSearch]     = useState('');
+  const [selected, setSelected] = useState(null);
+  const [suggestions, setSugg]  = useState([]);
+  const allRows = communes['2025'] || [];
+
+  const handleSearch = (q) => {
+    setSearch(q); setSelected(null);
+    if (q.length < 2) { setSugg([]); return; }
+    const lo = q.toLowerCase();
+    setSugg(allRows.filter(r => r.libelle_commune.toLowerCase().includes(lo) || r.code_commune.startsWith(q)).slice(0, 7));
+  };
+  const pick = (r) => { setSelected(r); setSearch(r.libelle_commune); setSugg([]); };
+
+  const allYearData = selected
+    ? YEARS.map(y => {
+        const match = (communes[y] || []).find(r => r.code_commune === selected.code_commune);
+        return { year: y, ...match };
+      })
+    : [];
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Détail par commune</span><h2>Évolution temporelle d'une commune</h2></div>
+      </div>
+      <div style={{ position: 'relative', maxWidth: 480, marginBottom: 24 }}>
+        <input type="search" placeholder="Nom de commune ou code INSEE…"
+          value={search} onChange={e => handleSearch(e.target.value)}
+          style={{ width: '100%', padding: '9px 12px', fontSize: 13, border: '1px solid var(--line)',
+            borderRadius: 'var(--r-sm)', background: 'var(--surface-solid)', color: 'var(--ink)',
+            outline: 'none', boxSizing: 'border-box' }} />
+        {suggestions.length > 0 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+            background: 'var(--surface-solid)', border: '1px solid var(--line)',
+            borderRadius: 'var(--r-sm)', boxShadow: '0 4px 16px rgba(0,0,0,.08)', marginTop: 4 }}>
+            {suggestions.map(r => (
+              <div key={r.code_commune} onClick={() => pick(r)}
+                style={{ padding: '9px 14px', cursor: 'pointer', fontSize: 13, display: 'flex',
+                  justifyContent: 'space-between', borderBottom: '1px solid var(--line-soft)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <span style={{ fontWeight: 500 }}>{r.libelle_commune}</span>
+                <span style={{ fontSize: 11, color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>
+                  {r.code_commune} · {r.code_departement}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!selected && (
+        <div style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 48 }}>
+          Cherchez une commune pour voir son évolution probabiliste 2022 → 2027.
+        </div>
+      )}
+
+      {selected && (
+        <div>
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 4px' }}>{selected.libelle_commune}</h3>
+            <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>
+              {selected.libelle_departement} · {selected.code_commune}
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            {allYearData.map(({ year, proba_macron, proba_lepen, vainqueur_predit, delta_macron }) => {
+              if (!proba_macron) return null;
+              const win = vainqueur_predit;
+              const col = win === 'Macron' ? MC : LP;
+              const delta = delta_macron ? (delta_macron * 100) : 0;
+              return (
+                <div key={year} style={{ padding: 16, borderRadius: 'var(--r)',
+                  border: '1px solid var(--line)', background: 'var(--bg-2)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, marginBottom: 8 }}>
+                    {YEAR_LABELS[year]}
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: col, marginBottom: 6 }}>{win}</div>
+                  <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                    <div style={{ width: (proba_macron*100)+'%', background: MC }} />
+                    <div style={{ width: (proba_lepen*100)+'%', background: LP }} />
+                  </div>
+                  <div style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: MC }}>{(proba_macron*100).toFixed(1)}%</span>
+                    <span style={{ color: LP }}>{(proba_lepen*100).toFixed(1)}%</span>
+                  </div>
+                  {year !== '2022' && (
+                    <div style={{ marginTop: 6, fontSize: 10, color: 'var(--ink-4)' }}>
+                      Δ vs 2022 : <span style={{ color: delta >= 0 ? MC : LP, fontWeight: 600 }}>
+                        {delta >= 0 ? '+' : ''}{delta.toFixed(1)} pts
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ── Méthodologie ──────────────────────────────────────────────────────────────
+function Methodology({ meta }) {
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div><span className="eyebrow">Méthodologie</span><h2>Comment sont générées ces projections ?</h2></div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="panel">
+          <div className="panel-hd"><h3>Modèle utilisé</h3></div>
+          <div style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--ink-3)' }}>
+            <p style={{ margin: '0 0 10px' }}>
+              <strong>Gradient Boosting pré-vote</strong> — le seul modèle du projet
+              qui n'utilise pas les résultats du T1 2022. Il est donc applicable
+              à une élection future dont on ne connaît pas encore le premier tour.
+            </p>
+            <p style={{ margin: '0 0 10px' }}>
+              <strong>Features</strong> : {meta.n_features || 69} variables socio-économiques
+              + historique électoral 2012 et 2017.
+            </p>
+            <div style={{ padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 'var(--r-sm)',
+              fontSize: 12, color: 'var(--ink-4)' }}>
+              {meta.methodology || 'Extrapolation linéaire des tendances observées.'}
+            </div>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-hd"><h3>Features projetées</h3></div>
+          <div style={{ fontSize: 13, lineHeight: 1.8 }}>
+            {[
+              { feat: 'Taux de chômage', src: 'Tendance 2009→2022 par commune (13 ans)', col: 'var(--status-ok)' },
+              { feat: 'Revenu médian', src: 'Tendance 2017→2021 par commune (4 ans)', col: 'var(--status-ok)' },
+              { feat: 'Démographie (âge)', src: 'Tendances INSEE IDF 2020-2050', col: 'var(--status-ok)' },
+              { feat: 'Autres features socio', src: 'Maintenues constantes (2022)', col: 'var(--ink-4)' },
+              { feat: 'Historique 2012/2017', src: 'Inchangé — stabilité géographie électorale', col: 'var(--ink-4)' },
+            ].map(({ feat, src, col }) => (
+              <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, marginTop: 4, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>{feat}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{src}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 16, padding: '10px 14px', background: 'color-mix(in srgb,var(--status-warn) 10%,transparent)',
+            borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--ink-3)', border: '1px solid color-mix(in srgb,var(--status-warn) 30%,transparent)' }}>
+            <strong>Limites :</strong> {meta.limitations || 'Projection linéaire — incertitude croissante avec l\'horizon.'}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [data,         setData]        = useState(null);
+  const [loadError,    setLoadError]   = useState(false);
+  const [selectedYear, setSelectedYear] = useState('2027');
+
+  useEffect(() => {
+    loadProjections()
+      .then(d => {
+        if (!d.communes['2025']) { setLoadError(true); return; }
+        setData(d);
+      })
+      .catch(() => setLoadError(true));
+  }, []);
+
+  const loaded = !!data && !loadError;
+  const year = selectedYear;
+  const sy   = setSelectedYear;
+
+  return (
+    <>
+      <Topbar active="projections" />
+      <main className="shell">
+        <section className="page-header">
+          <div className="meta-row">
+            <span className="eyebrow">06 · Projections temporelles</span>
+            <span className="chip">Île-de-France · 2025–2027</span>
+            {loaded
+              ? <span className="chip ok"><span className="live-dot" />Projections chargées depuis /artifacts/</span>
+              : loadError
+              ? <span className="chip" style={{ color:'var(--status-err)' }}>Chargement échoué</span>
+              : <span className="chip">Chargement…</span>}
+          </div>
+          <h1 className="headline-1">Projections électorales 2025, 2026, 2027 — Île-de-France.</h1>
+          <p className="dek">
+            Scénarios prospectifs générés par le modèle Gradient Boosting pré-vote en extrapolant
+            les tendances socio-économiques observées (chômage, revenus médians, démographie).
+            Ces projections illustrent la sensibilité du vote aux dynamiques territoriales.
+          </p>
+        </section>
+
+        {!loaded && !loadError && (
+          <div className="loading-state">
+            <div style={{ width:20, height:20, border:'2px solid var(--line)', borderTopColor:'var(--ink)',
+              borderRadius:'50%', animation:'spin .8s linear infinite' }} />
+            Chargement des projections depuis /artifacts/…
+          </div>
+        )}
+        {loadError && (
+          <div className="panel" style={{ textAlign:'center', color:'var(--status-err)', padding:40 }}>
+            Impossible de charger les projections. Vérifiez que le pipeline ML a bien été exécuté
+            (les fichiers <code>projections_*.csv</code> doivent être présents dans /artifacts/).
+          </div>
+        )}
+        {loaded && (
+          <>
+            <TemporalCurves synthByDept={data.synthByDept} />
+            <HeatmapDepts   synthByDept={data.synthByDept} selectedYear={year} />
+            {/* Histogrammes avec sélecteur d'année intégré */}
+            <section className="section">
+              <div className="section-head">
+                <div><span className="eyebrow">Diagrammes de probabilité</span>
+                  <h2>Distribution des probabilités — {YEAR_LABELS[year]}</h2></div>
+                <div className="year-selector">
+                  {YEARS.map(y => (
+                    <button key={y} className={'year-btn' + (y === year ? ' active' : '')} onClick={() => sy(y)}>
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <HistoProbas communes={data.communes} selectedYear={year} onYearSelect={sy} />
+            </section>
+            <CommuneProjection communes={data.communes} />
+            <Methodology meta={data.meta} />
+          </>
+        )}
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
