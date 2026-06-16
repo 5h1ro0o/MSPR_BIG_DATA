@@ -38,7 +38,7 @@
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT COUNT(*) AS \"Communes Macron\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' AND prediction = '0'",
+          "rawSql": "SELECT COUNT(*) AS \"Communes Macron\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND prediction = '0'",
           "refId": "A"
         }
       ],
@@ -71,7 +71,7 @@
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT COUNT(*) AS \"Communes Le Pen\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' AND prediction = '1'",
+          "rawSql": "SELECT COUNT(*) AS \"Communes Le Pen\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND prediction = '1'",
           "refId": "A"
         }
       ],
@@ -96,15 +96,15 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Accuracy — GB post-T1 (set de test)",
-      "description": "Pourcentage de communes correctement classées sur le set de test (20%)",
+      "title": "R² Score — GB post-T1 (set de test)",
+      "description": "R² du modèle GB post-T1 sur le set de test (régression % Macron T2, affiché ×100).",
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "datasource": { "type": "postgres", "uid": "elections-postgres" },
       "targets": [
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT ROUND(metric_value * 100, 1) AS \"Accuracy (%)\" FROM gold.latest_model_metrics WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND metric_name = 'test_accuracy' LIMIT 1",
+          "rawSql": "SELECT ROUND(metric_value::numeric * 100, 1) AS \"R² (×100)\" FROM gold.latest_model_metrics WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND metric_name = 'test_r2' LIMIT 1",
           "refId": "A"
         }
       ],
@@ -120,7 +120,7 @@
           "color": { "fixedColor": "#59A14F", "mode": "fixed" },
           "unit": "percent",
           "decimals": 1,
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 50 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 50 }, { "color": "green", "value": 80 }] }
         },
         "overrides": []
       }
@@ -168,7 +168,7 @@
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT code_departement AS \"Département\", SUM(CASE WHEN prediction = '0' THEN 1 ELSE 0 END) AS \"Macron\", SUM(CASE WHEN prediction = '1' THEN 1 ELSE 0 END) AS \"Le Pen\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' GROUP BY code_departement ORDER BY code_departement",
+          "rawSql": "SELECT code_departement AS \"Département\", SUM(CASE WHEN prediction = '0' THEN 1 ELSE 0 END) AS \"Macron\", SUM(CASE WHEN prediction = '1' THEN 1 ELSE 0 END) AS \"Le Pen\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' GROUP BY code_departement ORDER BY code_departement",
           "refId": "A"
         }
       ],
@@ -209,7 +209,7 @@
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT libelle_commune AS \"Commune\", code_departement AS \"Dept\", ROUND(probability::numeric * 100, 1) AS \"Proba Le Pen (%)\", CASE WHEN correct THEN '✓' ELSE '✗' END AS \"Correct ?\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'classification_t2' AND prediction = '1' ORDER BY probability DESC LIMIT 20",
+          "rawSql": "SELECT libelle_commune AS \"Commune\", code_departement AS \"Dept\", ROUND(probability::numeric * 100, 1) AS \"Proba Le Pen (%)\", CASE WHEN correct = 1 THEN '✓' ELSE '✗' END AS \"Correct ?\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND prediction::text = '1' ORDER BY probability DESC LIMIT 20",
           "refId": "A"
         }
       ],
@@ -241,14 +241,14 @@
       "id": 7,
       "type": "table",
       "title": "Métriques comparatives des modèles ML",
-      "description": "Accuracy, F1, AUC-ROC pour tous les modèles entraînés. Source : gold.latest_model_metrics",
+      "description": "R², MAE, RMSE pour tous les modèles entraînés (régression % Macron T2). Source : gold.latest_model_metrics",
       "gridPos": { "h": 12, "w": 12, "x": 12, "y": 14 },
       "datasource": { "type": "postgres", "uid": "elections-postgres" },
       "targets": [
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT model_name AS \"Modèle\", feature_set AS \"Feature set\", metric_name AS \"Métrique\", ROUND(metric_value::numeric, 4) AS \"Valeur\" FROM gold.latest_model_metrics WHERE target = 'classification_t2' AND metric_name IN ('test_accuracy', 'test_roc_auc', 'test_f1_weighted', 'test_balanced_accuracy') ORDER BY model_name, feature_set, metric_name",
+          "rawSql": "SELECT model_name AS \"Modèle\", feature_set AS \"Feature set\", metric_name AS \"Métrique\", ROUND(metric_value::numeric, 4) AS \"Valeur\" FROM gold.latest_model_metrics WHERE target = 'regression_macron' AND metric_name IN ('test_r2', 'test_mae', 'test_rmse') ORDER BY model_name, feature_set, metric_name",
           "refId": "A"
         }
       ],
@@ -394,15 +394,15 @@
     {
       "id": 12,
       "type": "barchart",
-      "title": "Comparaison accuracy des modèles ML (tous les modèles)",
-      "description": "Accuracy sur le set de test (20 %) pour chaque modèle entraîné. Source : gold.latest_model_metrics",
+      "title": "Comparaison R² des modèles ML (tous les modèles)",
+      "description": "R² sur le set de test (20 %) pour chaque modèle entraîné (régression % Macron T2, affiché ×100). Source : gold.latest_model_metrics",
       "gridPos": { "h": 9, "w": 24, "x": 0, "y": 45 },
       "datasource": { "type": "postgres", "uid": "elections-postgres" },
       "targets": [
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT CONCAT(model_name, ' / ', feature_set) AS \"Modèle\", ROUND(metric_value::numeric * 100, 1) AS \"Accuracy (%)\" FROM gold.latest_model_metrics WHERE target = 'classification_t2' AND metric_name = 'test_accuracy' ORDER BY metric_value DESC",
+          "rawSql": "SELECT CONCAT(model_name, ' / ', feature_set) AS \"Modèle\", ROUND(metric_value::numeric * 100, 1) AS \"R² (×100)\" FROM gold.latest_model_metrics WHERE target = 'regression_macron' AND metric_name = 'test_r2' ORDER BY metric_value DESC",
           "refId": "A"
         }
       ],

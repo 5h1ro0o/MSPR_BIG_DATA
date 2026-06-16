@@ -63,17 +63,21 @@ log = get_logger(__name__)
 
 def _run_extract(name: str, fn, *args):
     """Wrapper thread-safe pour une extraction : retourne (name, DataFrame|None)."""
-    log.info(f"[extract|parallel] {name} …")
+    log.debug(f"[extract] {name} …")
     data = fn(*args)
     n = len(data) if data is not None else 0
-    log.info(f"[extract|parallel] {name} → {n} lignes")
+    log.debug(f"[extract] {name} → {n} lignes")
     return name, data
 
 
 def _persist_quality_checks(
-    qc_report, ge_result: dict, run_id: str, database_url: str
+    qc_report,
+    ge_result: dict,
+    run_id: str,
+    database_url: str,
+    started_at: "datetime" = None,
 ) -> None:
-    """Écrit les résultats qualité dans audit.quality_checks."""
+    """Écrit le run dans audit.pipeline_runs puis les checks dans audit.quality_checks."""
     try:
         from sqlalchemy import create_engine, text
 
@@ -141,7 +145,25 @@ def _persist_quality_checks(
 
         engine = create_engine(database_url, pool_pre_ping=True)
         now = datetime.utcnow()
+        t_start = started_at or now
         with engine.begin() as conn:
+            # Upsert pipeline_runs first so quality_checks FK is satisfied
+            conn.execute(
+                text(
+                    "INSERT INTO audit.pipeline_runs "
+                    "(run_id, started_at, ended_at, status, qc_passed) "
+                    "VALUES (:rid, :sa, :ea, :st, :qp) "
+                    "ON CONFLICT (run_id) DO UPDATE SET "
+                    "ended_at=EXCLUDED.ended_at, status=EXCLUDED.status, qc_passed=EXCLUDED.qc_passed"
+                ),
+                {
+                    "rid": run_id,
+                    "sa": t_start,
+                    "ea": now,
+                    "st": "SUCCESS" if qc_report.passed else "QC_FAIL",
+                    "qp": bool(qc_report.passed),
+                },
+            )
             for check_name, passed, details in checks:
                 conn.execute(
                     text(
@@ -158,7 +180,7 @@ def _persist_quality_checks(
                 )
         log.info(f"[QC] {len(checks)} contrôles persistés dans audit.quality_checks")
     except Exception as exc:
-        log.warning("[QC] Impossible d'écrire dans audit.quality_checks : %s", exc)
+        log.warning(f"[QC] Impossible d'écrire dans audit.quality_checks : {exc}")
 
 
 def run_pipeline() -> dict:
@@ -170,7 +192,8 @@ def run_pipeline() -> dict:
     Returns:
         Dictionnaire de métriques du run.
     """
-    run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%S") + "_" + uuid.uuid4().hex[:6]
+    pipeline_started_at = datetime.utcnow()
+    run_id = pipeline_started_at.strftime("%Y%m%dT%H%M%S") + "_" + uuid.uuid4().hex[:6]
     metrics = PipelineMetrics(run_id)
 
     log.info(f"=== PIPELINE START | run_id={run_id} ===")
@@ -179,7 +202,7 @@ def run_pipeline() -> dict:
     # Les 5 sources principales sont indépendantes (fichiers distincts).
     # ThreadPoolExecutor les exécute simultanément — traitement distribué.
     step = metrics.start_step("extract_parallel")
-    log.info("[extract] Lancement de 5 extractions en parallèle …")
+    log.debug("[extract] Lancement de 5 extractions en parallèle …")
 
     primary_tasks = {
         "elections": (extract_elections, settings.elections_dir),
@@ -211,9 +234,7 @@ def run_pipeline() -> dict:
     # ── Phase 2 : Nouvelles sources optionnelles (parallèles entre elles) ────
     if _NEW_SOURCES_AVAILABLE:
         step = metrics.start_step("extract_new_sources_parallel")
-        log.info(
-            "[extract] Nouvelles sources (sécurité / entreprises / associations) en parallèle …"
-        )
+        log.debug("[extract] Nouvelles sources optionnelles en parallèle …")
 
         optional_tasks = {
             "securite": (extract_securite, settings.data_root),
@@ -315,7 +336,7 @@ def run_pipeline() -> dict:
     step.finish()
 
     if not qc_report.passed:
-        log.error("Contrôles qualité ECHEC : %s", qc_report.errors)
+        log.error(f"Contrôles qualité ECHEC : {qc_report.errors}")
 
     step = metrics.start_step("ge_validation")
     ge_result = run_ge_suite(gold_dataset)
@@ -335,13 +356,19 @@ def run_pipeline() -> dict:
             load_to_db(gold_dataset, settings.database_url)
             step.finish()
     except Exception as e:
-        log.warning("Chargement PostgreSQL ignoré (non disponible) : %s", e)
+        log.warning(f"Chargement PostgreSQL ignoré (non disponible) : {e}")
 
     # ── Persistance des quality checks dans audit.quality_checks ─────────────
     if db_ok:
-        _persist_quality_checks(qc_report, ge_result, run_id, settings.database_url)
+        _persist_quality_checks(
+            qc_report, ge_result, run_id, settings.database_url, pipeline_started_at
+        )
 
     metrics_dict = metrics.to_dict()
+    metrics_dict["run_id"] = run_id
+    metrics_dict["n_communes"] = len(gold_dataset)
+    metrics_dict["qc_passed"] = qc_report.passed
+    metrics_dict["n_nulls"] = int(qc_report.stats.get("n_nulls", 0))
     metrics.save(settings.log_dir / "metrics")
 
     log.info(

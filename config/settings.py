@@ -53,11 +53,11 @@ class Settings(BaseSettings):
 
     @property
     def emploi_file(self) -> Path:
-        return self.data_root / "chomage" / "DS_RP_EMPLOI_LR_COMP_2022_data.csv"
+        return self.data_root / "chomage" / "base-cc-emploi-pop-active-2022.csv"
 
     @property
     def pauvrete_file(self) -> Path:
-        return self.data_root / "pauvreté" / "base-cc-filosofi-2017.xlsx"
+        return self.data_root / "pauvreté" / "base-cc-filosofi-2017.csv"
 
     @property
     def output_file(self) -> Path:

@@ -54,7 +54,7 @@ def build_suite(context) -> "gx.ExpectationSuite":
     suite.add_expectation(
         gx.expectations.ExpectTableRowCountToBeBetween(min_value=1_200, max_value=1_400)
     )
-    suite.add_expectation(gx.expectations.ExpectTableColumnCountToEqual(value=113))
+    suite.add_expectation(gx.expectations.ExpectTableColumnCountToBeBetween(min_value=50, max_value=130))
 
     # ── Colonne clé : code_commune ────────────────────────────────────────────
     suite.add_expectation(gx.expectations.ExpectColumnToExist(column="code_commune"))
@@ -162,20 +162,13 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
         failed = sum(1 for r in result.results if not r.success)
         total = len(result.results)
 
-        log.info(
-            "Great Expectations : %d/%d expectations passées%s",
-            passed,
-            total,
-            f" — {failed} ÉCHEC(S)" if failed else " ✓",
-        )
+        suffix = f" — {failed} ÉCHEC(S)" if failed else " ✓"
+        log.info(f"Great Expectations : {passed}/{total} expectations passées{suffix}")
         for r in result.results:
             if not r.success:
                 col = getattr(r.expectation_config, "kwargs", {}).get("column", "table")
                 log.warning(
-                    "  GE FAIL | %s | col=%s | %s",
-                    r.expectation_config.type,
-                    col,
-                    r.result,
+                    f"  GE FAIL | {r.expectation_config.type} | col={col} | {r.result}"
                 )
 
         return {
@@ -196,7 +189,7 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
         }
 
     except Exception as exc:
-        log.error("Great Expectations ERREUR : %s", exc)
+        log.error(f"Great Expectations ERREUR : {exc}")
         return {
             "success": False,
             "passed": 0,

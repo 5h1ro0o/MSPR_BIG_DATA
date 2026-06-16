@@ -93,8 +93,8 @@ def extract_associations(data_root: Path) -> pd.DataFrame | None:
         )
         return None
 
-    # Prendre le plus petit fichier d'abord (évite le fichier complet de 2 Go)
-    path = sorted(candidates, key=lambda p: p.stat().st_size)[0]
+    # Prendre le plus grand fichier disponible (export complet > import mensuel de 3-5 Mo)
+    path = sorted(candidates, key=lambda p: p.stat().st_size, reverse=True)[0]
     log.info(f"Chargement RNA : {path.name} ({path.stat().st_size / 1_048_576:.1f} Mo)")
 
     try:
@@ -123,8 +123,15 @@ def extract_associations(data_root: Path) -> pd.DataFrame | None:
         log.error(f"Colonne commune RNA introuvable. Colonnes: {list(df.columns)[:10]}")
         return None
 
-    # Extraire code commune INSEE depuis code postal si nécessaire
-    df["_cp"] = df[col_commune].astype(str).str.strip().str[:2]
+    # Extraire code département depuis code postal (gérer "75001.0" float-as-str)
+    df["_cp"] = (
+        df[col_commune]
+        .astype(str)
+        .str.strip()
+        .str.replace(r"\.0+$", "", regex=True)  # "75001.0" → "75001"
+        .str.zfill(5)
+        .str[:2]
+    )
     df = df[df["_cp"].isin(DEPTS_IDF)].copy()
 
     if df.empty:

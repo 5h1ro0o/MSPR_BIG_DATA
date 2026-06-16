@@ -37,7 +37,7 @@ class StepMetric:
 
     def finish(self) -> None:
         self.end_ts = time.time()
-        log.info(
+        log.debug(
             f"[{self.step}] {self.rows_out:,} lignes | "
             f"{self.cols_out} cols | {self.duration_s}s"
         )
@@ -68,4 +68,4 @@ class PipelineMetrics:
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / f"metrics_{self.run_id}.json"
         path.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
-        log.info(f"Métriques sauvegardées : {path}")
+        log.debug(f"Métriques sauvegardées : {path}")

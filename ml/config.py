@@ -101,7 +101,7 @@ FEATURES_SOCIO = [
     "pct_men_familiaux",
     "pct_men_couple_enfants",
     "pct_men_monoparentaux",
-    "revenu_median_2021",
+    "revenu_median_2021",   # MED21 dans dossier_complet si disponible, sinon ignoré
     "revenu_median_2017",
     "taux_pauvrete_2017",
     "rapport_interdecile_2017",
@@ -212,7 +212,7 @@ RF_PARAM_GRID = {
     "class_weight": ["balanced", None],
 }
 RF_PARAM_GRID_FAST = {
-    "n_estimators": [100, 200, 300],
+    "n_estimators": [100, 150, 200],   # réduit (was 300) pour tenir dans Docker
     "max_depth": [None, 10, 20],
     "min_samples_split": [2, 5, 10],
     "min_samples_leaf": [1, 2, 4],

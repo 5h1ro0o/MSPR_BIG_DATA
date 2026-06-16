@@ -86,14 +86,17 @@ class GradientBoostingModel(BaseModel):
 
     def build(self, **kwargs) -> Pipeline:
         """Construit le pipeline sklearn avec les paramètres fournis."""
-        params = {**GB_BEST_PARAMS, **kwargs}
         if self.task == "regression":
-            params.pop("class_weight", None)
-
-        if self.task == "classification":
-            estimator = GradientBoostingClassifier(**params)
-        else:
+            # En régression : supprime early stopping — avec 1 268 échantillons,
+            # validation_fraction=0.12 donne ~150 samples pour le critère d'arrêt,
+            # trop bruité → le modèle s'arrête après <30 arbres (underfitting sévère).
+            _STRIP = {"class_weight", "n_iter_no_change", "validation_fraction", "tol"}
+            params = {k: v for k, v in GB_BEST_PARAMS.items() if k not in _STRIP}
+            params.update(kwargs)
             estimator = GradientBoostingRegressor(**params)
+        else:
+            params = {**GB_BEST_PARAMS, **kwargs}
+            estimator = GradientBoostingClassifier(**params)
 
         return Pipeline(
             [
@@ -132,9 +135,9 @@ class GradientBoostingModel(BaseModel):
         print(f"\n{'='*60}")
         print(f"  Gradient Boosting — {self.task.upper()}")
         print(f"  Features : {len(clean_features)} (après anti-leakage)")
-        print(
-            f"  Train : {len(X_tr):,} communes  (early stopping interne sur {int(len(X_tr)*GB_BEST_PARAMS.get('validation_fraction',0.1)*100):.0f}%)"
-        )
+        vf = GB_BEST_PARAMS.get("validation_fraction", 0) if self.task == "classification" else 0
+        es_note = f"  (early stopping interne sur {int(len(X_tr)*vf*100):.0f}%)" if vf else ""
+        print(f"  Train : {len(X_tr):,} communes{es_note}")
         print(f"{'='*60}")
 
         t0 = time.time()
@@ -166,12 +169,13 @@ class GradientBoostingModel(BaseModel):
         )
         print(f"  Cross-validation {CV_FOLDS}-fold sur train ({scoring})...")
         self.cv_scores_ = cross_val_score(
-            self.build(),  # pipeline vierge — pas le modèle déjà fitté
+            self.build(),
             X_tr,
             y_train,
             cv=cv,
             scoring=scoring,
-            n_jobs=-1,
+            n_jobs=2,
+            error_score=np.nan,
         )
         print(
             f"  CV {scoring} : {self.cv_scores_.mean():.4f} ± {self.cv_scores_.std():.4f}"
@@ -179,13 +183,20 @@ class GradientBoostingModel(BaseModel):
 
         # Métriques train (diagnostique d'overfitting, non utilisées comme référence)
         y_pred_tr = self.pipeline.predict(X_tr)
-        train_acc = round(float(accuracy_score(y_arr, y_pred_tr)), 4)
+        if self.task == "regression":
+            train_score = round(float(r2_score(y_arr, y_pred_tr)), 4)
+            score_key = "train_r2"
+            cv_key = "cv_r2"
+        else:
+            train_score = round(float(accuracy_score(y_arr, y_pred_tr)), 4)
+            score_key = "train_accuracy"
+            cv_key = "cv_roc_auc"
 
         self.metrics = {
             "n_train": len(X_tr),
-            "train_accuracy": train_acc,  # indicateur d'overfitting, pas une performance cible
-            "cv_roc_auc": round(float(self.cv_scores_.mean()), 4),
-            "cv_roc_auc_std": round(float(self.cv_scores_.std()), 4),
+            score_key: train_score,
+            cv_key: round(float(self.cv_scores_.mean()), 4),
+            f"{cv_key}_std": round(float(self.cv_scores_.std()), 4),
             "training_time_s": elapsed,
             "n_features": len(clean_features),
             "n_estimators_used": n_estimators_used,
@@ -194,11 +205,9 @@ class GradientBoostingModel(BaseModel):
 
         self.model = self.pipeline
         self.is_trained = True
+        print(f"  {score_key} = {train_score:.4f}")
         print(
-            f"  train_accuracy = {train_acc:.4f} (un score de 1.0 signifie sur-apprentissage)"
-        )
-        print(
-            f"  Référence robuste : CV AUC = {self.metrics['cv_roc_auc']:.4f} ± {self.metrics['cv_roc_auc_std']:.4f}"
+            f"  Référence robuste : CV {cv_key} = {self.metrics[cv_key]:.4f} ± {self.metrics[f'{cv_key}_std']:.4f}"
         )
         return self.metrics
 
@@ -361,8 +370,13 @@ class GradientBoostingModel(BaseModel):
         X_clean_all = X_all[self.feature_names]
 
         y_pred = self.pipeline.predict(X_clean_test)
-        y_proba_all = self.pipeline.predict_proba(X_clean_all)[:, 1]
-        y_proba = self.pipeline.predict_proba(X_clean_test)[:, 1]
+        proba_all_2d = self.pipeline.predict_proba(X_clean_all)
+        proba_test_2d = self.pipeline.predict_proba(X_clean_test)
+        n_classes = proba_test_2d.shape[1] if proba_test_2d.ndim > 1 else 1
+        if n_classes < 2:
+            raise ValueError(f"plot_results requiert ≥ 2 classes (modèle entraîné avec 1 classe)")
+        y_proba_all = proba_all_2d[:, 1]
+        y_proba = proba_test_2d[:, 1]
 
         accuracy = accuracy_score(y_test, y_pred)
         roc_auc = roc_auc_score(y_test, y_proba)
@@ -482,15 +496,26 @@ class GradientBoostingModel(BaseModel):
         X: pd.DataFrame,
         commune_info: pd.DataFrame,
     ) -> pd.DataFrame:
-        y_pred = self.predict(X)
-        y_proba = self.predict_proba(X)
-
+        raw_pred = self.predict(X)
         result = commune_info.reset_index(drop=True).copy()
-        result["prediction"] = y_pred
-        result["vainqueur_predit"] = pd.Series(y_pred).map({0: "Macron", 1: "Le Pen"})
-        if y_proba is not None:
-            result["proba_macron"] = y_proba[:, 0].round(4)
-            result["proba_lepen"] = y_proba[:, 1].round(4)
+
+        if self.task == "regression":
+            # raw_pred = % Macron T2 (continu, ex. 67.3)
+            result["prediction"] = np.where(raw_pred >= 50, 0, 1)   # 0=Macron, 1=LePen
+            result["vainqueur_predit"] = np.where(raw_pred >= 50, "Macron", "Le Pen")
+            result["proba_macron"] = np.round(raw_pred / 100, 4)
+            result["proba_lepen"] = np.round(1 - raw_pred / 100, 4)
+            result["probability"] = result["proba_lepen"]            # colonne compatibilité Grafana
+            result["score_macron_predit"] = np.round(raw_pred, 2)
+        else:
+            y_proba = self.predict_proba(X)
+            result["prediction"] = raw_pred
+            result["vainqueur_predit"] = pd.Series(raw_pred).map({0: "Macron", 1: "Le Pen"})
+            if y_proba is not None:
+                result["proba_macron"] = y_proba[:, 0].round(4)
+                if y_proba.ndim > 1 and y_proba.shape[1] >= 2:
+                    result["proba_lepen"] = y_proba[:, 1].round(4)
+                    result["probability"] = y_proba[:, 1].round(4)
         return result
 
     def _print_summary(self):

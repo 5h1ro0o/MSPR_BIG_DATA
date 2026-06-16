@@ -21,11 +21,14 @@ from sklearn.metrics import (
     balanced_accuracy_score,
     cohen_kappa_score,
     f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
     roc_auc_score,
 )
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score
+from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
-from sklearn.tree import DecisionTreeClassifier, export_text
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor, export_text
 
 from ml.config import ARTIFACTS, RANDOM_STATE
 from ml.models.base import BaseModel
@@ -53,8 +56,12 @@ class DecisionTreeModel(BaseModel):
         self.task = task
 
     def build(self, **kwargs) -> Pipeline:
-        params = {"class_weight": "balanced", **kwargs}
-        dt = DecisionTreeClassifier(random_state=RANDOM_STATE, **params)
+        if self.task == "regression":
+            params = {k: v for k, v in kwargs.items() if k != "class_weight"}
+            dt = DecisionTreeRegressor(random_state=RANDOM_STATE, **params)
+        else:
+            params = {"class_weight": "balanced", **kwargs}
+            dt = DecisionTreeClassifier(random_state=RANDOM_STATE, **params)
         return Pipeline(
             [
                 ("imputer", SimpleImputer(strategy="median")),
@@ -74,14 +81,30 @@ class DecisionTreeModel(BaseModel):
         t0 = time.time()
         self.feature_names = list(X_train.columns)
 
-        skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+        if self.task == "regression":
+            cv = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+            scoring_grid = "r2"
+            scoring_cv = "r2"
+            reg_param_grid = {
+                "dt__max_depth": [3, 5, 8, 10, None],
+                "dt__min_samples_split": [5, 10, 20],
+                "dt__min_samples_leaf": [2, 5, 10],
+                "dt__ccp_alpha": [0.0, 0.001, 0.005],
+            }
+            grid_to_use = reg_param_grid
+        else:
+            cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+            scoring_grid = "balanced_accuracy"
+            scoring_cv = "roc_auc"
+            grid_to_use = DT_PARAM_GRID
+
         if use_grid_search:
             base = self.build()
             search = GridSearchCV(
                 base,
-                DT_PARAM_GRID,
-                cv=skf,
-                scoring="balanced_accuracy",
+                grid_to_use,
+                cv=cv,
+                scoring=scoring_grid,
                 n_jobs=-1,
                 refit=True,
             )
@@ -95,22 +118,25 @@ class DecisionTreeModel(BaseModel):
             self.model.fit(X_train, y_train)
             best_params = {}
 
-        train_acc = self.model.score(X_train, y_train)
-        cv_aucs = cross_val_score(
+        train_score = self.model.score(X_train, y_train)
+        cv_scores = cross_val_score(
             self.build(),
             X_train,
             y_train,
-            cv=skf,
-            scoring="roc_auc",
+            cv=cv,
+            scoring=scoring_cv,
             n_jobs=-1,
+            error_score=np.nan,
         )
 
+        score_key = "train_r2" if self.task == "regression" else "train_accuracy"
+        cv_key = f"cv_{scoring_cv}"
         self.metrics = {
             "n_train": len(X_train),
-            "train_accuracy": round(float(train_acc), 4),
+            score_key: round(float(train_score), 4),
             "training_time_s": round(time.time() - t0, 2),
-            "cv_roc_auc": round(float(cv_aucs.mean()), 4),
-            "cv_roc_auc_std": round(float(cv_aucs.std()), 4),
+            cv_key: round(float(np.nanmean(cv_scores)), 4),
+            f"{cv_key}_std": round(float(np.nanstd(cv_scores)), 4),
             "best_params": {k.replace("dt__", ""): v for k, v in best_params.items()},
         }
         self.is_trained = True
@@ -120,7 +146,8 @@ class DecisionTreeModel(BaseModel):
         return self.metrics
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-        return self.model.predict(X).astype(int)
+        raw = self.model.predict(X)
+        return raw if self.task == "regression" else raw.astype(int)
 
     def predict_proba(self, X: pd.DataFrame) -> Optional[np.ndarray]:
         try:
@@ -130,36 +157,49 @@ class DecisionTreeModel(BaseModel):
 
     def evaluate(self, X_test: pd.DataFrame, y_test: pd.Series) -> dict:
         y_pred = self.predict(X_test)
-        y_proba = self.predict_proba(X_test)
-        baseline = float(pd.Series(y_test).value_counts(normalize=True).max())
 
-        test_acc = accuracy_score(y_test, y_pred)
-        test_auc = roc_auc_score(y_test, y_proba[:, 1]) if y_proba is not None else None
+        if self.task == "regression":
+            y_true = np.asarray(y_test, dtype=float)
+            y_hat = np.asarray(y_pred, dtype=float)
+            self.metrics.update({
+                "test_n_samples": len(X_test),
+                "test_r2": round(float(r2_score(y_true, y_hat)), 4),
+                "test_mae": round(float(mean_absolute_error(y_true, y_hat)), 4),
+                "test_rmse": round(float(np.sqrt(mean_squared_error(y_true, y_hat))), 4),
+            })
+            print(
+                f"  DT Régression — R²={self.metrics['test_r2']:.4f} "
+                f"MAE={self.metrics['test_mae']:.4f} "
+                f"RMSE={self.metrics['test_rmse']:.4f}"
+            )
+        else:
+            y_proba = self.predict_proba(X_test)
+            baseline = float(pd.Series(y_test).value_counts(normalize=True).max())
+            test_acc = accuracy_score(y_test, y_pred)
+            try:
+                if y_proba is not None and y_proba.ndim > 1 and y_proba.shape[1] >= 2 and len(np.unique(y_test)) >= 2:
+                    test_auc = roc_auc_score(y_test, y_proba[:, 1])
+                else:
+                    test_auc = None
+            except Exception:
+                test_auc = None
 
-        self.metrics.update(
-            {
+            self.metrics.update({
                 "test_n_samples": len(X_test),
                 "test_n_correct": int((y_pred == y_test.values).sum()),
                 "test_accuracy": round(test_acc, 4),
-                "test_balanced_accuracy": round(
-                    float(balanced_accuracy_score(y_test, y_pred)), 4
-                ),
-                "test_f1_weighted": round(
-                    float(f1_score(y_test, y_pred, average="weighted")), 4
-                ),
-                "test_f1_macro": round(
-                    float(f1_score(y_test, y_pred, average="macro")), 4
-                ),
+                "test_balanced_accuracy": round(float(balanced_accuracy_score(y_test, y_pred)), 4),
+                "test_f1_weighted": round(float(f1_score(y_test, y_pred, average="weighted")), 4),
+                "test_f1_macro": round(float(f1_score(y_test, y_pred, average="macro")), 4),
                 "test_cohen_kappa": round(float(cohen_kappa_score(y_test, y_pred)), 4),
-                "test_roc_auc": round(test_auc, 4) if test_auc else None,
+                "test_roc_auc": round(test_auc, 4) if test_auc is not None else None,
                 "baseline_accuracy": round(baseline, 4),
                 "improvement_over_baseline": round(test_acc - baseline, 4),
                 "class_distribution": {
                     str(k): round(v, 4)
                     for k, v in pd.Series(y_test).value_counts(normalize=True).items()
                 },
-            }
-        )
+            })
         return self.metrics
 
     def get_feature_importance(self, top_n: int = 25) -> pd.DataFrame:
@@ -180,14 +220,27 @@ class DecisionTreeModel(BaseModel):
     def get_predictions_with_communes(
         self, X_all: pd.DataFrame, comm: pd.DataFrame
     ) -> pd.DataFrame:
-        preds = self.predict(X_all)
-        probas = self.predict_proba(X_all)
+        raw_pred = self.predict(X_all)
         df = comm.copy().reset_index(drop=True)
-        df["prediction"] = preds
-        if probas is not None:
-            df["proba_macron"] = probas[:, 0].round(4)
-            df["proba_lepen"] = probas[:, 1].round(4)
-            df["probability"] = probas[:, 1].round(4)
+        if self.task == "regression":
+            df["prediction"] = np.where(raw_pred >= 50, 0, 1)
+            df["vainqueur_predit"] = np.where(raw_pred >= 50, "Macron", "Le Pen")
+            df["proba_macron"] = np.round(raw_pred / 100, 4)
+            df["proba_lepen"] = np.round(1 - raw_pred / 100, 4)
+            df["probability"] = df["proba_lepen"]
+            df["score_macron_predit"] = np.round(raw_pred, 2)
+        else:
+            df["prediction"] = raw_pred
+            df["vainqueur_predit"] = pd.Series(raw_pred).map({0: "Macron", 1: "Le Pen"})
+            probas = self.predict_proba(X_all)
+            if probas is not None:
+                df["proba_macron"] = probas[:, 0].round(4)
+                if probas.ndim > 1 and probas.shape[1] >= 2:
+                    df["proba_lepen"] = probas[:, 1].round(4)
+                    df["probability"] = probas[:, 1].round(4)
+                else:
+                    df["proba_lepen"] = 0.0
+                    df["probability"] = 0.0
         return df
 
     def _export_rules(self) -> None:
@@ -203,23 +256,24 @@ class DecisionTreeModel(BaseModel):
         except Exception as e:
             print(f"  [WARN] Export règles DT : {e}")
 
-        try:
-            from sklearn.tree import export_graphviz
+        if self.task == "classification":
+            try:
+                from sklearn.tree import export_graphviz
 
-            dt_step = self.model.named_steps["dt"]
-            dot_data = export_graphviz(
-                dt_step,
-                feature_names=self.feature_names,
-                class_names=["Macron (0)", "Le Pen (1)"],
-                filled=True,
-                rounded=True,
-                max_depth=4,
-            )
-            dot_path = self.artifact_dir / "decision_tree.dot"
-            dot_path.write_text(dot_data, encoding="utf-8")
-            print(f"  Arbre DT DOT : {dot_path}")
-        except Exception:
-            pass
+                dt_step = self.model.named_steps["dt"]
+                dot_data = export_graphviz(
+                    dt_step,
+                    feature_names=self.feature_names,
+                    class_names=["Macron (0)", "Le Pen (1)"],
+                    filled=True,
+                    rounded=True,
+                    max_depth=4,
+                )
+                dot_path = self.artifact_dir / "decision_tree.dot"
+                dot_path.write_text(dot_data, encoding="utf-8")
+                print(f"  Arbre DT DOT : {dot_path}")
+            except Exception:
+                pass
 
     def export_tree_rules(self) -> str:
         dt_step = self.model.named_steps["dt"]

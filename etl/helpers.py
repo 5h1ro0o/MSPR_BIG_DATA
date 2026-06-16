@@ -48,6 +48,7 @@ def impute_missing(df: pd.DataFrame, cols: list) -> pd.DataFrame:
     Impute les valeurs manquantes :
       - médiane si |skewness| > 1  (distribution asymétrique)
       - moyenne sinon
+      - 0.0 si la colonne est entièrement nulle (source absente)
     """
     for col in cols:
         if col not in df.columns:
@@ -58,6 +59,8 @@ def impute_missing(df: pd.DataFrame, cols: list) -> pd.DataFrame:
             continue
         skew = df[col].skew()
         filler = df[col].median() if abs(skew) > 1 else df[col].mean()
+        if pd.isna(filler):
+            filler = 0.0  # colonne entièrement absente — source non disponible
         df[col] = df[col].fillna(filler)
     return df
 

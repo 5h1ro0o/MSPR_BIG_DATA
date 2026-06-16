@@ -180,7 +180,8 @@ class RandomForestModel(BaseModel):
         if self.best_params_:
             self.metrics["best_params"] = self.best_params_
         if self.cv_results_:
-            self.metrics["cv_best_score"] = self.cv_results_.get("best_score")
+            self.metrics["cv_r2"] = self.cv_results_.get("best_score")
+            self.metrics["cv_r2_std"] = self.cv_results_.get("best_score_std")
 
         self.model = self.pipeline
         self.is_trained = True
@@ -213,14 +214,16 @@ class RandomForestModel(BaseModel):
         )
         scoring = "f1_weighted" if self.task == "classification" else "r2"
 
-        print(f"  RandomizedSearchCV : {n_iter} itérations × {CV_FOLDS} folds...")
+        # n_jobs limité à 4 pour éviter OOM Docker avec RF × 15 iter × 5 folds
+        safe_jobs = min(self.n_jobs if self.n_jobs > 0 else 4, 4)
+        print(f"  RandomizedSearchCV : {n_iter} itérations × {CV_FOLDS} folds (n_jobs={safe_jobs})...")
         search = RandomizedSearchCV(
             base_pipeline,
             param_distributions=pipeline_grid,
             n_iter=n_iter,
             scoring=scoring,
             cv=cv,
-            n_jobs=self.n_jobs,
+            n_jobs=safe_jobs,
             random_state=RANDOM_STATE,
             verbose=0,
             refit=True,
@@ -230,8 +233,10 @@ class RandomForestModel(BaseModel):
         self.best_params_ = {
             k.replace("rf__", ""): v for k, v in search.best_params_.items()
         }
+        best_idx = search.best_index_
         self.cv_results_ = {
             "best_score": round(search.best_score_, 4),
+            "best_score_std": round(float(search.cv_results_["std_test_score"][best_idx]), 4),
             "best_params": self.best_params_,
         }
         print(f"  Meilleur score CV ({scoring}) : {search.best_score_:.4f}")
@@ -432,21 +437,27 @@ class RandomForestModel(BaseModel):
         X: pd.DataFrame,
         commune_info: pd.DataFrame,
     ) -> pd.DataFrame:
-        """
-        Combine les prédictions avec les informations des communes.
-
-        Returns:
-            DataFrame avec code_commune, libelle, prédiction (et proba si classif).
-        """
-        y_pred = self.predict(X)
+        raw_pred = self.predict(X)
         result = commune_info.copy().reset_index(drop=True)
-        result["prediction"] = y_pred
 
-        if self.task == "classification":
+        if self.task == "regression":
+            result["prediction"] = np.where(raw_pred >= 50, 0, 1)
+            result["vainqueur_predit"] = np.where(raw_pred >= 50, "Macron", "Le Pen")
+            result["proba_macron"] = np.round(raw_pred / 100, 4)
+            result["proba_lepen"] = np.round(1 - raw_pred / 100, 4)
+            result["probability"] = result["proba_lepen"]
+            result["score_macron_predit"] = np.round(raw_pred, 2)
+        else:
+            result["prediction"] = raw_pred
             y_prob = self.predict_proba(X)
             if y_prob is not None:
                 for i, cls in enumerate(self.pipeline.named_steps["rf"].classes_):
                     result[f"proba_{cls}"] = y_prob[:, i].round(3)
+                result["vainqueur_predit"] = pd.Series(raw_pred).map({0: "Macron", 1: "Le Pen"})
+                if y_prob.shape[1] >= 2:
+                    result["proba_macron"] = y_prob[:, 0].round(4)
+                    result["proba_lepen"] = y_prob[:, 1].round(4)
+                    result["probability"] = y_prob[:, 1].round(4)
 
         return result
 

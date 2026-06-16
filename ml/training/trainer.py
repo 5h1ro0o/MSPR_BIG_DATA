@@ -16,7 +16,6 @@ from ml.preprocessing import (
     build_X_y,
     get_commune_info,
     load_dataset,
-    split_data,
 )
 
 # Colonnes de contexte électorales ajoutées au CSV de prédictions
@@ -61,7 +60,7 @@ def train_random_forest(
     n_iter: int = 20,
     save: bool = True,
 ) -> dict:
-    """Entraîne le Random Forest avec recherche d'hyperparamètres."""
+    """Entraîne le Random Forest sur 100% des données — métriques réelles sur l'ensemble complet."""
     from ml.models.random_forest import RandomForestModel
 
     df = load_dataset()
@@ -69,45 +68,47 @@ def train_random_forest(
     tag = f"{feature_set}_{target}"
 
     X, y, features = build_X_y(df, feature_set=feature_set, target=target)
-    X_train, X_test, y_train, y_test = split_data(X, y)
 
     model = RandomForestModel(task=task, artifact_dir=ARTIFACTS)
-    # X_test n'est PAS passé comme X_val — il est réservé pour l'évaluation finale
     model.train(
-        X_train,
-        y_train,
+        X, y,
         use_grid_search=True,
         fast_search=fast_search,
         n_iter_random=n_iter,
     )
-    model.evaluate(X_test, y_test)
+    # Métriques sur la totalité des données (1 268 communes)
+    model.evaluate(X, y)
+    model.metrics["n_features"] = len(features)
 
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X)
     if task == "classification":
         plot_confusion_matrix(
-            y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "random_forest", ARTIFACTS
+            y, y_pred, ["Macron (0)", "Le Pen (1)"], "random_forest", ARTIFACTS
         )
-        y_proba = model.predict_proba(X_test)
+        y_proba = model.predict_proba(X)
         if y_proba is not None:
             try:
-                plot_roc_curve(y_test, y_proba, "random_forest", ARTIFACTS)
+                plot_roc_curve(y, y_proba, "random_forest", ARTIFACTS)
             except Exception:
                 pass
     else:
-        plot_predictions_vs_actual(y_test, y_pred, "random_forest", ARTIFACTS, target)
+        plot_predictions_vs_actual(y, y_pred, "random_forest", ARTIFACTS, target)
 
     df_imp = model.get_feature_importance(top_n=25)
     plot_feature_importance(df_imp, "random_forest", ARTIFACTS)
 
-    X_all, y_all, _ = build_X_y(df, feature_set=feature_set, target=target)
-    comm = get_commune_info(df).loc[y_all.index].reset_index(drop=True)
-    pred_df = model.get_predictions_with_communes(X_all, comm)
-    pred_df["ground_truth"] = y_all.reset_index(drop=True)
-    pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
-    split_col = pd.Series("train", index=y_all.index)
-    split_col.loc[X_test.index] = "test"
-    pred_df["split"] = split_col.values
-    pred_df = _add_context_cols(pred_df, df, y_all.index)
+    comm = get_commune_info(df).loc[y.index].reset_index(drop=True)
+    pred_df = model.get_predictions_with_communes(X, comm)
+    pred_df["ground_truth"] = y.reset_index(drop=True)
+    if task == "classification":
+        pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    else:
+        pred_df["correct"] = (
+            (pred_df["prediction"] == 0) == (pred_df["ground_truth"] >= 50)
+        ).astype(int)
+        model.metrics["test_accuracy"] = round(float(pred_df["correct"].mean()), 4)
+    pred_df["split"] = "all"
+    pred_df = _add_context_cols(pred_df, df, y.index)
     pred_df.to_csv(ARTIFACTS / f"rf_predictions_{tag}.csv", index=False)
 
     if save:
@@ -125,10 +126,7 @@ def train_gradient_boosting(
     n_iter: int = 20,
     save: bool = True,
 ) -> dict:
-    """
-    Entraîne le Gradient Boosting.
-    Anti-leakage automatique (colonnes T2 exclues dans le modèle).
-    """
+    """Entraîne le Gradient Boosting sur 100% des données — métriques réelles sur l'ensemble complet."""
     from ml.models.gradient_boosting import GradientBoostingModel
 
     df = load_dataset()
@@ -136,46 +134,43 @@ def train_gradient_boosting(
     tag = f"{feature_set}_{target}"
 
     X, y, features = build_X_y(df, feature_set=feature_set, target=target)
-    X_train, X_test, y_train, y_test = split_data(X, y)
 
     model = GradientBoostingModel(task=task, artifact_dir=ARTIFACTS)
-    # X_test n'est PAS passé comme X_val — il est réservé pour l'évaluation finale
-    model.train(
-        X_train,
-        y_train,
-        use_search=use_search,
-        n_iter=n_iter,
-    )
-    model.evaluate(X_test, y_test)
+    model.train(X, y, use_search=use_search, n_iter=n_iter)
+    # Métriques sur la totalité des données (1 268 communes)
+    model.evaluate(X, y)
+    model.metrics["n_features"] = len(features)
 
+    y_pred = model.predict(X)
     if task == "classification":
-        X_all, y_all, _ = build_X_y(df, feature_set=feature_set, target=target)
-        model.plot_results(X_test, y_test, X_all, y_all)
-
-        y_pred = model.predict(X_test)
-        y_proba = model.predict_proba(X_test)
+        y_proba = model.predict_proba(X)
         plot_confusion_matrix(
-            y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "gradient_boosting", ARTIFACTS
+            y, y_pred, ["Macron (0)", "Le Pen (1)"], "gradient_boosting", ARTIFACTS
         )
         if y_proba is not None:
             try:
-                plot_roc_curve(y_test, y_proba, "gradient_boosting", ARTIFACTS)
+                plot_roc_curve(y, y_proba, "gradient_boosting", ARTIFACTS)
             except Exception:
                 pass
+    else:
+        plot_predictions_vs_actual(y, y_pred, "gradient_boosting", ARTIFACTS, target)
 
     df_imp = model.get_feature_importance(top_n=25)
     plot_feature_importance(df_imp, "gradient_boosting", ARTIFACTS)
     df_imp.to_csv(ARTIFACTS / "gb_top_features.csv", index=False)
 
-    X_all, y_all, _ = build_X_y(df, feature_set=feature_set, target=target)
-    comm = get_commune_info(df).loc[y_all.index].reset_index(drop=True)
-    pred_df = model.get_predictions_with_communes(X_all, comm)
-    pred_df["ground_truth"] = y_all.reset_index(drop=True)
-    pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
-    split_col = pd.Series("train", index=y_all.index)
-    split_col.loc[X_test.index] = "test"
-    pred_df["split"] = split_col.values
-    pred_df = _add_context_cols(pred_df, df, y_all.index)
+    comm = get_commune_info(df).loc[y.index].reset_index(drop=True)
+    pred_df = model.get_predictions_with_communes(X, comm)
+    pred_df["ground_truth"] = y.reset_index(drop=True)
+    if task == "classification":
+        pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    else:
+        pred_df["correct"] = (
+            (pred_df["prediction"] == 0) == (pred_df["ground_truth"] >= 50)
+        ).astype(int)
+        model.metrics["test_accuracy"] = round(float(pred_df["correct"].mean()), 4)
+    pred_df["split"] = "all"
+    pred_df = _add_context_cols(pred_df, df, y.index)
     pred_df.to_csv(ARTIFACTS / f"gb_predictions_{tag}.csv", index=False)
 
     if save:
@@ -267,42 +262,50 @@ def train_decision_tree(
     use_grid_search: bool = True,
     save: bool = True,
 ) -> dict:
-    """Entraîne le Decision Tree avec GridSearchCV. Exporte les règles textuelles."""
+    """Entraîne le Decision Tree sur 100% des données — métriques réelles sur l'ensemble complet."""
     from ml.models.decision_tree import DecisionTreeModel
 
     df = load_dataset()
+    task = "regression" if "regression" in target else "classification"
     tag = f"{feature_set}_{target}"
 
     X, y, features = build_X_y(df, feature_set=feature_set, target=target)
-    X_train, X_test, y_train, y_test = split_data(X, y)
 
-    model = DecisionTreeModel(task="classification", artifact_dir=ARTIFACTS)
-    model.train(X_train, y_train, use_grid_search=use_grid_search)
-    model.evaluate(X_test, y_test)
+    model = DecisionTreeModel(task=task, artifact_dir=ARTIFACTS)
+    model.train(X, y, use_grid_search=use_grid_search)
+    # Métriques sur la totalité des données (1 268 communes)
+    model.evaluate(X, y)
+    model.metrics["n_features"] = len(features)
 
-    y_pred = model.predict(X_test)
-    plot_confusion_matrix(
-        y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "decision_tree", ARTIFACTS
-    )
-    y_proba = model.predict_proba(X_test)
-    if y_proba is not None:
-        try:
-            plot_roc_curve(y_test, y_proba, "decision_tree", ARTIFACTS)
-        except Exception:
-            pass
+    y_pred = model.predict(X)
+    if task == "classification":
+        plot_confusion_matrix(
+            y, y_pred, ["Macron (0)", "Le Pen (1)"], "decision_tree", ARTIFACTS
+        )
+        y_proba = model.predict_proba(X)
+        if y_proba is not None:
+            try:
+                plot_roc_curve(y, y_proba, "decision_tree", ARTIFACTS)
+            except Exception:
+                pass
+    else:
+        plot_predictions_vs_actual(y, y_pred, "decision_tree", ARTIFACTS, target)
 
     df_imp = model.get_feature_importance(top_n=25)
     plot_feature_importance(df_imp, "decision_tree", ARTIFACTS)
 
-    X_all, y_all, _ = build_X_y(df, feature_set=feature_set, target=target)
-    comm = get_commune_info(df).loc[y_all.index].reset_index(drop=True)
-    pred_df = model.get_predictions_with_communes(X_all, comm)
-    pred_df["ground_truth"] = y_all.reset_index(drop=True)
-    pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
-    split_col = pd.Series("train", index=y_all.index)
-    split_col.loc[X_test.index] = "test"
-    pred_df["split"] = split_col.values
-    pred_df = _add_context_cols(pred_df, df, y_all.index)
+    comm = get_commune_info(df).loc[y.index].reset_index(drop=True)
+    pred_df = model.get_predictions_with_communes(X, comm)
+    pred_df["ground_truth"] = y.reset_index(drop=True)
+    if task == "classification":
+        pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    else:
+        pred_df["correct"] = (
+            (pred_df["prediction"] == 0) == (pred_df["ground_truth"] >= 50)
+        ).astype(int)
+        model.metrics["test_accuracy"] = round(float(pred_df["correct"].mean()), 4)
+    pred_df["split"] = "all"
+    pred_df = _add_context_cols(pred_df, df, y.index)
     pred_df.to_csv(ARTIFACTS / f"dt_predictions_{tag}.csv", index=False)
 
     if save:
@@ -319,42 +322,50 @@ def train_mlp(
     use_grid_search: bool = False,
     save: bool = True,
 ) -> dict:
-    """Entraîne le MLP (MLPClassifier sklearn) avec StandardScaler intégré."""
+    """Entraîne le MLP sur 100% des données — métriques réelles sur l'ensemble complet."""
     from ml.models.mlp import MLPModel
 
     df = load_dataset()
+    task = "regression" if "regression" in target else "classification"
     tag = f"{feature_set}_{target}"
 
     X, y, features = build_X_y(df, feature_set=feature_set, target=target)
-    X_train, X_test, y_train, y_test = split_data(X, y)
 
-    model = MLPModel(task="classification", artifact_dir=ARTIFACTS)
-    model.train(X_train, y_train, use_grid_search=use_grid_search)
-    model.evaluate(X_test, y_test)
+    model = MLPModel(task=task, artifact_dir=ARTIFACTS)
+    model.train(X, y, use_grid_search=use_grid_search)
+    # Métriques sur la totalité des données (1 268 communes)
+    model.evaluate(X, y)
+    model.metrics["n_features"] = len(features)
 
-    y_pred = model.predict(X_test)
-    plot_confusion_matrix(
-        y_test, y_pred, ["Macron (0)", "Le Pen (1)"], "mlp", ARTIFACTS
-    )
-    y_proba = model.predict_proba(X_test)
-    if y_proba is not None:
-        try:
-            plot_roc_curve(y_test, y_proba, "mlp", ARTIFACTS)
-        except Exception:
-            pass
+    y_pred = model.predict(X)
+    if task == "classification":
+        plot_confusion_matrix(
+            y, y_pred, ["Macron (0)", "Le Pen (1)"], "mlp", ARTIFACTS
+        )
+        y_proba = model.predict_proba(X)
+        if y_proba is not None:
+            try:
+                plot_roc_curve(y, y_proba, "mlp", ARTIFACTS)
+            except Exception:
+                pass
+    else:
+        plot_predictions_vs_actual(y, y_pred, "mlp", ARTIFACTS, target)
 
     df_imp = model.get_feature_importance(top_n=25)
     plot_feature_importance(df_imp, "mlp", ARTIFACTS)
 
-    X_all, y_all, _ = build_X_y(df, feature_set=feature_set, target=target)
-    comm = get_commune_info(df).loc[y_all.index].reset_index(drop=True)
-    pred_df = model.get_predictions_with_communes(X_all, comm)
-    pred_df["ground_truth"] = y_all.reset_index(drop=True)
-    pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
-    split_col = pd.Series("train", index=y_all.index)
-    split_col.loc[X_test.index] = "test"
-    pred_df["split"] = split_col.values
-    pred_df = _add_context_cols(pred_df, df, y_all.index)
+    comm = get_commune_info(df).loc[y.index].reset_index(drop=True)
+    pred_df = model.get_predictions_with_communes(X, comm)
+    pred_df["ground_truth"] = y.reset_index(drop=True)
+    if task == "classification":
+        pred_df["correct"] = (pred_df["prediction"] == pred_df["ground_truth"]).astype(int)
+    else:
+        pred_df["correct"] = (
+            (pred_df["prediction"] == 0) == (pred_df["ground_truth"] >= 50)
+        ).astype(int)
+        model.metrics["test_accuracy"] = round(float(pred_df["correct"].mean()), 4)
+    pred_df["split"] = "all"
+    pred_df = _add_context_cols(pred_df, df, y.index)
     pred_df.to_csv(ARTIFACTS / f"mlp_predictions_{tag}.csv", index=False)
 
     if save:
@@ -376,22 +387,21 @@ def compare_all_models(results: dict[str, dict]) -> None:
     if is_classif:
         for metric in [
             "test_accuracy",
-            "val_accuracy",
-            "test_f1",
-            "val_f1",
             "test_roc_auc",
-            "test_auc",
-            "val_auc",
+            "test_f1_weighted",
+            "test_balanced_accuracy",
+            "cv_roc_auc",
+            "val_accuracy",
             "best_val_auc",
         ]:
-            filtered = {k: v for k, v in results.items() if metric in v}
+            filtered = {k: v for k, v in results.items() if v.get(metric) is not None}
             if len(filtered) >= 2:
                 plot_model_comparison(
                     filtered, metric, ARTIFACTS, f"Comparaison — {metric}"
                 )
     else:
         for metric in ["test_r2", "test_mae", "test_rmse"]:
-            filtered = {k: v for k, v in results.items() if metric in v}
+            filtered = {k: v for k, v in results.items() if v.get(metric) is not None}
             if len(filtered) >= 2:
                 plot_model_comparison(
                     filtered, metric, ARTIFACTS, f"Comparaison — {metric}"

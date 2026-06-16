@@ -17,18 +17,24 @@
 <script type="text/babel" src="components/shared.jsx"></script>
 <script type="text/babel">
 function Header() {
+  const run = (MOCK.runs && MOCK.runs[0]) || {};
+  const statusOk = !run.status || run.status === 'SUCCESS';
   return (
     <section className="page-header">
       <div className="meta-row">
         <span className="eyebrow">04 · Pipeline ETL</span>
-        <span className="chip ok"><span className="live-dot"></span>Dernier run réussi</span>
-        <span className="chip">run_id · 20260507T121254_2e4940</span>
+        <span className={'chip ' + (statusOk ? 'ok' : 'warn')}>
+          <span className="live-dot"></span>
+          {statusOk ? 'Dernier run réussi' : 'Dernier run partiel'}
+        </span>
+        {run.id && <span className="chip">run_id · {run.id}</span>}
       </div>
       <h1 className="headline-1">Du fichier brut au dataset ML — 14 étapes.</h1>
       <p className="dek">
         Architecture Medallion bronze / silver / gold. Fetch automatique depuis data.gouv.fr,
         transformation par couche, 14 quality gates, chargement PostgreSQL.
-        Durée totale réelle : 1 min 33 s · 1 268 communes · 113 colonnes.
+        {run.dur && ` Durée totale réelle : ${run.dur}`}
+        {run.communes ? ` · ${run.communes.toLocaleString('fr-FR')} communes · 113 colonnes.` : ' · 1 268 communes · 113 colonnes.'}
       </p>
     </section>
   );
@@ -167,7 +173,7 @@ function Steps() {
       <div className="section-head">
         <div>
           <span className="eyebrow">Chronologie</span>
-          <h2>14 étapes — durées réelles (run 07/05/2026)</h2>
+          <h2>14 étapes — durées réelles{MOCK.runs && MOCK.runs[0] ? ` (run ${MOCK.runs[0].start})` : ''}</h2>
         </div>
         <span className="chip">Total ETL : 93,1 s</span>
       </div>
@@ -593,6 +599,10 @@ function CriteresSelection() {
 }
 
 function App() {
+  const [, forceUpdate] = React.useState(0);
+  React.useEffect(() => {
+    window.loadArtifacts().then(() => forceUpdate(n => n + 1));
+  }, []);
   return (
     <>
       <Topbar active="pipeline" />

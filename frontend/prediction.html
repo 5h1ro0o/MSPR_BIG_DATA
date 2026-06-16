@@ -31,36 +31,38 @@ function Header({ loaded }) {
           ? <span className="chip ok"><span className="live-dot" />Métriques réelles chargées</span>
           : <span className="chip">Métriques du run 07/05/2026</span>}
       </div>
-      <h1 className="headline-1">Prédire le vainqueur du T2, commune par commune.</h1>
+      <h1 className="headline-1">Prédire le score Macron T2, commune par commune.</h1>
       <p className="dek">
-        6 configurations entraînées (Random Forest, Gradient Boosting, Decision Tree, MLP, LSTM) sur les profils socio-économiques et l'historique électoral 2012/2017.
-        Cible : <code style={{ background: 'var(--bg-2)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>cible_t2_vainqueur</code>
-        — Macron (0) ou Le Pen (1). Split train/test 80/20 stratifié. CV 5 folds.
+        6 configurations entraînées sur l'ensemble des 1 268 communes IDF (profils socio-économiques + historique électoral 2012/2017).
+        Cible (régression) : <code style={{ background: 'var(--bg-2)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>cible_t2_pct_macron</code>
+        — % des voix Macron au T2 (variable continue, 50-90 %). Métriques CV 5 folds.
       </p>
     </section>
   );
 }
 
-function ModelTable({ models }) {
-  const best = models.reduce((b, m) => (!b || (m.accuracy || 0) > (b.accuracy || 0)) ? m : b, null);
+const REAL_IDF_T2 = 64.18;
+
+function ModelTable({ models, predMeans }) {
+  const best = models.reduce((b, m) => (!b || (m.cv_r2 ?? m.r2 ?? -Infinity) > (b.cv_r2 ?? b.r2 ?? -Infinity)) ? m : b, null);
   return (
     <section className="section">
       <div className="section-head">
         <div>
           <span className="eyebrow">Comparaison</span>
-          <h2>Performances sur set de test (20 % — 254 communes)</h2>
+          <h2>Performances sur données complètes (1 268 communes IDF)</h2>
         </div>
-        <p>Test set : Macron gagne 171 communes (67,3 %) — Le Pen gagne 83 communes (32,7 %)</p>
+        <p>Régression · cible : % Macron T2 · CV 5 folds</p>
       </div>
       <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
         <table className="tbl">
           <thead>
             <tr>
               <th>Modèle</th>
-              <th className="num">Accuracy</th>
-              <th className="num">F1 pondéré</th>
-              <th className="num">ROC-AUC</th>
-              <th className="num">CV AUC (μ±σ)</th>
+              <th className="num" title="Cross-validation 5 folds — plus fiable que le R² sur le jeu de test interne">CV R² (μ±σ)</th>
+              <th className="num">MAE (pp)</th>
+              <th className="num">RMSE (pp)</th>
+              <th className="num" title="Biais systématique : écart entre la prédiction moyenne IDF et le résultat réel (64,18%)">Biais IDF (pp)</th>
               <th className="num">Features</th>
               <th className="num">Temps</th>
               <th style={{ width: 120 }}></th>
@@ -69,6 +71,14 @@ function ModelTable({ models }) {
           <tbody>
             {models.map(m => {
               const isBest = m === best;
+              const barW = m.cv_r2 != null ? Math.max(0, Math.min(1, m.cv_r2)) * 100 + '%' : '0%';
+              const meanPred = predMeans?.[m.name];
+              const biais = meanPred != null ? meanPred - REAL_IDF_T2 : null;
+              const biaisAbs = biais != null ? Math.abs(biais) : null;
+              const biaisColor = biaisAbs == null ? 'var(--ink-4)'
+                : biaisAbs < 2  ? 'var(--status-ok)'
+                : biaisAbs < 5  ? 'var(--ink)'
+                : 'var(--status-err)';
               return (
                 <tr key={m.name}
                   style={isBest ? { background: 'color-mix(in srgb, var(--ink) 3%, transparent)' } : {}}>
@@ -78,12 +88,14 @@ function ModelTable({ models }) {
                       {m.name}
                     </div>
                   </td>
-                  <td className="num tnum" style={{ fontWeight: isBest ? 600 : 400 }}>{pct(m.accuracy)}</td>
-                  <td className="num tnum">{pct(m.f1)}</td>
-                  <td className="num tnum">{num(m.auc)}</td>
-                  <td className="num tnum mono" style={{ fontSize: 11 }}>
-                    {m.cv_auc != null ? num(m.cv_auc) : '—'}
-                    {m.cv_std != null && <span style={{ color: 'var(--ink-4)' }}>±{num(m.cv_std, 4)}</span>}
+                  <td className="num tnum" style={{ fontWeight: isBest ? 600 : 400, fontSize: 11 }}>
+                    {m.cv_r2 != null ? pct(m.cv_r2) : '—'}
+                    {m.cv_r2_std != null && <span style={{ color: 'var(--ink-4)' }}>±{pct(m.cv_r2_std)}</span>}
+                  </td>
+                  <td className="num tnum">{m.mae != null ? num(m.mae, 2) : '—'}</td>
+                  <td className="num tnum">{m.rmse != null ? num(m.rmse, 2) : '—'}</td>
+                  <td className="num tnum" style={{ color: biaisColor, fontWeight: 600 }}>
+                    {biais != null ? (biais > 0 ? '+' : '') + biais.toFixed(1) : '—'}
                   </td>
                   <td className="num tnum">{m.feat || '—'}</td>
                   <td className="num mono">{m.time || '—'}</td>
@@ -91,7 +103,7 @@ function ModelTable({ models }) {
                     <div style={{ height: 6, borderRadius: 999, background: 'var(--bg-3)', overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
-                        width: pct(m.accuracy),
+                        width: barW,
                         background: isBest ? 'var(--ink)' : 'var(--ink-4)',
                       }} />
                     </div>
@@ -104,11 +116,10 @@ function ModelTable({ models }) {
       </div>
       <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 6,
         fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.6 }}>
-        <strong>Modèle retenu :</strong> Gradient Boosting post-T1 — accuracy <strong>95,67%</strong>,
-        AUC-ROC <strong>0,985</strong>. Le feature set "post-T1" inclut les résultats du premier tour
-        en plus des indicateurs socio-économiques, ce qui explique la performance supérieure.
-        La variante "pré-vote" (sans T1) atteint 90,9 % et est utilisable pour une projection
-        <em> avant</em> la tenue du scrutin.
+        <strong>Modèle retenu :</strong> {best?.name || '—'} — CV R² <strong>{best?.cv_r2 != null ? pct(best.cv_r2) : '—'}</strong>.
+        Le CV R² (cross-validation 5 folds) est l'indicateur principal — moins sujet au surapprentissage que le R² sur jeu de test interne.
+        Le <strong>Biais IDF</strong> mesure l'écart entre la prédiction moyenne sur les 1 268 communes et le résultat réel IDF (64,18%) :
+        un biais élevé signale un décalage systématique du modèle indépendamment de sa précision relative.
       </div>
     </section>
   );
@@ -154,20 +165,17 @@ function FeatureImportance({ features }) {
 function Artifacts({ images }) {
   if (!images) return null;
   const charts = [
-    { src: images.cmp_accuracy,  title: 'Comparaison accuracy — tous les modèles' },
-    { src: images.cmp_auc,       title: 'Comparaison AUC-ROC — tous les modèles' },
-    { src: images.gb_results,    title: 'Gradient Boosting — analyse complète' },
+    { src: images.cmp_r2,        title: 'Comparaison R² — tous les modèles' },
+    { src: images.cmp_mae,       title: 'Comparaison MAE — tous les modèles' },
+    { src: images.cmp_rmse,      title: 'Comparaison RMSE — tous les modèles' },
     { src: images.gb_importance, title: 'Gradient Boosting — importance des features' },
+    { src: images.gb_vs_actual,  title: 'Gradient Boosting — prédictions vs réel' },
+    { src: images.rf_importance, title: 'Random Forest — importance des features' },
+    { src: images.rf_vs_actual,  title: 'Random Forest — prédictions vs réel' },
     { src: images.dt_importance, title: 'Decision Tree — importance des features' },
+    { src: images.dt_vs_actual,  title: 'Decision Tree — prédictions vs réel' },
     { src: images.mlp_importance,title: 'MLP — importance des features' },
-    { src: images.rf_confusion,  title: 'Random Forest — matrice de confusion' },
-    { src: images.gb_confusion,  title: 'Gradient Boosting — matrice de confusion' },
-    { src: images.dt_confusion,  title: 'Decision Tree — matrice de confusion' },
-    { src: images.mlp_confusion, title: 'MLP — matrice de confusion' },
-    { src: images.rf_roc,        title: 'Random Forest — courbe ROC' },
-    { src: images.gb_roc,        title: 'Gradient Boosting — courbe ROC' },
-    { src: images.dt_roc,        title: 'Decision Tree — courbe ROC' },
-    { src: images.mlp_roc,       title: 'MLP — courbe ROC' },
+    { src: images.mlp_vs_actual, title: 'MLP — prédictions vs réel' },
   ].filter(c => c.src);
   return (
     <section className="section">
@@ -379,6 +387,7 @@ function App() {
   const [images,      setImages]      = useState(null);
   const [predictions, setPredictions] = useState(null);
   const [loaded,      setLoaded]      = useState(false);
+  const [predMeans,   setPredMeans]   = useState({});
 
   useEffect(() => {
     Promise.all([loadArtifacts(), loadPredictions()]).then(([, preds]) => {
@@ -386,7 +395,16 @@ function App() {
       setFeatures([...MOCK.topFeatures]);
       setImages(MOCK.images || null);
       setLoaded(!!MOCK.artifactsLoaded);
-      if (Object.keys(preds).length > 0) setPredictions(preds);
+      if (Object.keys(preds).length > 0) {
+        setPredictions(preds);
+        const means = {};
+        Object.values(preds).forEach(m => {
+          const valid = m.rows.filter(r => r.score_macron_predit != null && !isNaN(r.score_macron_predit));
+          if (valid.length > 0)
+            means[m.name] = valid.reduce((s, r) => s + r.score_macron_predit, 0) / valid.length;
+        });
+        setPredMeans(means);
+      }
     });
   }, []);
 
@@ -395,7 +413,7 @@ function App() {
       <Topbar active="prediction" />
       <main className="shell">
         <Header loaded={loaded} />
-        <ModelTable models={models} />
+        <ModelTable models={models} predMeans={predMeans} />
         <FeatureImportance features={features} />
         {images && <Artifacts images={images} />}
         <CommuneLookup predictions={predictions} />
