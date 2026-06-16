@@ -60,9 +60,10 @@ function ModelTable({ models, predMeans }) {
             <tr>
               <th>Modèle</th>
               <th className="num" title="Cross-validation 5 folds — plus fiable que le R² sur le jeu de test interne">CV R² (μ±σ)</th>
-              <th className="num">MAE (pp)</th>
-              <th className="num">RMSE (pp)</th>
-              <th className="num" title="Biais systématique : écart entre la prédiction moyenne IDF et le résultat réel (64,18%)">Biais IDF (pp)</th>
+              <th className="num" title="Erreur absolue moyenne — OOF cross-validation 5 folds (chaque commune prédite hors de son fold d'entraînement) · les métriques d'entraînement seraient ~4× plus basses mais biaisées">MAE OOF (pp)</th>
+              <th className="num" title="Racine erreur quadratique moyenne — OOF cross-validation 5 folds · estimation honnête de la précision par commune">RMSE OOF (pp)</th>
+              <th className="num" title="Balanced Accuracy OOF — % de communes dont le vainqueur est correctement prédit (Macron ≥50% ou non) sur prédictions hors-fold · 92–93% est cohérent avec la MAE OOF de 2pp et le biais de 7pp">Bal. Acc.</th>
+              <th className="num" title="Biais non pondéré : moyenne simple par commune vs résultat officiel IDF pondéré par électeurs (64,18%). Cet écart reflète principalement la différence de pondération (beaucoup de petites communes Seine-et-Marne), pas un biais de calibration du modèle. Non comparable directement au résultat officiel.">Biais IDF (pp) ⓘ</th>
               <th className="num">Features</th>
               <th className="num">Temps</th>
               <th style={{ width: 120 }}></th>
@@ -92,8 +93,16 @@ function ModelTable({ models, predMeans }) {
                     {m.cv_r2 != null ? pct(m.cv_r2) : '—'}
                     {m.cv_r2_std != null && <span style={{ color: 'var(--ink-4)' }}>±{pct(m.cv_r2_std)}</span>}
                   </td>
-                  <td className="num tnum">{m.mae != null ? num(m.mae, 2) : '—'}</td>
-                  <td className="num tnum">{m.rmse != null ? num(m.rmse, 2) : '—'}</td>
+                  <td className="num tnum" style={{ color: !m.mae_is_oof ? 'var(--status-warn, #d97706)' : undefined }}
+                    title={!m.mae_is_oof ? 'Métrique d\'entraînement (non OOF) — estimée sur les données d\'entraînement, ~4× trop optimiste. Pas de cv_mae disponible pour ce modèle.' : undefined}>
+                    {m.mae != null ? <>{num(m.mae, 2)}{!m.mae_is_oof && <sup style={{ fontSize: 9, marginLeft: 2 }}>train</sup>}</> : '—'}
+                  </td>
+                  <td className="num tnum" style={{ color: !m.rmse_is_oof ? 'var(--status-warn, #d97706)' : undefined }}>
+                    {m.rmse != null ? <>{num(m.rmse, 2)}{!m.rmse_is_oof && <sup style={{ fontSize: 9, marginLeft: 2 }}>train</sup>}</> : '—'}
+                  </td>
+                  <td className="num tnum" style={{ color: m.balanced_accuracy != null && m.balanced_accuracy < 0.85 ? 'var(--status-err)' : m.balanced_accuracy != null && m.balanced_accuracy >= 0.93 ? 'var(--status-ok)' : 'var(--ink)' }}>
+                    {m.balanced_accuracy != null ? pct(m.balanced_accuracy) : '—'}
+                  </td>
                   <td className="num tnum" style={{ color: biaisColor, fontWeight: 600 }}>
                     {biais != null ? (biais > 0 ? '+' : '') + biais.toFixed(1) : '—'}
                   </td>
@@ -117,9 +126,11 @@ function ModelTable({ models, predMeans }) {
       <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 6,
         fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.6 }}>
         <strong>Modèle retenu :</strong> {best?.name || '—'} — CV R² <strong>{best?.cv_r2 != null ? pct(best.cv_r2) : '—'}</strong>.
-        Le CV R² (cross-validation 5 folds) est l'indicateur principal — moins sujet au surapprentissage que le R² sur jeu de test interne.
-        Le <strong>Biais IDF</strong> mesure l'écart entre la prédiction moyenne sur les 1 268 communes et le résultat réel IDF (64,18%) :
-        un biais élevé signale un décalage systématique du modèle indépendamment de sa précision relative.
+        Le <strong>CV R²</strong>, <strong>MAE OOF</strong>, <strong>RMSE OOF</strong> et <strong>Bal. Acc.</strong> sont calculés par <em>cross_val_predict</em> (5 folds) :
+        chaque commune est prédite quand elle était absente du fold — métriques honnêtes (entraînement serait ~4× plus optimiste).
+        La <strong>Bal. Acc. OOF</strong> reflète le % de communes dont le vainqueur est correctement prédit sur données hors-fold :
+        les modèles post-T1 (MAE OOF ~2 pp) atteignent 92–93%, les modèles pré-vote (MAE OOF 3–5 pp) sont à 82–87%.
+        Le <strong>Biais IDF</strong> mesure l'écart entre la prédiction moyenne et le résultat réel IDF (64,18%).
       </div>
     </section>
   );
@@ -163,6 +174,7 @@ function FeatureImportance({ features }) {
 }
 
 function Artifacts({ images }) {
+  const [lightbox, setLightbox] = useState(null);
   if (!images) return null;
   const charts = [
     { src: images.cmp_r2,        title: 'Comparaison R² — tous les modèles' },
@@ -181,13 +193,16 @@ function Artifacts({ images }) {
     <section className="section">
       <div className="section-head">
         <div><span className="eyebrow">Visualisations</span><h2>Graphiques générés par le pipeline</h2></div>
-        <span className="chip ok"><span className="live-dot" />Chargés depuis /artifacts/</span>
+        <span className="chip ok"><span className="live-dot" />Cliquez sur un graphique pour l'agrandir</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         {charts.map(c => (
-          <div key={c.src} className="panel" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--ink-3)' }}>
-              {c.title}
+          <div key={c.src} className="panel" style={{ padding: 0, overflow: 'hidden', cursor: 'zoom-in' }}
+            onClick={() => setLightbox(c)}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--ink-3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>{c.title}</span>
+              <span style={{ fontSize: 10, color: 'var(--ink-5)' }}>🔍</span>
             </div>
             <img src={c.src} alt={c.title}
               style={{ width: '100%', display: 'block', background: 'var(--bg-1)' }}
@@ -195,6 +210,21 @@ function Artifacts({ images }) {
           </div>
         ))}
       </div>
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.88)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24,
+        }}>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 12 }}>
+            {lightbox.title} <span style={{ fontSize: 11, opacity: 0.5 }}>· Cliquez pour fermer</span>
+          </div>
+          <img src={lightbox.src} alt={lightbox.title}
+            style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain',
+              borderRadius: 8, boxShadow: '0 8px 48px rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()} />
+        </div>
+      )}
     </section>
   );
 }
@@ -414,7 +444,6 @@ function App() {
       <main className="shell">
         <Header loaded={loaded} />
         <ModelTable models={models} predMeans={predMeans} />
-        <FeatureImportance features={features} />
         {images && <Artifacts images={images} />}
         <CommuneLookup predictions={predictions} />
       </main>

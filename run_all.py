@@ -134,16 +134,13 @@ def step_train() -> bool:
             except Exception as e:
                 log.warning(f"  GB {fset} ERREUR: {e}")
 
-        if "regression" in TARGET:
-            log.info("  LSTM ignoré — supporte uniquement la classification (stratify incompatible avec régression)")
-        else:
-            try:
-                log.info("  LSTM …")
-                m = train_lstm(target=TARGET)
-                if m:
-                    results["lstm"] = m
-            except ImportError:
-                log.info("  TensorFlow absent — LSTM ignoré")
+        try:
+            log.info("  LSTM …")
+            m = train_lstm(target=TARGET)
+            if m:
+                results["lstm"] = m
+        except ImportError:
+            log.info("  TensorFlow absent — LSTM ignoré")
 
         log.info("  Decision Tree — feature_set=pre_vote")
         try:

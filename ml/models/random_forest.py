@@ -389,14 +389,14 @@ class RandomForestModel(BaseModel):
             print(f"{'─'*55}")
         else:
             metrics = {
-                "test_r2": round(float(r2_score(y_true, y_pred)), 4),
-                "test_mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
-                "test_rmse": round(
+                "train_r2": round(float(r2_score(y_true, y_pred)), 4),
+                "train_mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
+                "train_rmse": round(
                     float(np.sqrt(mean_squared_error(y_true, y_pred))), 4
                 ),
             }
             print(
-                f"  R²={metrics['test_r2']:.4f}  MAE={metrics['test_mae']:.4f}  RMSE={metrics['test_rmse']:.4f}"
+                f"  R²={metrics['train_r2']:.4f}  MAE={metrics['train_mae']:.4f}  RMSE={metrics['train_rmse']:.4f}"
             )
 
         self.metrics.update(metrics)

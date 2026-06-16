@@ -209,7 +209,7 @@
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT libelle_commune AS \"Commune\", code_departement AS \"Dept\", ROUND(probability::numeric * 100, 1) AS \"Proba Le Pen (%)\", CASE WHEN correct = 1 THEN '✓' ELSE '✗' END AS \"Correct ?\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND prediction::text = '1' ORDER BY probability DESC LIMIT 20",
+          "rawSql": "SELECT libelle_commune AS \"Commune\", code_departement AS \"Dept\", ROUND((100 - ground_truth::numeric), 1) AS \"Le Pen réel (%)\", ROUND(ground_truth::numeric, 1) AS \"Macron réel (%)\", CASE WHEN correct THEN '✓' ELSE '✗' END AS \"Prédit correct ?\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND prediction::integer = 1 ORDER BY ground_truth::numeric ASC NULLS LAST LIMIT 20",
           "refId": "A"
         }
       ],
@@ -217,17 +217,17 @@
         "cellHeight": "sm",
         "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
         "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "Proba Le Pen (%)" }]
+        "sortBy": [{ "desc": true, "displayName": "Le Pen réel (%)" }]
       },
       "fieldConfig": {
         "defaults": {
           "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 70 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 50 }] }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Proba Le Pen (%)" },
+            "matcher": { "id": "byName", "options": "Le Pen réel (%)" },
             "properties": [
               { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "color-background" } },
               { "id": "color", "value": { "mode": "continuous-RdYlGn" } }
@@ -279,15 +279,15 @@
     {
       "id": 8,
       "type": "barchart",
-      "title": "Revenu médian par département (dim_commune — datamart)",
-      "description": "Revenu médian moyen par département IDF. Indicateur corrélé positivement avec le vote Macron (r=+0.67). Source : datamart.dim_commune",
+      "title": "Revenu médian par département (gold.ml_features)",
+      "description": "Revenu médian moyen par département IDF. Indicateur corrélé positivement avec le vote Macron (r=+0.67). Source : gold.ml_features",
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 26 },
       "datasource": { "type": "postgres", "uid": "elections-postgres" },
       "targets": [
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT code_departement AS \"Département\", ROUND(AVG(revenu_median)::numeric, 0) AS \"Revenu médian (€)\", ROUND(AVG(taux_chomage)::numeric, 1) AS \"Taux chômage (%)\" FROM datamart.dim_commune WHERE revenu_median IS NOT NULL GROUP BY code_departement ORDER BY code_departement",
+          "rawSql": "SELECT code_departement AS \"Département\", ROUND(AVG(COALESCE(revenu_median_2021, revenu_median_2017))::numeric, 0) AS \"Revenu médian (€)\", ROUND(AVG(taux_chomage_rp2022)::numeric, 1) AS \"Taux chômage (%)\" FROM gold.ml_features WHERE code_departement IS NOT NULL GROUP BY code_departement ORDER BY code_departement",
           "refId": "A"
         }
       ],

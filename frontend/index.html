@@ -24,16 +24,12 @@ function Hero() {
       <div className="meta-row">
         <span className="chip"><span className="dot"></span>Présidentielle 2022 · Île-de-France</span>
         <span className="chip">1 268 communes</span>
-        <span className="chip">113 features</span>
         <span className="chip"><span className="live-dot" style={{ width: 6, height: 6 }}></span>Pipeline actif</span>
       </div>
-      <h1 className="headline-1">
-        Une analyse <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--ink-3)' }}>granulaire</em> de l'élection présidentielle française, commune par commune.
-      </h1>
+      <h1 className="headline-1">Bienvenue sur la MSPR</h1>
       <p className="dek">
-        L'Observatory consolide résultats électoraux, indicateurs socio-économiques INSEE
-        et modèles prédictifs ML en une plateforme unique. Pipeline ETL automatisé · architecture
-        Medallion · données vérifiables et reproductibles.
+        Plateforme d'analyse électorale, monitoring ETL et prédiction ML — Île-de-France 2022.
+        Pipeline automatisé · architecture Medallion · données vérifiables et reproductibles.
       </p>
       <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
         <a href="overview.html" className="btn primary">
@@ -233,8 +229,6 @@ function App() {
       <main className="shell">
         <Hero />
         <HeroVisual />
-        <Cards />
-        <Stack />
       </main>
       <Footer />
     </>

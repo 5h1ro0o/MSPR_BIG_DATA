@@ -14,7 +14,7 @@ window.Topbar = function Topbar({ active }) {
         <nav className="nav">
           <a className="brand" href="index.html">
             <span className="brand-mark"></span>
-            <span>Observatory</span>
+            <span>MSPR</span>
           </a>
           <div className="nav-links">
             {items.map(it => (
@@ -47,7 +47,7 @@ window.Footer = function Footer() {
         <div>
           <div className="brand-row">
             <span className="brand-mark"></span>
-            <span>Electoral Observatory</span>
+            <span>MSPR</span>
           </div>
           <p style={{maxWidth: 360, color: 'var(--ink-3)', fontSize: 13, lineHeight: 1.55, margin: 0}}>
             Plateforme d'analyse, monitoring ETL et prédiction électorale.

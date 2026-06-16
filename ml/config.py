@@ -246,6 +246,17 @@ GB_PARAM_GRID = {
     "validation_fraction": [0.1, 0.15],
     "tol": [1e-4],
 }
+# Grille dédiée à la régression : pas d'early stopping (incompatible <1 268 samples),
+# max_depth plus élevé car les params classif (depth=3) sous-exploitent les interactions.
+GB_PARAM_GRID_REGRESSION = {
+    "n_estimators": [200, 300, 400],
+    "learning_rate": [0.03, 0.05, 0.08, 0.10],
+    "max_depth": [3, 4, 5, 6],
+    "min_samples_split": [8, 12, 15],
+    "min_samples_leaf": [4, 6, 8],
+    "subsample": [0.70, 0.80, 0.85],
+    "max_features": ["sqrt", "log2"],
+}
 
 LSTM_CONFIG = {
     "lstm_units_1": 64,

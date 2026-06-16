@@ -124,14 +124,27 @@ function T1Section({ rows }) {
       .sort((a, b) => b.val - a.val);
   }, [rows, hasT1]);
 
-  const officialCands = useMemo(() =>
-    [...MOCK.candidatesT1]
-      .map(c => {
-        const short = c.name.split(' ').pop();
-        return { label: short, party: c.party, color: c.color, val: c.value };
-      })
-      .sort((a, b) => b.val - a.val),
-  []);
+  const officialCands = useMemo(() => {
+    const named = {
+      'Emmanuel Macron':      { label: 'Macron',    party: 'LREM', color: 'var(--d-1)' },
+      'Jean-Luc Mélenchon':  { label: 'Mélenchon', party: 'LFI',  color: 'var(--d-3)' },
+      'Marine Le Pen':        { label: 'Le Pen',    party: 'RN',   color: 'var(--d-2)' },
+      'Éric Zemmour':         { label: 'Zemmour',   party: 'REC',  color: 'var(--d-4)' },
+      'Valérie Pécresse':     { label: 'Pécresse',  party: 'LR',   color: 'var(--d-5)' },
+      'Yannick Jadot':        { label: 'Jadot',     party: 'EELV', color: 'var(--d-6)' },
+    };
+    let autresVal = 0;
+    const rows = [];
+    MOCK.candidatesT1.forEach(c => {
+      if (named[c.name]) {
+        rows.push({ ...named[c.name], val: c.value });
+      } else {
+        autresVal += c.value;
+      }
+    });
+    if (autresVal > 0) rows.push({ label: 'Autres', party: '', color: 'var(--ink-4)', val: parseFloat(autresVal.toFixed(2)) });
+    return rows.sort((a, b) => b.val - a.val);
+  }, []);
 
   const maxCsv = csvCands[0]?.val || 1;
   const maxOff = officialCands[0]?.val || 1;
@@ -566,7 +579,7 @@ function App() {
   }, []);
 
   const modelList = predictions
-    ? ['gb_post_t1','gb_pre_vote','rf_post_t1','rf_pre_vote','dt_pre_vote','mlp_pre_vote']
+    ? ['gb_post_t1','gb_pre_vote','rf_post_t1','rf_pre_vote','dt_pre_vote','mlp_pre_vote','lstm']
         .filter(id => predictions[id])
         .map(id => ({ id, name: predictions[id].name }))
     : [];
@@ -599,8 +612,8 @@ function App() {
 
         {loaded && (
           <>
-            <ModelSelector models={modelList} selected={selectedModel} onSelect={setSelectedModel} />
             <T1Section rows={currentRows} />
+            <ModelSelector models={modelList} selected={selectedModel} onSelect={setSelectedModel} />
             <T2Section rows={currentRows} modelName={currentName} />
             <ParticipationSection rows={currentRows} />
             <ModelStats rows={currentRows} modelName={currentName} />

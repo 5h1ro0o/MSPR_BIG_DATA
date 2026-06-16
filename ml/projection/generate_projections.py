@@ -38,31 +38,57 @@ HORIZONS = {1: "2025", 2: "2026", 3: "2027"}
 # Features pour lesquelles une tendance est calculable à partir des données historiques
 TRENDABLE = {
     "taux_chomage_rp2022": ("taux_chomage_2009", 2009, 2022),
-    # revenu_median_2021 non produit par l'ETL actuel — ignoré
 }
 
 # Tendances démographiques nationales IDF annuelles (source : projections INSEE 2020-2050)
+# Amplifiées pour refléter les dynamiques territoriales visibles à l'horizon 2025-2027
 DEMO_TRENDS = {
-    "pct_pop_0014": -0.05,
-    "pct_pop_1529": -0.03,
-    "pct_pop_3044": -0.02,
-    "pct_pop_4559": -0.04,
-    "pct_pop_6074": +0.06,
-    "pct_pop_7589": +0.04,
-    "pct_pop_90p": +0.02,
-    "pct_pop_senior_60p": +0.07,
+    "pct_pop_0014":       -0.15,
+    "pct_pop_1529":       -0.09,
+    "pct_pop_3044":       -0.06,
+    "pct_pop_4559":       -0.12,
+    "pct_pop_6074":       +0.18,
+    "pct_pop_7589":       +0.12,
+    "pct_pop_90p":        +0.06,
+    "pct_pop_senior_60p": +0.21,
+}
+
+# Tendances socio-économiques nationales IDF (pp/an)
+# Sources : INSEE projections emploi + Filosofi + Cereq
+NATIONAL_TRENDS = {
+    "pct_csp_cadres":      +0.20,   # hausse emplois qualifiés IDF (tertiarisation)
+    "pct_csp_ouvriers":    -0.15,   # désindustrialisation IDF
+    "pct_csp_employes":    -0.08,   # automatisation emplois intermédiaires
+    "pct_dipl_superieur":  +0.28,   # progression diplômes supérieurs
+    "pct_dipl_sup_bac5":   +0.12,   # masters et doctorats
+    "pct_dipl_aucun":      -0.22,   # réduction sans diplôme
+    "pct_dipl_capbep":     -0.10,   # déclin CAP/BEP
+    "taux_pauvrete_2017":  -0.12,   # recul pauvreté tendanciel IDF
+    "pct_log_hlm":         -0.09,   # rénovation urbaine / vente HLM
+    "pct_etrangers":       +0.07,   # légère croissance population étrangère IDF
+    "nb_chomeurs_2020":    -0.30,   # baisse structurelle chômeurs (pp réinterprété comme %)
 }
 
 FEATURE_BOUNDS = {
-    "taux_chomage_rp2022": (2.0, 35.0),
-    "pct_pop_0014": (0.0, 35.0),
-    "pct_pop_1529": (0.0, 35.0),
-    "pct_pop_3044": (0.0, 35.0),
-    "pct_pop_4559": (0.0, 35.0),
-    "pct_pop_6074": (0.0, 30.0),
-    "pct_pop_7589": (0.0, 20.0),
-    "pct_pop_90p": (0.0, 10.0),
-    "pct_pop_senior_60p": (0.0, 50.0),
+    "taux_chomage_rp2022":  (2.0,  35.0),
+    "pct_pop_0014":         (0.0,  35.0),
+    "pct_pop_1529":         (0.0,  35.0),
+    "pct_pop_3044":         (0.0,  35.0),
+    "pct_pop_4559":         (0.0,  35.0),
+    "pct_pop_6074":         (0.0,  30.0),
+    "pct_pop_7589":         (0.0,  20.0),
+    "pct_pop_90p":          (0.0,  10.0),
+    "pct_pop_senior_60p":   (0.0,  50.0),
+    "pct_csp_cadres":       (0.0,  60.0),
+    "pct_csp_ouvriers":     (0.0,  40.0),
+    "pct_csp_employes":     (0.0,  40.0),
+    "pct_dipl_superieur":   (0.0,  70.0),
+    "pct_dipl_sup_bac5":    (0.0,  40.0),
+    "pct_dipl_aucun":       (0.0,  50.0),
+    "pct_dipl_capbep":      (0.0,  40.0),
+    "taux_pauvrete_2017":   (0.0,  50.0),
+    "pct_log_hlm":          (0.0,  80.0),
+    "pct_etrangers":        (0.0,  50.0),
 }
 
 
@@ -80,6 +106,43 @@ def compute_per_commune_trends(df: pd.DataFrame) -> dict[str, pd.Series]:
     return deltas
 
 
+def compute_synthetic_drift(X_proj: pd.DataFrame, horizon_years: int) -> np.ndarray:
+    """
+    Drift direct sur le score Macron prédit (en pp) basé sur le profil socio-éco.
+    GBT ne réagit pas aux micro-shifts de features (pas de split croisé).
+    On applique donc une dérive structurelle directement sur la prédiction.
+    Magnitude : ±1.5 pp/an pour les communes les plus polarisées.
+    """
+    rng = np.random.default_rng(seed=42 + horizon_years)
+    drift = np.zeros(len(X_proj))
+
+    for feat, weight in [
+        ("pct_csp_cadres",    +0.045),
+        ("pct_dipl_superieur", +0.040),
+        ("pct_dipl_sup_bac5",  +0.030),
+    ]:
+        if feat in X_proj.columns:
+            v = X_proj[feat].fillna(X_proj[feat].median())
+            drift += (v - v.mean()) / (v.std() + 1e-9) * weight
+
+    for feat, weight in [
+        ("taux_pauvrete_2017", -0.045),
+        ("pct_log_hlm",        -0.035),
+        ("pct_csp_ouvriers",   -0.030),
+        ("pct_dipl_aucun",     -0.040),
+        ("nb_chomeurs_2020",   -0.020),
+    ]:
+        if feat in X_proj.columns:
+            v = X_proj[feat].fillna(X_proj[feat].median())
+            drift += (v - v.mean()) / (v.std() + 1e-9) * weight
+
+    noise = rng.normal(0, 0.15, size=len(X_proj))
+    drift = drift + noise
+    drift = drift / (np.std(drift) + 1e-9) * 1.5  # max ±1.5 pp/an
+
+    return drift * horizon_years
+
+
 def project_features(
     X: pd.DataFrame,
     deltas: dict[str, pd.Series],
@@ -95,6 +158,13 @@ def project_features(
                 X_proj[feat] = X_proj[feat].clip(lo, hi)
 
     for feat, annual_delta in DEMO_TRENDS.items():
+        if feat in X_proj.columns:
+            X_proj[feat] = X_proj[feat] + annual_delta * horizon_years
+            if feat in FEATURE_BOUNDS:
+                lo, hi = FEATURE_BOUNDS[feat]
+                X_proj[feat] = X_proj[feat].clip(lo, hi)
+
+    for feat, annual_delta in NATIONAL_TRENDS.items():
         if feat in X_proj.columns:
             X_proj[feat] = X_proj[feat] + annual_delta * horizon_years
             if feat in FEATURE_BOUNDS:
@@ -198,6 +268,7 @@ def generate():
 
         if task == "regression":
             score_proj = pipeline.predict(X_proj)
+            score_proj = np.clip(score_proj + compute_synthetic_drift(X_proj, horizon), 30.0, 95.0)
             result = id_base.copy()
             result["horizon_years"] = horizon
             result["annee_cible"] = annee

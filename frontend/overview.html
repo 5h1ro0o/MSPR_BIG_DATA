@@ -387,7 +387,13 @@ function App() {
           ...c,
           value: validT1.reduce((s, r) => s + (r[c.key] || 0), 0) / validT1.length,
         })).filter(c => c.value > 0.05).sort((a, b) => b.value - a.value);
-        if (cands.length >= 3) setT1Candidates(cands);
+        if (cands.length >= 3) {
+          setT1Candidates(cands);
+        } else {
+          setT1Candidates(MOCK.candidatesT1);
+        }
+      } else {
+        setT1Candidates(MOCK.candidatesT1);
       }
 
       // T2 — agrégation par département

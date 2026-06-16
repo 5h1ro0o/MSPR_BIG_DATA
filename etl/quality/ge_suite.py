@@ -85,14 +85,16 @@ def build_suite(context) -> "gx.ExpectationSuite":
             column="cible_t2_vainqueur", value_set=[0, 1]
         )
     )
+    # Plage resserrée : en IDF, Macron obtient entre 50 et 90% au T2.
+    # Valeurs hors-plage (0, 100) révèlent une corruption binaire de la colonne cible (incident 16/06/2026).
     suite.add_expectation(
         gx.expectations.ExpectColumnValuesToBeBetween(
-            column="cible_t2_pct_macron", min_value=0.0, max_value=100.0
+            column="cible_t2_pct_macron", min_value=40.0, max_value=95.0
         )
     )
     suite.add_expectation(
         gx.expectations.ExpectColumnValuesToBeBetween(
-            column="cible_t2_pct_lepen", min_value=0.0, max_value=100.0
+            column="cible_t2_pct_lepen", min_value=5.0, max_value=60.0
         )
     )
 

@@ -52,6 +52,7 @@ from ml.config import (
     CV_FOLDS,
     GB_BEST_PARAMS,
     GB_PARAM_GRID,
+    GB_PARAM_GRID_REGRESSION,
     LEAKAGE_KEYWORDS,
     RANDOM_STATE,
 )
@@ -212,9 +213,10 @@ class GradientBoostingModel(BaseModel):
         return self.metrics
 
     def _run_search(self, X_tr, y_train, n_iter: int) -> Pipeline:
-        """RandomizedSearchCV sur GB_PARAM_GRID."""
+        """RandomizedSearchCV — grille adaptée à la tâche (régression vs classification)."""
         base = self.build()
-        grid = {f"gb__{k}": v for k, v in GB_PARAM_GRID.items()}
+        param_grid = GB_PARAM_GRID_REGRESSION if self.task == "regression" else GB_PARAM_GRID
+        grid = {f"gb__{k}": v for k, v in param_grid.items()}
         cv = (
             StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
             if self.task == "classification"
@@ -296,15 +298,15 @@ class GradientBoostingModel(BaseModel):
             print(f"{'─'*55}")
         else:
             reg = {
-                "test_r2": round(float(r2_score(y_true, y_pred)), 4),
-                "test_mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
-                "test_rmse": round(
+                "train_r2": round(float(r2_score(y_true, y_pred)), 4),
+                "train_mae": round(float(mean_absolute_error(y_true, y_pred)), 4),
+                "train_rmse": round(
                     float(np.sqrt(mean_squared_error(y_true, y_pred))), 4
                 ),
             }
             metrics = reg
             print(
-                f"  R²={metrics['test_r2']:.4f}  MAE={metrics['test_mae']:.4f}  RMSE={metrics['test_rmse']:.4f}"
+                f"  R²={metrics['train_r2']:.4f}  MAE={metrics['train_mae']:.4f}  RMSE={metrics['train_rmse']:.4f}"
             )
 
         self.metrics.update(metrics)

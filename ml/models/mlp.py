@@ -164,15 +164,15 @@ class MLPModel(BaseModel):
             y_true = np.asarray(y_test, dtype=float)
             y_hat = np.asarray(y_pred, dtype=float)
             self.metrics.update({
-                "test_n_samples": len(X_test),
-                "test_r2": round(float(r2_score(y_true, y_hat)), 4),
-                "test_mae": round(float(mean_absolute_error(y_true, y_hat)), 4),
-                "test_rmse": round(float(np.sqrt(mean_squared_error(y_true, y_hat))), 4),
+                "train_n_samples": len(X_test),
+                "train_r2": round(float(r2_score(y_true, y_hat)), 4),
+                "train_mae": round(float(mean_absolute_error(y_true, y_hat)), 4),
+                "train_rmse": round(float(np.sqrt(mean_squared_error(y_true, y_hat))), 4),
             })
             print(
-                f"  MLP Régression — R²={self.metrics['test_r2']:.4f} "
-                f"MAE={self.metrics['test_mae']:.4f} "
-                f"RMSE={self.metrics['test_rmse']:.4f}"
+                f"  MLP Régression — R²={self.metrics['train_r2']:.4f} "
+                f"MAE={self.metrics['train_mae']:.4f} "
+                f"RMSE={self.metrics['train_rmse']:.4f}"
             )
         else:
             y_proba = self.predict_proba(X_test)
