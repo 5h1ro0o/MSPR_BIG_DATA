@@ -200,7 +200,7 @@ class LSTMModel(BaseModel):
         """
         self._require_tf()
         cfg = self.config
-        n_soc = n_socio or len([f for f in FEATURES_SOCIO_LSTM])
+        n_soc = n_socio or len(FEATURES_SOCIO_LSTM)
 
         tf.random.set_seed(RANDOM_STATE)
         np.random.seed(RANDOM_STATE)
@@ -525,7 +525,7 @@ class LSTMModel(BaseModel):
         y_pred = self.predict(X_test)
         cm = confusion_matrix(y_test, y_pred)
 
-        fig, ax = plt.subplots(figsize=(6, 5))
+        _, ax = plt.subplots(figsize=(6, 5))
         im = ax.imshow(cm, cmap="Blues")
         ax.set_xticks([0, 1])
         ax.set_yticks([0, 1])

@@ -74,9 +74,7 @@ def assemble_dataset(
     numeric_cols = dataset.select_dtypes(include=[np.number]).columns.tolist()
     cible_cols = [c for c in dataset.columns if c.startswith("cible_")]
     cible_num = [c for c in cible_cols if pd.api.types.is_numeric_dtype(dataset[c])]
-    derived_cols = [
-        c for c in numeric_cols if c.endswith("_vainqueur") or c.endswith("_marge")
-    ]
+    derived_cols = [c for c in numeric_cols if c.endswith(("_vainqueur", "_marge"))]
     feature_num = [
         c for c in numeric_cols if c not in cible_num and c not in derived_cols
     ]
@@ -126,9 +124,7 @@ def assemble_dataset(
     part_cols = [
         c for c in dataset.columns if any(c.startswith(p) for p in part_prefixes)
     ]
-    hist_cols = sorted(
-        c for c in dataset.columns if c.startswith("h12_") or c.startswith("h17_")
-    )
+    hist_cols = sorted(c for c in dataset.columns if c.startswith(("h12_", "h17_")))
     cible_cols_sorted = sorted(cible_cols)
     socio_cols = [
         c

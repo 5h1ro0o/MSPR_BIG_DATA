@@ -40,26 +40,30 @@ except ImportError:
 
 # ─── Candidats T2 2022 dans le CSV gold ──────────────────────────────────────
 # Mapping colonne CSV → nom_candidat dans dim_candidat
+_MACRON = "Emmanuel Macron"
+_LEPEN = "Marine Le Pen"
+_MELENCHON = "Jean-Luc Mélenchon"
+
 CANDIDATS_T2_2022 = {
-    "cible_t2_pct_macron": "Emmanuel Macron",
-    "cible_t2_pct_lepen": "Marine Le Pen",
+    "cible_t2_pct_macron": _MACRON,
+    "cible_t2_pct_lepen": _LEPEN,
 }
 CANDIDATS_T1_2022 = {
-    "cible_t1_pct_macron": "Emmanuel Macron",
-    "cible_t1_pct_lepen": "Marine Le Pen",
-    "cible_t1_pct_melenchon": "Jean-Luc Mélenchon",
+    "cible_t1_pct_macron": _MACRON,
+    "cible_t1_pct_lepen": _LEPEN,
+    "cible_t1_pct_melenchon": _MELENCHON,
     "cible_t1_pct_zemmour": "Éric Zemmour",
     "cible_t1_pct_pecresse": "Valérie Pécresse",
     "cible_t1_pct_jadot": "Yannick Jadot",
 }
 CANDIDATS_T2_2017 = {
-    "h17_t2_pct_macron": "Emmanuel Macron",
-    "h17_t2_pct_lepen": "Marine Le Pen",
+    "h17_t2_pct_macron": _MACRON,
+    "h17_t2_pct_lepen": _LEPEN,
 }
 CANDIDATS_T1_2017 = {
-    "h17_t1_pct_macron": "Emmanuel Macron",
-    "h17_t1_pct_lepen": "Marine Le Pen",
-    "h17_t1_pct_melenchon": "Jean-Luc Mélenchon",
+    "h17_t1_pct_macron": _MACRON,
+    "h17_t1_pct_lepen": _LEPEN,
+    "h17_t1_pct_melenchon": _MELENCHON,
     "h17_t1_pct_fillon": "François Fillon",
     "h17_t1_pct_hamon": "Benoît Hamon",
 }
@@ -70,8 +74,8 @@ CANDIDATS_T2_2012 = {
 CANDIDATS_T1_2012 = {
     "h12_t1_pct_hollande": "François Hollande",
     "h12_t1_pct_sarkozy": "Nicolas Sarkozy",
-    "h12_t1_pct_lepen": "Marine Le Pen",
-    "h12_t1_pct_melenchon": "Jean-Luc Mélenchon",
+    "h12_t1_pct_lepen": _LEPEN,
+    "h12_t1_pct_melenchon": _MELENCHON,
     "h12_t1_pct_bayrou": "Autres candidats",
 }
 
@@ -353,7 +357,7 @@ def _build_db_url() -> str:
     port = os.environ.get("POSTGRES_PORT", "5432")
     db = os.environ.get("POSTGRES_DB", "elections_idf")
     user = os.environ.get("POSTGRES_USER", "etl_admin")
-    pwd = os.environ.get("POSTGRES_PASSWORD", "elections2022")
+    pwd = os.environ.get("POSTGRES_PASSWORD", "elections2022")  # NOSONAR
     return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
 
 

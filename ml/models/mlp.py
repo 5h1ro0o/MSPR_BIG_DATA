@@ -50,23 +50,33 @@ class MLPModel(BaseModel):
         self.task = task
 
     def build(self, **kwargs) -> Pipeline:
-        common = dict(
-            hidden_layer_sizes=(64, 32),
-            activation="relu",
-            solver="adam",
-            alpha=0.01,
-            learning_rate_init=0.001,
-            max_iter=600,
-            early_stopping=True,
-            validation_fraction=0.15,
-            n_iter_no_change=25,
-            random_state=RANDOM_STATE,
-        )
+        common = {
+            "hidden_layer_sizes": (64, 32),
+            "activation": "relu",
+            "solver": "adam",
+            "alpha": 0.01,
+            "learning_rate_init": 0.001,
+            "max_iter": 600,
+            "early_stopping": True,
+            "validation_fraction": 0.15,
+            "n_iter_no_change": 25,
+            "random_state": RANDOM_STATE,
+        }
         common.update(kwargs)
+        hidden_layer_sizes = common.pop("hidden_layer_sizes")
+        random_state = common.pop("random_state")
         if self.task == "regression":
-            mlp = MLPRegressor(**{k: v for k, v in common.items()})
+            mlp = MLPRegressor(
+                hidden_layer_sizes=hidden_layer_sizes,
+                random_state=random_state,
+                **common,
+            )
         else:
-            mlp = MLPClassifier(**{k: v for k, v in common.items()})
+            mlp = MLPClassifier(
+                hidden_layer_sizes=hidden_layer_sizes,
+                random_state=random_state,
+                **common,
+            )
         return Pipeline(
             [
                 ("imputer", SimpleImputer(strategy="median")),

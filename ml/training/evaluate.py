@@ -72,7 +72,7 @@ def bootstrap_ci(
     Bootstrap pour l'IC d'une métrique quelconque.
     metric_fn(y_true, y_score) → float.
     """
-    rng = np.random.RandomState(random_state)
+    rng = np.random.RandomState(random_state)  # NOSONAR
     scores = []
     n = len(y_true)
     for _ in range(n_bootstrap):
@@ -234,7 +234,7 @@ def regression_metrics(y_true, y_pred) -> dict:
 def plot_confusion_matrix(y_true, y_pred, class_names, model_name, output_dir) -> Path:
     cm = confusion_matrix(y_true, y_pred)
     cm_norm = cm.astype(float) / cm.sum(axis=1, keepdims=True)
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    _, axes = plt.subplots(1, 2, figsize=(12, 5))
     for ax, data, title in zip(axes, [cm, cm_norm], ["Comptages", "Normalisée"]):
         im = ax.imshow(data, interpolation="nearest", cmap="Blues")
         ax.set(
@@ -277,7 +277,7 @@ def plot_roc_curve(y_true, y_proba, model_name, output_dir) -> Path:
     proba_pos = _safe_proba_pos(y_proba)
     fpr, tpr, _ = roc_curve(y_true, proba_pos)
     roc_auc = auc(fpr, tpr)
-    fig, ax = plt.subplots(figsize=(7, 6))
+    _, ax = plt.subplots(figsize=(7, 6))
     ax.plot(fpr, tpr, lw=2, label=f"AUC = {roc_auc:.4f}")
     ax.plot([0, 1], [0, 1], "k--", lw=1, label="Hasard")
     ax.set(
@@ -308,7 +308,7 @@ def plot_calibration(y_true, y_proba, model_name: str, output_dir: Path) -> Path
     )
     brier = brier_score_loss(y_true, proba_pos)
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    _, axes = plt.subplots(1, 2, figsize=(13, 5))
 
     ax = axes[0]
     ax.plot([0, 1], [0, 1], "k--", lw=1, label="Calibration parfaite")
@@ -362,7 +362,7 @@ def plot_calibration(y_true, y_proba, model_name: str, output_dir: Path) -> Path
 
 def plot_feature_importance(df_importance, model_name, output_dir, top_n=25) -> Path:
     df = df_importance.head(top_n).sort_values("importance")
-    fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.3)))
+    _, ax = plt.subplots(figsize=(10, max(6, top_n * 0.3)))
     bars = ax.barh(
         df["feature"],
         df["importance"],
@@ -393,7 +393,7 @@ def plot_feature_importance(df_importance, model_name, output_dir, top_n=25) -> 
 def plot_predictions_vs_actual(
     y_true, y_pred, model_name, output_dir, target_name="Cible"
 ) -> Path:
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    _, axes = plt.subplots(1, 2, figsize=(14, 5))
     ax = axes[0]
     ax.scatter(y_true, y_pred, alpha=0.5, s=20, color="#E15759")
     lim = [
@@ -436,11 +436,11 @@ def plot_model_comparison(
         )
         for v in raw_values
     ]
-    if not values or max(values) == 0.0:
+    if not values or not any(values):
         path = output_dir / f"model_comparison_{metric}.png"
         return path
     colors = ["#4472C4", "#ED7D31", "#A9D18E", "#FF0000", "#7030A0"][: len(names)]
-    fig, ax = plt.subplots(figsize=(8, 5))
+    _, ax = plt.subplots(figsize=(8, 5))
     bars = ax.bar(
         names, values, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5
     )

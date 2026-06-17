@@ -100,7 +100,7 @@ class Predictor:
             DataFrame avec code_commune, libelle, prédiction (et probas si classif).
         """
         df = load_dataset()
-        X, y, features = build_X_y(df, feature_set=feature_set, target=target)
+        X, y, _ = build_X_y(df, feature_set=feature_set, target=target)
         commune_info = get_commune_info(df)
 
         y_pred = self.model.predict(X)
@@ -133,7 +133,7 @@ class Predictor:
         if mask.sum() == 0:
             raise ValueError(f"Commune introuvable : {code_commune}")
 
-        X, y, features = build_X_y(df, feature_set=feature_set, target=target)
+        X, y, _ = build_X_y(df, feature_set=feature_set, target=target)
         commune_row = df[mask].index.intersection(X.index)
         if len(commune_row) == 0:
             raise ValueError(f"Données insuffisantes pour {code_commune}")
@@ -167,5 +167,5 @@ class Predictor:
         """Retourne l'importance des features si disponible."""
         try:
             return self.model.get_feature_importance()
-        except (NotImplementedError, AttributeError, RuntimeError):
+        except (AttributeError, RuntimeError):
             return None
