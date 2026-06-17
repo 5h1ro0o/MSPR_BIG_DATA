@@ -22,7 +22,10 @@ from sqlalchemy import create_engine, text
 
 ARTIFACTS = ROOT / "ml" / "artifacts"
 
+
 # ── Connexion ─────────────────────────────────────────────────────────────────
+
+
 def get_db_url() -> str:
     if os.environ.get("DATABASE_URL"):
         return os.environ["DATABASE_URL"]
@@ -35,6 +38,7 @@ def get_db_url() -> str:
         + os.environ.get("POSTGRES_PASSWORD", "elections2022")  # NOSONAR
         + f"@{host}:{port}/{db}"
     )
+
 
 # ── Map des CSVs de prédictions ───────────────────────────────────────────────
 PRED_FILES = [

@@ -738,6 +738,7 @@ def _melt_wide_candidats(
     # — Format "Nom.N" / "Nom N" (dot- or space-numbered columns) —
     def _sorted_cols(pattern: str) -> list[str]:
         matched = [c for c in cols if re.match(pattern, c, re.IGNORECASE)]
+
         def _key(c):
             m = re.search(r"[.\s](\d+)$", c)
             return int(m.group(1)) if m else -1
@@ -1215,7 +1216,6 @@ def _pick_resources_ranked(
         title = (r.get("title") or "").lower()
         url = r.get("latest") or r.get("url") or ""
         url_name = url.rsplit("/", 1)[-1].split("?")[0].lower()
-        text = title + " " + url_name
 
         fmt = (r.get("format") or "").lower().strip()
 

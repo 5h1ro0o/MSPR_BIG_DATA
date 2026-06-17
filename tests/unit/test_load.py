@@ -1,10 +1,8 @@
 """Tests unitaires — etl/load/csv_writer.py et etl/load/db_loader.py."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
 from etl.load.csv_writer import write_gold_csv
 

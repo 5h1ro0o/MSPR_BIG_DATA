@@ -1,7 +1,6 @@
 """Tests unitaires — ml/training/evaluate.py (fonctions pures + plots mockés)."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -201,7 +200,7 @@ class TestPlotFunctions:
         from ml.training.evaluate import plot_roc_curve
         y_true = np.array([0, 1, 0, 1])
         y_proba = np.array([[0.9, 0.1], [0.1, 0.9], [0.8, 0.2], [0.2, 0.8]])
-        path = plot_roc_curve(y_true, y_proba, "model", tmp_path)
+        plot_roc_curve(y_true, y_proba, "model", tmp_path)
         assert mock_savefig.called
 
     def test_plot_roc_curve_raises_on_single_class(self, tmp_path):
@@ -217,7 +216,7 @@ class TestPlotFunctions:
         from ml.training.evaluate import plot_predictions_vs_actual
         y_true = np.array([60.0, 70.0, 80.0])
         y_pred = np.array([62.0, 68.0, 81.0])
-        path = plot_predictions_vs_actual(y_true, y_pred, "gb", tmp_path)
+        plot_predictions_vs_actual(y_true, y_pred, "gb", tmp_path)
         assert mock_savefig.called
 
     @patch("matplotlib.pyplot.savefig")
@@ -225,7 +224,7 @@ class TestPlotFunctions:
     def test_plot_feature_importance(self, mock_close, mock_savefig, tmp_path):
         from ml.training.evaluate import plot_feature_importance
         df = pd.DataFrame({"feature": ["a", "b", "c"], "importance": [0.5, 0.3, 0.2]})
-        path = plot_feature_importance(df, "rf", tmp_path, top_n=3)
+        plot_feature_importance(df, "rf", tmp_path, top_n=3)
         assert mock_savefig.called
 
     @patch("matplotlib.pyplot.savefig")
@@ -233,7 +232,7 @@ class TestPlotFunctions:
     def test_plot_model_comparison(self, mock_close, mock_savefig, tmp_path):
         from ml.training.evaluate import plot_model_comparison
         results = {"rf": {"r2": 0.9}, "gb": {"r2": 0.85}}
-        path = plot_model_comparison(results, "r2", tmp_path)
+        plot_model_comparison(results, "r2", tmp_path)
         assert mock_savefig.called
 
     def test_plot_model_comparison_all_zero_skips_plot(self, tmp_path):

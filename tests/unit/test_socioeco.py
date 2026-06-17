@@ -1,8 +1,6 @@
 """Tests unitaires — etl/transform/socioeco.py + candidats historique/cibles."""
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from etl.transform.socioeco import (
     transform_chomage_hist,

@@ -31,6 +31,7 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+
 def _safe_proba_pos(y_proba: np.ndarray) -> np.ndarray:
     """Extract positive-class probabilities, handles (n,1) shape from 1-class models."""
     if y_proba.ndim > 1:

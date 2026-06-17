@@ -1,7 +1,6 @@
 """Tests unitaires — ml/models/base.py (via sous-classe concrète)."""
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd

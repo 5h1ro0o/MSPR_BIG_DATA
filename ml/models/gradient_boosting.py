@@ -376,7 +376,7 @@ class GradientBoostingModel(BaseModel):
         proba_test_2d = self.pipeline.predict_proba(X_clean_test)
         n_classes = proba_test_2d.shape[1] if proba_test_2d.ndim > 1 else 1
         if n_classes < 2:
-            raise ValueError(f"plot_results requiert ≥ 2 classes (modèle entraîné avec 1 classe)")
+            raise ValueError("plot_results requiert ≥ 2 classes (modèle entraîné avec 1 classe)")
         y_proba_all = proba_all_2d[:, 1]
         y_proba = proba_test_2d[:, 1]
 
