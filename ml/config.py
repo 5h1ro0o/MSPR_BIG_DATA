@@ -101,7 +101,7 @@ FEATURES_SOCIO = [
     "pct_men_familiaux",
     "pct_men_couple_enfants",
     "pct_men_monoparentaux",
-    "revenu_median_2021",
+    "revenu_median_2021",  # MED21 dans dossier_complet si disponible, sinon ignoré
     "revenu_median_2017",
     "taux_pauvrete_2017",
     "rapport_interdecile_2017",
@@ -212,7 +212,7 @@ RF_PARAM_GRID = {
     "class_weight": ["balanced", None],
 }
 RF_PARAM_GRID_FAST = {
-    "n_estimators": [100, 200, 300],
+    "n_estimators": [100, 150, 200],  # réduit (was 300) pour tenir dans Docker
     "max_depth": [None, 10, 20],
     "min_samples_split": [2, 5, 10],
     "min_samples_leaf": [1, 2, 4],
@@ -245,6 +245,17 @@ GB_PARAM_GRID = {
     "n_iter_no_change": [10, 15],
     "validation_fraction": [0.1, 0.15],
     "tol": [1e-4],
+}
+# Grille dédiée à la régression : pas d'early stopping (incompatible <1 268 samples),
+# max_depth plus élevé car les params classif (depth=3) sous-exploitent les interactions.
+GB_PARAM_GRID_REGRESSION = {
+    "n_estimators": [200, 300, 400],
+    "learning_rate": [0.03, 0.05, 0.08, 0.10],
+    "max_depth": [3, 4, 5, 6],
+    "min_samples_split": [8, 12, 15],
+    "min_samples_leaf": [4, 6, 8],
+    "subsample": [0.70, 0.80, 0.85],
+    "max_features": ["sqrt", "log2"],
 }
 
 LSTM_CONFIG = {

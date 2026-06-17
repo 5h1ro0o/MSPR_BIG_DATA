@@ -24,16 +24,12 @@ function Hero() {
       <div className="meta-row">
         <span className="chip"><span className="dot"></span>Présidentielle 2022 · Île-de-France</span>
         <span className="chip">1 268 communes</span>
-        <span className="chip">113 features</span>
         <span className="chip"><span className="live-dot" style={{ width: 6, height: 6 }}></span>Pipeline actif</span>
       </div>
-      <h1 className="headline-1">
-        Une analyse <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--ink-3)' }}>granulaire</em> de l'élection présidentielle française, commune par commune.
-      </h1>
+      <h1 className="headline-1">Bienvenue sur la MSPR</h1>
       <p className="dek">
-        L'Observatory consolide résultats électoraux, indicateurs socio-économiques INSEE
-        et modèles prédictifs ML en une plateforme unique. Pipeline ETL automatisé · architecture
-        Medallion · données vérifiables et reproductibles.
+        Plateforme d'analyse électorale, monitoring ETL et prédiction ML — Île-de-France 2022.
+        Pipeline automatisé · architecture Medallion · données vérifiables et reproductibles.
       </p>
       <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
         <a href="overview.html" className="btn primary">
@@ -50,26 +46,26 @@ function HeroVisual() {
     a: [72.0, 84.5, 80.4, 78.9, 73.6],
     b: [55.4, 60.2, 62.8, 64.0, 64.18],
   };
-  const [mlStats, setMlStats] = useState({ acc: 95.7, auc: 0.985, cv: '0,984±0,007', name: 'GB post-T1' });
+  const [mlStats, setMlStats] = useState({ r2: null, mae: null, cv: null, name: 'GB post-T1' });
 
   useEffect(() => {
     loadArtifacts().then(() => {
-      const best = (MOCK.models || []).reduce((b, m) => (!b || (m.accuracy || 0) > (b.accuracy || 0)) ? m : b, null);
+      const best = (MOCK.models || []).reduce((b, m) => (!b || (m.cv_r2 ?? m.r2 ?? -Infinity) > (b.cv_r2 ?? b.r2 ?? -Infinity)) ? m : b, null);
       if (best) {
         setMlStats({
-          acc:  best.accuracy ? (best.accuracy * 100) : 95.7,
-          auc:  best.auc  ?? 0.985,
-          cv:   best.cv_auc != null
-            ? best.cv_auc.toFixed(3) + (best.cv_std != null ? '±' + best.cv_std.toFixed(3) : '')
-            : '0,984±0,007',
+          r2:   best.cv_r2 ?? best.r2,
+          mae:  best.mae,
+          cv:   best.cv_r2 != null
+            ? (best.cv_r2 * 100).toFixed(1) + (best.cv_r2_std != null ? ' ±' + (best.cv_r2_std * 100).toFixed(1) : '') + '%'
+            : null,
           name: best.name || 'GB post-T1',
         });
       }
     });
   }, []);
 
-  const accFmt   = typeof mlStats.acc === 'number' ? mlStats.acc.toFixed(1).replace('.', ',') : mlStats.acc;
-  const sparkMl  = [88, 90, 91, 94, mlStats.acc];
+  const r2Fmt  = mlStats.r2 != null ? (mlStats.r2 * 100).toFixed(1).replace('.', ',') : '—';
+  const sparkMl = mlStats.r2 != null ? [60, 70, 75, 80, mlStats.r2 * 100] : [60, 70, 75, 80, 85];
 
   return (
     <div className="glass" style={{ padding: 28, marginBottom: 48 }}>
@@ -103,17 +99,17 @@ function HeroVisual() {
           <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 4 }}>Marge : +28,4 pts en IDF</div>
         </div>
         <div style={{ padding: '18px 20px', background: 'var(--bg-2)', borderRadius: 'var(--r)', border: '1px solid var(--line)' }}>
-          <div className="label">Meilleur modèle — Accuracy</div>
+          <div className="label">Meilleur modèle — CV R²</div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 6 }}>
             <span className="metric" style={{ fontSize: 28 }}>
-              {accFmt}<span style={{ fontSize: 14, color: 'var(--ink-4)' }}>%</span>
+              {r2Fmt}<span style={{ fontSize: 14, color: 'var(--ink-4)' }}>%</span>
             </span>
             <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{mlStats.name}</span>
           </div>
           <Sparkline data={sparkMl} color="var(--d-4)" height={28} />
           <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 4 }}>
-            AUC-ROC : {typeof mlStats.auc === 'number' ? mlStats.auc.toFixed(3) : mlStats.auc}
-            {' · '}CV : {mlStats.cv}
+            MAE OOF : {mlStats.mae != null ? mlStats.mae.toFixed(2) + ' pp' : '—'}
+            {mlStats.cv != null && <span> · CV R² {mlStats.cv}</span>}
           </div>
         </div>
       </div>
@@ -233,8 +229,6 @@ function App() {
       <main className="shell">
         <Hero />
         <HeroVisual />
-        <Cards />
-        <Stack />
       </main>
       <Footer />
     </>

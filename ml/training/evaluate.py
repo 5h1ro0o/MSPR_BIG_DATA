@@ -31,6 +31,14 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+
+def _safe_proba_pos(y_proba: np.ndarray) -> np.ndarray:
+    """Extract positive-class probabilities, handles (n,1) shape from 1-class models."""
+    if y_proba.ndim > 1:
+        return y_proba[:, 1] if y_proba.shape[1] >= 2 else y_proba[:, 0]
+    return y_proba
+
+
 # ── Intervalles de confiance ───────────────────────────────────────────────────
 
 
@@ -164,7 +172,7 @@ def robust_classification_eval(
 
     # Métriques basées sur les probabilités
     if y_proba is not None:
-        proba_pos = y_proba[:, 1] if y_proba.ndim > 1 else y_proba
+        proba_pos = _safe_proba_pos(y_proba)
         try:
             auc_score = roc_auc_score(y_true, proba_pos)
             metrics[f"{split}_roc_auc"] = round(auc_score, 4)
@@ -264,7 +272,9 @@ def plot_confusion_matrix(y_true, y_pred, class_names, model_name, output_dir) -
 
 
 def plot_roc_curve(y_true, y_proba, model_name, output_dir) -> Path:
-    proba_pos = y_proba[:, 1] if y_proba.ndim > 1 else y_proba
+    if len(np.unique(y_true)) < 2:
+        raise ValueError("plot_roc_curve requires at least 2 classes in y_true")
+    proba_pos = _safe_proba_pos(y_proba)
     fpr, tpr, _ = roc_curve(y_true, proba_pos)
     roc_auc = auc(fpr, tpr)
     fig, ax = plt.subplots(figsize=(7, 6))
@@ -290,7 +300,9 @@ def plot_calibration(y_true, y_proba, model_name: str, output_dir: Path) -> Path
     Courbe de calibration (reliability diagram).
     Un modèle bien calibré a sa courbe proche de la diagonale.
     """
-    proba_pos = y_proba[:, 1] if y_proba.ndim > 1 else y_proba
+    if len(np.unique(y_true)) < 2:
+        raise ValueError("plot_calibration requires at least 2 classes in y_true")
+    proba_pos = _safe_proba_pos(y_proba)
     fraction_pos, mean_pred = calibration_curve(
         y_true, proba_pos, n_bins=10, strategy="uniform"
     )
@@ -414,23 +426,37 @@ def plot_model_comparison(
     results, metric, output_dir, title="Comparaison des modèles"
 ) -> Path:
     names = list(results.keys())
-    values = [results[n].get(metric, 0) for n in names]
+    raw_values = [results[n].get(metric) for n in names]
+    # Guard against None and NaN values (1-class models, failed metrics, etc.)
+    values = [
+        (
+            float(v)
+            if (v is not None and not (isinstance(v, float) and np.isnan(v)))
+            else 0.0
+        )
+        for v in raw_values
+    ]
+    if not values or max(values) == 0.0:
+        path = output_dir / f"model_comparison_{metric}.png"
+        return path
     colors = ["#4472C4", "#ED7D31", "#A9D18E", "#FF0000", "#7030A0"][: len(names)]
     fig, ax = plt.subplots(figsize=(8, 5))
     bars = ax.bar(
         names, values, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5
     )
+    max_val = max(values)
     for bar, val in zip(bars, values):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 0.005,
+            bar.get_height() + max_val * 0.01,
             f"{val:.4f}",
             ha="center",
             va="bottom",
             fontsize=10,
             fontweight="bold",
         )
-    ax.set(ylabel=metric, title=title, ylim=[0, min(1.1, max(values) * 1.15)])
+    ylim_top = min(max_val * 1.15, max_val + abs(max_val) * 0.25 + 0.01)
+    ax.set(ylabel=metric, title=title, ylim=[0, max(ylim_top, 0.01)])
     ax.grid(axis="y", alpha=0.3)
     plt.tight_layout()
     path = output_dir / f"model_comparison_{metric}.png"

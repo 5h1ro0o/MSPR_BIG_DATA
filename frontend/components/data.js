@@ -58,14 +58,8 @@ window.MOCK = (function () {
     { code: '78029', nom: 'Argenteuil',        dept: '95', inscrits:  60321, participation: 58.4, top: 'Melenchon', pct: 38.2 },
   ];
 
-  // Runs pipeline — dernier run réel du 07/05/2026
-  const runs = [
-    { id: '20260507T121254_2e4940', start: '07/05 12:12', dur: '1m 33s', status: 'SUCCESS', communes: 1268, qc: 'OK',   nulls: 0  },
-    { id: '20260507T121254_ec2d92', start: '07/05 12:08', dur: '1m 13s', status: 'SUCCESS', communes: 1268, qc: 'OK',   nulls: 0  },
-    { id: '20260507T105041_a1b2c3', start: '07/05 10:50', dur: '1m 41s', status: 'SUCCESS', communes: 1268, qc: 'OK',   nulls: 0  },
-    { id: '20260506T152618_x9y8z7', start: '06/05 15:26', dur: '1m 38s', status: 'SUCCESS', communes: 1268, qc: 'WARN', nulls: 2  },
-    { id: '20260505T0612_a3f1c2',   start: '05/05 06:12', dur: '0m 12s', status: 'FAILED',  communes: 0,    qc: 'KO',   nulls: '—' },
-  ];
+  // Runs pipeline — alimenté dynamiquement par loadArtifacts() depuis pipeline_run.json
+  const runs = [];
 
   // Étapes ETL — durées réelles extraites des logs du pipeline
   const steps = [
@@ -85,44 +79,16 @@ window.MOCK = (function () {
     { name: 'load_db',                 dur:  0.5 },
   ];
 
-  // Modèles ML — valeurs initiales (écrasées par loadArtifacts() si les JSON sont disponibles)
+  // Modèles ML — valeurs nulles jusqu'au prochain build (écrasées par loadArtifacts())
+  // Tâche : régression sur cible_t2_pct_macron (% Macron T2, variable continue ~50-90%)
   const models = [
-    {
-      key: 'gradient_boosting', fset: 'post_t1',
-      name: 'Gradient Boosting post-T1',
-      accuracy: 0.9567, f1: 0.9568, auc: 0.9850, cv_auc: 0.9843, cv_std: 0.0066,
-      time: '0.4s', feat: 78, best: true,
-    },
-    {
-      key: 'random_forest', fset: 'post_t1',
-      name: 'Random Forest post-T1',
-      accuracy: 0.9370, f1: 0.9370, auc: 0.9851, cv_auc: 0.9841, cv_std: 0.0069,
-      time: '3.5s', feat: 78, best: false,
-    },
-    {
-      key: 'random_forest', fset: 'pre_vote',
-      name: 'Random Forest pré-vote',
-      accuracy: 0.9094, f1: 0.9093, auc: 0.9775, cv_auc: 0.9785, cv_std: 0.0062,
-      time: '6.1s', feat: 69, best: false,
-    },
-    {
-      key: 'gradient_boosting', fset: 'pre_vote',
-      name: 'Gradient Boosting pré-vote',
-      accuracy: 0.9016, f1: 0.9014, auc: 0.9720, cv_auc: 0.9758, cv_std: 0.0098,
-      time: '0.4s', feat: 69, best: false,
-    },
-    {
-      key: 'decision_tree', fset: 'pre_vote',
-      name: 'Decision Tree pré-vote',
-      accuracy: null, f1: null, auc: null, cv_auc: null, cv_std: null,
-      time: null, feat: 69, best: false,
-    },
-    {
-      key: 'mlp', fset: 'pre_vote',
-      name: 'MLP pré-vote',
-      accuracy: null, f1: null, auc: null, cv_auc: null, cv_std: null,
-      time: null, feat: 69, best: false,
-    },
+    { key: 'gradient_boosting', fset: 'post_t1',  name: 'Gradient Boosting post-T1',  r2: null, mae: null, rmse: null, cv_r2: null, cv_r2_std: null, accuracy: null, balanced_accuracy: null, time: null, feat: null, best: true  },
+    { key: 'gradient_boosting', fset: 'pre_vote', name: 'Gradient Boosting pré-vote',  r2: null, mae: null, rmse: null, cv_r2: null, cv_r2_std: null, accuracy: null, balanced_accuracy: null, time: null, feat: null, best: false },
+    { key: 'random_forest',     fset: 'post_t1',  name: 'Random Forest post-T1',       r2: null, mae: null, rmse: null, cv_r2: null, cv_r2_std: null, accuracy: null, balanced_accuracy: null, time: null, feat: null, best: false },
+    { key: 'random_forest',     fset: 'pre_vote', name: 'Random Forest pré-vote',      r2: null, mae: null, rmse: null, cv_r2: null, cv_r2_std: null, accuracy: null, balanced_accuracy: null, time: null, feat: null, best: false },
+    { key: 'decision_tree',     fset: 'pre_vote', name: 'Decision Tree pré-vote',      r2: null, mae: null, rmse: null, cv_r2: null, cv_r2_std: null, accuracy: null, balanced_accuracy: null, time: null, feat: null, best: false },
+    { key: 'mlp',               fset: 'pre_vote', name: 'MLP pré-vote',                r2: null, mae: null, rmse: null, cv_r2: null, cv_r2_std: null, accuracy: null, balanced_accuracy: null, time: null, feat: null, best: false },
+    { key: 'lstm',              fset: 'lstm',      name: 'LSTM (TensorFlow requis)',    r2: null, mae: null, rmse: null, cv_r2: null, cv_r2_std: null, accuracy: null, balanced_accuracy: null, time: null, feat: null, best: false },
   ];
 
   // Features — initialisées vides, remplies par loadArtifacts() depuis gb_top_features.csv
@@ -183,50 +149,53 @@ window.parseCSV = function (text) {
 
 const flt = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
 
-// Normalise une ligne de CSV prédictions quelle que soit sa provenance (GB/LSTM vs RF)
+// Normalise une ligne de CSV prédictions.
+// Les modèles de régression émettent : prediction=0/1 (binarisé ≥50%), proba_macron/lepen (0-1),
+// vainqueur_predit, correct, ground_truth=% Macron continu, score_macron_predit=% brut.
 window.normPredRow = function (row) {
-  const pred = parseInt(row.prediction, 10);
-  const gt   = parseInt(row.ground_truth, 10);
+  const pred   = parseInt(row.prediction, 10);   // 0=Macron, 1=LePen (déjà binarisé)
+  const gt_pct = flt(row.ground_truth);           // % Macron réel (continu)
+  const gt     = gt_pct != null ? (gt_pct >= 50 ? 0 : 1) : null;
   return {
-    // Identifiants
     code_commune:        row.code_commune,
     code_departement:    row.code_departement,
     libelle_departement: row.libelle_departement,
     libelle_commune:     row.libelle_commune,
-    // Prédiction modèle T2
     prediction:          pred,
     vainqueur_predit:    row.vainqueur_predit || (pred === 0 ? 'Macron' : 'Le Pen'),
-    proba_macron:        flt(row.proba_macron ?? row.proba_0) ?? 0,
-    proba_lepen:         flt(row.proba_lepen  ?? row.proba_1) ?? 0,
+    proba_macron:        flt(row.proba_macron) ?? 0,
+    proba_lepen:         flt(row.proba_lepen)  ?? 0,
     ground_truth:        gt,
     vainqueur_reel:      gt === 0 ? 'Macron' : 'Le Pen',
     correct:             parseInt(row.correct, 10),
+    score_macron_predit: flt(row.score_macron_predit),
+    ground_truth_pct:    gt_pct,
     split:               row.split || null,
-    // T1 2022 — résultats réels par candidat
-    t1_macron:     flt(row.cible_t1_pct_macron),
-    t1_melenchon:  flt(row.cible_t1_pct_melenchon),
-    t1_lepen:      flt(row.cible_t1_pct_lepen),
-    t1_zemmour:    flt(row.cible_t1_pct_zemmour),
-    t1_pecresse:   flt(row.cible_t1_pct_pecresse),
-    t1_jadot:      flt(row.cible_t1_pct_jadot),
-    t1_autres:     flt(row.cible_t1_pct_autres),
-    t1_premier:    row.cible_t1_premier || null,
-    participation_t1: flt(row.taux_participation_t1),
-    // T2 2022 — résultats réels
-    t2_macron:     flt(row.cible_t2_pct_macron),
-    t2_lepen:      flt(row.cible_t2_pct_lepen),
-    t2_marge:      flt(row.cible_t2_marge),
+    t1_macron:           flt(row.cible_t1_pct_macron),
+    t1_melenchon:        flt(row.cible_t1_pct_melenchon),
+    t1_lepen:            flt(row.cible_t1_pct_lepen),
+    t1_zemmour:          flt(row.cible_t1_pct_zemmour),
+    t1_pecresse:         flt(row.cible_t1_pct_pecresse),
+    t1_jadot:            flt(row.cible_t1_pct_jadot),
+    t1_autres:           flt(row.cible_t1_pct_autres),
+    t1_premier:          row.cible_t1_premier || null,
+    participation_t1:    flt(row.taux_participation_t1),
+    t2_macron:           flt(row.cible_t2_pct_macron),
+    t2_lepen:            flt(row.cible_t2_pct_lepen),
+    t2_marge:            flt(row.cible_t2_marge),
   };
 };
 
 window.loadArtifacts = async function () {
+  // Fichiers métriques régression — générés par le prochain build
   const FILES = [
-    { key: 'gradient_boosting', fset: 'post_t1',  file: 'gradient_boosting_metrics_post_t1_classification_t2.json' },
-    { key: 'gradient_boosting', fset: 'pre_vote', file: 'gradient_boosting_metrics_pre_vote_classification_t2.json' },
-    { key: 'random_forest',     fset: 'post_t1',  file: 'random_forest_metrics_post_t1_classification_t2.json' },
-    { key: 'random_forest',     fset: 'pre_vote', file: 'random_forest_metrics_pre_vote_classification_t2.json' },
-    { key: 'decision_tree',     fset: 'pre_vote', file: 'decision_tree_metrics_pre_vote_classification_t2.json' },
-    { key: 'mlp',               fset: 'pre_vote', file: 'mlp_metrics_pre_vote_classification_t2.json' },
+    { key: 'gradient_boosting', fset: 'post_t1',  file: 'gradient_boosting_metrics_post_t1_regression_macron.json' },
+    { key: 'gradient_boosting', fset: 'pre_vote', file: 'gradient_boosting_metrics_pre_vote_regression_macron.json' },
+    { key: 'random_forest',     fset: 'post_t1',  file: 'random_forest_metrics_post_t1_regression_macron.json' },
+    { key: 'random_forest',     fset: 'pre_vote', file: 'random_forest_metrics_pre_vote_regression_macron.json' },
+    { key: 'decision_tree',     fset: 'pre_vote', file: 'decision_tree_metrics_pre_vote_regression_macron.json' },
+    { key: 'mlp',               fset: 'pre_vote', file: 'mlp_metrics_pre_vote_regression_macron.json' },
+    { key: 'lstm',              fset: 'lstm',      file: 'lstm_metrics_lstm_regression_macron.json' },
   ];
   const NAMES = {
     'gradient_boosting|post_t1':  'Gradient Boosting post-T1',
@@ -235,8 +204,33 @@ window.loadArtifacts = async function () {
     'random_forest|pre_vote':     'Random Forest pré-vote',
     'decision_tree|pre_vote':     'Decision Tree pré-vote',
     'mlp|pre_vote':               'MLP pré-vote',
+    'lstm|lstm':                  'LSTM (dual-input)',
   };
-  const pick = (m, keys) => { for (const k of keys) if (m[k] != null) return m[k]; return null; };
+
+  // Hyperparamètres statiques pour modèles sans best_params dans le JSON
+  const STATIC_HYPERPARAMS = {
+    'mlp|pre_vote': {
+      hidden_layer_sizes: '(64, 32)',
+      activation: 'relu',
+      solver: 'adam',
+      alpha: 0.01,
+      learning_rate_init: 0.001,
+      max_iter: 600,
+      early_stopping: 'true',
+      validation_fraction: 0.15,
+      n_iter_no_change: 25,
+    },
+    'lstm|lstm': {
+      architecture: 'LSTM(32) + Dense(17)',
+      optimizer: 'adam',
+      loss: 'mse',
+      early_stopping: 'true (patience=15)',
+      batch_size: 32,
+      lstm_units: 32,
+      dense_units: 16,
+      dropout: 0.2,
+    },
+  };
   const results = [];
   let anyLoaded = false;
 
@@ -248,21 +242,32 @@ window.loadArtifacts = async function () {
       anyLoaded = true;
       results.push({
         key, fset, name: NAMES[key + '|' + fset] || key,
-        accuracy: pick(m, ['val_accuracy', 'test_accuracy']),
-        f1:       pick(m, ['val_f1', 'test_f1', 'test_f1_weighted']),
-        auc:      pick(m, ['val_roc_auc', 'test_roc_auc', 'val_auc']),
-        cv_auc:   m.cv_roc_auc || null,
-        cv_std:   m.cv_roc_auc_std || null,
-        time:     m.training_time_s != null ? m.training_time_s.toFixed(1) + 's' : null,
-        feat:     m.n_features || null,
-        best:     (key === 'gradient_boosting' && fset === 'post_t1'),
+        // train_r2 = calculé sur données d'entraînement (overfitting indicator).
+        // Fallback test_r2 pour JSONs générés avant renommage R1.
+        r2:                m.train_r2 ?? m.test_r2                            ?? null,
+        mae:               m.cv_mae               ?? m.train_mae ?? m.test_mae ?? null,
+        rmse:              m.cv_rmse              ?? m.train_rmse ?? m.test_rmse ?? null,
+        cv_r2:             m.cv_r2                                            ?? null,
+        cv_r2_std:         m.cv_r2_std                                        ?? null,
+        accuracy:          m.test_accuracy                                    ?? null,
+        balanced_accuracy: m.cv_balanced_accuracy ?? m.test_balanced_accuracy ?? null,
+        time:              m.training_time_s == null ? null : m.training_time_s.toFixed(1) + 's',
+        feat:              m.n_features                                        || null,
+        best:              (key === 'gradient_boosting' && fset === 'post_t1'),
+        mae_is_oof:        m.cv_mae  != null,
+        rmse_is_oof:       m.cv_rmse != null,
+        hyperparams:       m.best_params || STATIC_HYPERPARAMS[key + '|' + fset] || null,
+        epochs:            m.epochs_trained                                    || null,
       });
     } catch (_) {}
   }));
 
   if (anyLoaded && results.length > 0) {
-    results.sort((a, b) => (b.accuracy || 0) - (a.accuracy || 0));
-    MOCK.models = results;
+    results.sort((a, b) => (b.cv_r2 ?? b.r2 ?? -Infinity) - (a.cv_r2 ?? a.r2 ?? -Infinity));
+    // Conserver les modèles sans JSON (ex. LSTM) issus du tableau MOCK initial
+    const loadedKeys = new Set(results.map(m => m.key + '|' + m.fset));
+    const unloaded = MOCK.models.filter(m => !loadedKeys.has(m.key + '|' + m.fset));
+    MOCK.models = [...results, ...unloaded];
     MOCK.artifactsLoaded = true;
   }
 
@@ -279,23 +284,30 @@ window.loadArtifacts = async function () {
     }
   } catch (_) {}
 
+  // Chargement des derniers runs pipeline depuis pipeline_run.json (objet ou tableau)
+  try {
+    const r = await fetch('/artifacts/pipeline_run.json', { cache: 'no-store' });
+    if (r.ok) {
+      const payload = await r.json();
+      const runs = Array.isArray(payload) ? payload : [payload];
+      runs.forEach(run => { if (!MOCK.runs.some(x => x.id === run.id)) MOCK.runs.push(run); });
+      MOCK.runs.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+      MOCK.lastRun = MOCK.runs[0] || null;
+    }
+  } catch (_) {}
+
   MOCK.images = {
-    rf_confusion:  '/artifacts/random_forest_confusion_matrix.png',
-    rf_roc:        '/artifacts/random_forest_roc_curve.png',
-    rf_importance: '/artifacts/random_forest_feature_importance.png',
-    gb_confusion:  '/artifacts/gradient_boosting_confusion_matrix.png',
-    gb_roc:        '/artifacts/gradient_boosting_roc_curve.png',
-    gb_importance: '/artifacts/gradient_boosting_feature_importance.png',
-    gb_results:    '/artifacts/gradient_boosting_results.png',
-    dt_confusion:  '/artifacts/decision_tree_confusion_matrix.png',
-    dt_roc:        '/artifacts/decision_tree_roc_curve.png',
-    dt_importance: '/artifacts/decision_tree_feature_importance.png',
-    mlp_confusion: '/artifacts/mlp_confusion_matrix.png',
-    mlp_roc:       '/artifacts/mlp_roc_curve.png',
-    mlp_importance:'/artifacts/mlp_feature_importance.png',
-    cmp_accuracy:  '/artifacts/model_comparison_test_accuracy.png',
-    cmp_f1:        '/artifacts/model_comparison_test_f1.png',
-    cmp_auc:       '/artifacts/model_comparison_test_roc_auc.png',
+    rf_importance:    '/artifacts/random_forest_feature_importance.png',
+    rf_vs_actual:     '/artifacts/random_forest_predictions_vs_actual.png',
+    gb_importance:    '/artifacts/gradient_boosting_feature_importance.png',
+    gb_vs_actual:     '/artifacts/gradient_boosting_predictions_vs_actual.png',
+    dt_importance:    '/artifacts/decision_tree_feature_importance.png',
+    dt_vs_actual:     '/artifacts/decision_tree_predictions_vs_actual.png',
+    mlp_importance:   '/artifacts/mlp_feature_importance.png',
+    mlp_vs_actual:    '/artifacts/mlp_predictions_vs_actual.png',
+    cmp_r2:           '/artifacts/model_comparison_test_r2.png',
+    cmp_mae:          '/artifacts/model_comparison_test_mae.png',
+    cmp_rmse:         '/artifacts/model_comparison_test_rmse.png',
   };
 
   return MOCK;
@@ -304,13 +316,13 @@ window.loadArtifacts = async function () {
 // Charge les prédictions pour tous les modèles depuis /artifacts/
 window.loadPredictions = async function () {
   const FILES = [
-    { id: 'gb_post_t1',   name: 'Gradient Boosting post-T1',  file: 'gb_predictions_post_t1_classification_t2.csv' },
-    { id: 'gb_pre_vote',  name: 'Gradient Boosting pré-vote', file: 'gb_predictions_pre_vote_classification_t2.csv' },
-    { id: 'rf_post_t1',   name: 'Random Forest post-T1',      file: 'rf_predictions_post_t1_classification_t2.csv' },
-    { id: 'rf_pre_vote',  name: 'Random Forest pré-vote',     file: 'rf_predictions_pre_vote_classification_t2.csv' },
-    { id: 'lstm',         name: 'LSTM',                        file: 'lstm_predictions_classification_t2.csv' },
-    { id: 'dt_pre_vote',  name: 'Decision Tree pré-vote',     file: 'dt_predictions_pre_vote_classification_t2.csv' },
-    { id: 'mlp_pre_vote', name: 'MLP pré-vote',               file: 'mlp_predictions_pre_vote_classification_t2.csv' },
+    { id: 'gb_post_t1',   name: 'Gradient Boosting post-T1',  file: 'gb_predictions_post_t1_regression_macron.csv' },
+    { id: 'gb_pre_vote',  name: 'Gradient Boosting pré-vote', file: 'gb_predictions_pre_vote_regression_macron.csv' },
+    { id: 'rf_post_t1',   name: 'Random Forest post-T1',      file: 'rf_predictions_post_t1_regression_macron.csv' },
+    { id: 'rf_pre_vote',  name: 'Random Forest pré-vote',     file: 'rf_predictions_pre_vote_regression_macron.csv' },
+    { id: 'dt_pre_vote',  name: 'Decision Tree pré-vote',     file: 'dt_predictions_pre_vote_regression_macron.csv' },
+    { id: 'mlp_pre_vote', name: 'MLP pré-vote',               file: 'mlp_predictions_pre_vote_regression_macron.csv' },
+    { id: 'lstm',         name: 'LSTM (dual-input)',           file: 'lstm_predictions_regression_macron.csv' },
   ];
 
   const predictions = {};

@@ -22,6 +22,11 @@ def transform_demographique(df_raw: pd.DataFrame) -> pd.DataFrame:
     Transforme les effectifs bruts INSEE en taux (%).
     Supprime ensuite les colonnes d'effectifs intermédiaires.
     """
+    if df_raw.empty or "pop_totale" not in df_raw.columns:
+        log.warning(
+            "Démographique absent — transform ignoré (features CSP/diplômes = NaN)"
+        )
+        return pd.DataFrame(columns=["code_commune"])
     df = df_raw.copy()
     pop = df["pop_totale"].replace(0, np.nan)
 
@@ -210,16 +215,48 @@ def transform_chomage_hist(df_raw: pd.DataFrame) -> pd.DataFrame:
 
 def transform_emploi_2022(df_raw: pd.DataFrame) -> pd.DataFrame:
     """
-    Filtre GEO_OBJECT=COM, PCS=_T, TIME_PERIOD=2022, IDF.
-    Pivote sur EMPSTA_ENQ pour obtenir actifs_occupes, chômeurs, actifs_totaux.
-    """
-    df = df_raw.copy()
-    df["GEO"] = df["GEO"].astype(str).str.strip().str.zfill(5)
+    Calcule le taux de chômage 2022 par commune IDF.
 
+    Supporte deux formats :
+    - base-cc (INSEE direct) : CODGEO, P22_ACT1564, P22_CHOM1564 — une ligne / commune
+    - DS disaggregé (legacy) : GEO, GEO_OBJECT, PCS, TIME_PERIOD, EMPSTA_ENQ, OBS_VALUE
+    """
+    if df_raw.empty:
+        log.warning("Emploi 2022 absent — transform ignoré (ds_taux_chomage = NaN)")
+        return pd.DataFrame(columns=["code_commune"])
+
+    df = df_raw.copy()
+
+    # ── Format base-cc INSEE (une ligne par commune) ──────────────────────────
+    if "CODGEO" in df.columns:
+        df["CODGEO"] = df["CODGEO"].astype(str).str.strip().str.zfill(5)
+        df = df[
+            (df["CODGEO"].str.len() == 5) & (df["CODGEO"].str[:2].isin(IDF_DEPTS))
+        ].copy()
+        df.rename(columns={"CODGEO": "code_commune"}, inplace=True)
+
+        result = df[["code_commune"]].copy()
+        act_col = next((c for c in ("P22_ACT1564", "ACT1564") if c in df.columns), None)
+        chom_col = next(
+            (c for c in ("P22_CHOM1564", "CHOM1564") if c in df.columns), None
+        )
+        if act_col and chom_col:
+            act = pd.to_numeric(df[act_col], errors="coerce")
+            chom = pd.to_numeric(df[chom_col], errors="coerce")
+            result["ds_taux_chomage_2022"] = pct(chom, act)
+
+        log.info(f"Emploi 2022 silver : {len(result):,} communes")
+        return result
+
+    # ── Format DS disaggregé (legacy data.gouv.fr) ───────────────────────────
+    if "GEO" not in df.columns:
+        log.warning("Emploi 2022 : format inconnu (ni CODGEO ni GEO) — ignoré")
+        return pd.DataFrame(columns=["code_commune"])
+
+    df["GEO"] = df["GEO"].astype(str).str.strip().str.zfill(5)
     df = df[
-        (df["GEO_OBJECT"] == "COM")
-        & (df["PCS"].astype(str) == "_T")
-        & (df["TIME_PERIOD"] == 2022)
+        (df.get("GEO_OBJECT", pd.Series("COM", index=df.index)) == "COM")
+        & (df.get("PCS", pd.Series("_T", index=df.index)).astype(str) == "_T")
         & (df["GEO"].str[:2].isin(IDF_DEPTS))
     ].copy()
 
@@ -231,11 +268,9 @@ def transform_emploi_2022(df_raw: pd.DataFrame) -> pd.DataFrame:
         index="GEO", columns="EMPSTA_ENQ", values="OBS_VALUE", aggfunc="sum"
     ).reset_index()
     pivot.columns.name = None
-    pivot.rename(columns={"GEO": "code_commune"}, inplace=True)
-
     pivot.rename(
         columns={
-            "1": "ds_actifs_occupes_2022",
+            "GEO": "code_commune",
             "2": "ds_chomeurs_2022",
             "1T2": "ds_actifs_totaux_2022",
         },
@@ -255,6 +290,9 @@ def transform_emploi_2022(df_raw: pd.DataFrame) -> pd.DataFrame:
 
 def transform_pauvrete(df_raw: pd.DataFrame) -> pd.DataFrame:
     """Sélectionne et renomme les colonnes Filosofi 2017 utiles."""
+    if df_raw.empty:
+        log.warning("Pauvrete absent — transform ignoré (features revenus = NaN)")
+        return pd.DataFrame(columns=["code_commune"])
     df = df_raw.copy()
 
     col_map = {

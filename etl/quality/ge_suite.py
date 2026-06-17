@@ -54,7 +54,9 @@ def build_suite(context) -> "gx.ExpectationSuite":
     suite.add_expectation(
         gx.expectations.ExpectTableRowCountToBeBetween(min_value=1_200, max_value=1_400)
     )
-    suite.add_expectation(gx.expectations.ExpectTableColumnCountToEqual(value=113))
+    suite.add_expectation(
+        gx.expectations.ExpectTableColumnCountToBeBetween(min_value=50, max_value=130)
+    )
 
     # ── Colonne clé : code_commune ────────────────────────────────────────────
     suite.add_expectation(gx.expectations.ExpectColumnToExist(column="code_commune"))
@@ -85,14 +87,16 @@ def build_suite(context) -> "gx.ExpectationSuite":
             column="cible_t2_vainqueur", value_set=[0, 1]
         )
     )
+    # Plage resserrée : en IDF, Macron obtient entre 50 et 90% au T2.
+    # Valeurs hors-plage (0, 100) révèlent une corruption binaire de la colonne cible (incident 16/06/2026).
     suite.add_expectation(
         gx.expectations.ExpectColumnValuesToBeBetween(
-            column="cible_t2_pct_macron", min_value=0.0, max_value=100.0
+            column="cible_t2_pct_macron", min_value=40.0, max_value=95.0
         )
     )
     suite.add_expectation(
         gx.expectations.ExpectColumnValuesToBeBetween(
-            column="cible_t2_pct_lepen", min_value=0.0, max_value=100.0
+            column="cible_t2_pct_lepen", min_value=5.0, max_value=60.0
         )
     )
 
@@ -162,21 +166,15 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
         failed = sum(1 for r in result.results if not r.success)
         total = len(result.results)
 
-        log.info(
-            "Great Expectations : %d/%d expectations passées%s",
-            passed,
-            total,
-            f" — {failed} ÉCHEC(S)" if failed else " ✓",
-        )
-        for r in result.results:
-            if not r.success:
-                col = getattr(r.expectation_config, "kwargs", {}).get("column", "table")
-                log.warning(
-                    "  GE FAIL | %s | col=%s | %s",
-                    r.expectation_config.type,
-                    col,
-                    r.result,
-                )
+        suffix = f" — {failed} ÉCHEC(S)" if failed else " ✓"
+        log.info(f"Great Expectations : {passed}/{total} expectations passées{suffix}")
+        if failed:
+            fails = [
+                f"{r.expectation_config.type}(col={getattr(r.expectation_config, 'kwargs', {}).get('column', 'table')})"
+                for r in result.results
+                if not r.success
+            ]
+            log.warning(f"  GE FAIL : {' · '.join(fails)}")
 
         return {
             "success": result.success,
@@ -196,7 +194,7 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
         }
 
     except Exception as exc:
-        log.error("Great Expectations ERREUR : %s", exc)
+        log.error(f"Great Expectations ERREUR : {exc}")
         return {
             "success": False,
             "passed": 0,

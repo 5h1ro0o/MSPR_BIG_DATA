@@ -47,7 +47,7 @@ services:
     environment:
       <<: *env-common
     volumes:
-      - ${DATA_ROOT_HOST:-../}:/data
+      - data:/data
       - ./ml/artifacts:/app/ml/artifacts
     depends_on:
       postgres:
@@ -93,6 +93,8 @@ services:
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/elections_idf.json
       GF_FEATURE_TOGGLES_ENABLE:  publicDashboards
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_LOG_LEVEL:               warn
+      GF_LOG_MODE:                console
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -111,4 +113,6 @@ volumes:
   postgres_data:
     driver: local
   grafana_data:
+    driver: local
+  data:
     driver: local

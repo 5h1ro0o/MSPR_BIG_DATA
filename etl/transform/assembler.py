@@ -61,6 +61,16 @@ def assemble_dataset(
     dataset.dropna(subset=key_targets, inplace=True)
     log.info(f"Lignes sans cibles 2022 supprimées : {n_before - len(dataset)}")
 
+    # Ensure code_departement is stored as a 2-char zero-padded string, not integer
+    if "code_departement" in dataset.columns:
+        dataset["code_departement"] = (
+            dataset["code_departement"]
+            .astype(str)
+            .str.replace(r"\.0+$", "", regex=True)
+            .str.strip()
+            .str.zfill(2)
+        )
+
     numeric_cols = dataset.select_dtypes(include=[np.number]).columns.tolist()
     cible_cols = [c for c in dataset.columns if c.startswith("cible_")]
     cible_num = [c for c in cible_cols if pd.api.types.is_numeric_dtype(dataset[c])]
@@ -78,9 +88,19 @@ def assemble_dataset(
     log.info(f"Imputation de {n_miss:,} valeurs manquantes...")
     dataset = impute_missing(dataset, feature_num)
 
+    # Passe finale : colonnes encore NaN (source entièrement absente) → 0
     for col in feature_num:
         if dataset[col].isna().any():
-            dataset[col] = dataset[col].fillna(dataset[col].median())
+            fallback = dataset[col].median()
+            dataset[col] = dataset[col].fillna(
+                fallback if not pd.isna(fallback) else 0.0
+            )
+
+    # Colonnes texte avec NaN (libelle_commune, etc.) → chaîne vide
+    str_cols = dataset.select_dtypes(include=["object"]).columns
+    for col in str_cols:
+        if dataset[col].isna().any():
+            dataset[col] = dataset[col].fillna("")
 
     id_cols = [
         "code_commune",

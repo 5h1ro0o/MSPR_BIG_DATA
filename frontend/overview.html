@@ -28,33 +28,23 @@ function Header() {
       </div>
       <h1 className="headline-1">Résultats électoraux IDF 2022 — vue complète.</h1>
       <p className="dek">
-        Résultats du premier et second tour, classement des candidats, profils socio-économiques
-        des électorats, participation historique et corrélations avec les indicateurs INSEE.
+        Résultats du premier et second tour, comparaison avec les prédictions ML,
+        profils socio-économiques des électorats, participation historique et corrélations INSEE.
       </p>
     </section>
   );
 }
 
-function KPIs() {
-  const [mlAcc, setMlAcc] = useState(null);
-
-  useEffect(() => {
-    loadArtifacts().then(() => {
-      const best = (MOCK.models || []).reduce((b, m) => (!b || (m.accuracy || 0) > (b.accuracy || 0)) ? m : b, null);
-      if (best?.accuracy) setMlAcc(best.accuracy);
-    });
-  }, []);
-
-  const mlVal  = mlAcc ? (mlAcc * 100).toFixed(1).replace('.', ',') : '95,7';
-  const mlNote = mlAcc ? 'GB post-T1 — set de test officiel' : 'GB post-T1';
-  const mlSpark = mlAcc ? [88, 90, 90, 91, 93, 95, mlAcc * 100] : [88,90,90,91,93,95,95.7];
-
+function KPIs({ predMacronT2 }) {
+  const mlNote = predMacronT2 != null ? 'Prédiction ML — GB post-T1' : 'Chargement…';
+  const predVal = predMacronT2 != null ? predMacronT2.toFixed(1).replace('.', ',') : '—';
+  const predLP  = predMacronT2 != null ? (100 - predMacronT2).toFixed(1).replace('.', ',') : '—';
   const kpis = [
-    { lbl: 'Communes IDF',     val: '1 268',  unit: '',    note: 'Couverture intégrale',  spark: [1200,1240,1255,1260,1265,1268,1268] },
-    { lbl: 'Inscrits IDF',     val: '8,6',    unit: 'M',   note: 'Présidentielle T1',     spark: [7.8,7.9,8.0,8.2,8.4,8.5,8.6] },
-    { lbl: 'Participation T1', val: '73,6',   unit: '%',   note: '+2,1 pts vs national',  spark: [72.0,84.5,80.4,78.9,73.6] },
-    { lbl: 'Macron T2 IDF',    val: '64,18',  unit: '%',   note: '+28,4 pts sur Le Pen',  spark: [55,58,60,62,63,64,64.18] },
-    { lbl: 'Précision ML',     val: mlVal,    unit: '%',   note: mlNote,                  spark: mlSpark },
+    { lbl: 'Communes IDF',       val: '1 268',  unit: '',  note: 'Couverture intégrale',         spark: [1200,1240,1255,1260,1265,1268,1268] },
+    { lbl: 'Participation T1',   val: '73,6',   unit: '%', note: '+2,1 pts vs national',         spark: [72.0,84.5,80.4,78.9,73.6] },
+    { lbl: 'Abstention T1',      val: '26,4',   unit: '%', note: 'IDF 2022',                     spark: [28,15.5,19.6,21.1,26.4] },
+    { lbl: 'Macron T2 — prédit', val: predVal,  unit: '%', note: mlNote,                         spark: predMacronT2 != null ? [58,60,62,63,64,predMacronT2] : [60,62,64,65,66,67] },
+    { lbl: 'Le Pen T2 — prédite',val: predLP,   unit: '%', note: predMacronT2 != null ? 'Prédiction ML (100 − Macron)' : 'Chargement…', spark: predMacronT2 != null ? [42,40,38,37,36,100-predMacronT2] : [38,36,34,33,32] },
   ];
   return (
     <div className="kpi-row" style={{ marginBottom: 48 }}>
@@ -70,70 +60,129 @@ function KPIs() {
   );
 }
 
-function T1T2Results() {
-  const [tour, setTour] = useState('t1');
+const T1_META = [
+  { key: 't1_macron',    name: 'Emmanuel Macron',    party: 'LREM', color: 'var(--d-1)' },
+  { key: 't1_melenchon', name: 'Jean-Luc Mélenchon', party: 'LFI',  color: 'var(--d-3)' },
+  { key: 't1_lepen',     name: 'Marine Le Pen',       party: 'RN',   color: 'var(--d-2)' },
+  { key: 't1_zemmour',   name: 'Éric Zemmour',        party: 'REC',  color: 'var(--d-4)' },
+  { key: 't1_pecresse',  name: 'Valérie Pécresse',    party: 'LR',   color: 'var(--d-5)' },
+  { key: 't1_jadot',     name: 'Yannick Jadot',       party: 'EELV', color: 'var(--d-6)' },
+  { key: 't1_autres',    name: 'Autres',               party: '',     color: 'var(--ink-4)' },
+];
+
+function T1Results({ t1Candidates }) {
   return (
     <section className="section">
       <div className="section-head">
         <div>
-          <span className="eyebrow">Résultats électoraux</span>
-          <h2>Candidats — Île-de-France 2022</h2>
+          <span className="eyebrow">1er tour · 10 avril 2022</span>
+          <h2>Résultats T1 — candidats IDF</h2>
         </div>
-        <div className="tabs">
-          <button className={tour === 't1' ? 'active' : ''} onClick={() => setTour('t1')}>
-            1er tour — 10 avril
-          </button>
-          <button className={tour === 't2' ? 'active' : ''} onClick={() => setTour('t2')}>
-            2ème tour — 24 avril
-          </button>
-        </div>
+        <span className="chip">Données pipeline · moyenne par commune</span>
       </div>
-      <div className="grid-12">
-        <div className="panel">
-          <BarList rows={tour === 't1' ? MOCK.candidatesT1 : MOCK.t2}
-            max={tour === 't2' ? 100 : undefined} />
-          {tour === 't1' && (
+      {t1Candidates ? (
+        <div className="grid-12">
+          <div className="panel">
+            <BarList rows={t1Candidates} />
             <div style={{ marginTop: 16 }}>
               <div style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-                {MOCK.candidatesT1.map((c, i) => (
-                  <div key={i} title={c.name + ' ' + c.value + '%'}
+                {t1Candidates.map((c, i) => (
+                  <div key={i} title={c.name + ' ' + c.value.toFixed(1) + '%'}
                     style={{ width: c.value + '%', background: c.color, minWidth: 2 }} />
                 ))}
               </div>
               <div style={{ marginTop: 8, fontSize: 11, color: 'var(--ink-4)' }}>
-                Macron et Mélenchon totalisent 65,6% des voix IDF — écart national important
-                (LFI bien plus fort en IDF, RN bien plus faible qu'au niveau national 23,1%)
+                {`Moyenne non pondérée sur 1 268 communes · les deux premiers totalisent ${t1Candidates.slice(0,2).reduce((s,c)=>s+c.value,0).toFixed(1)}% des voix IDF.`}
               </div>
             </div>
-          )}
-          {tour === 't2' && (
-            <div style={{ marginTop: 16 }}>
-              <StackBar segments={MOCK.t2} />
-              <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-                L'IDF vote Macron à <strong>64,18%</strong>, soit +6,7 pts de plus que le résultat national.
-                Paris (85%) et Hauts-de-Seine (73,2%) constituent les bastions LREM.
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="panel">
-          <div className="panel-hd"><h3>T2 par département IDF</h3></div>
-          <div className="bar-list">
-            {[...MOCK.depts].sort((a, b) => b.macronT2 - a.macronT2).map((d) => (
-              <div key={d.code} className="bar-row">
-                <div className="rank" style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{d.code}</div>
-                <div className="nm">{d.nom}<small>{d.communes} communes</small></div>
-                <div className="br">
-                  <i style={{ width: d.macronT2 + '%', background: 'var(--d-1)' }} />
+          </div>
+          <div className="panel">
+            <div className="panel-hd"><h3>Participation T1 par département</h3></div>
+            <div className="bar-list">
+              {[...MOCK.depts].sort((a, b) => b.part - a.part).map((d) => (
+                <div key={d.code} className="bar-row">
+                  <div className="rank" style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{d.code}</div>
+                  <div className="nm">{d.nom}<small>{d.communes} communes</small></div>
+                  <div className="br"><i style={{ width: d.part + '%', background: 'var(--d-1)' }} /></div>
+                  <div className="pc tnum">{d.part.toFixed(1)}<small>%</small></div>
                 </div>
-                <div className="pc tnum">{d.macronT2.toFixed(1)}<small>%</small></div>
+              ))}
+            </div>
+            <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+              Participation plus forte dans les Yvelines (82,4%) et Hauts-de-Seine (79,1%).
+              Seine-Saint-Denis présente la plus faible participation (64,5%).
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="panel" style={{ color: 'var(--ink-4)', fontSize: 13 }}>
+          Prédictions T1 non disponibles — lancez <code>run_all.py</code> pour générer les artéfacts ML.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function T2Results({ predMacronT2, predDepts }) {
+  const predLP = predMacronT2 != null ? 100 - predMacronT2 : null;
+  const MC = 'var(--d-1)', LP = 'var(--d-2)';
+  const depts = predDepts && predDepts.length ? predDepts : [];
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">2ème tour · 24 avril 2022</span>
+          <h2>Prédiction ML T2 — Gradient Boosting post-T1</h2>
+        </div>
+        <a href="comparison.html" className="btn ghost" style={{ fontSize: 12 }}>Comparaison détaillée →</a>
+      </div>
+      {predMacronT2 != null ? (
+        <div className="panel">
+          <div className="eyebrow" style={{ marginBottom: 14 }}>Score prédit — IDF 2022 · moyenne des 1 268 communes</div>
+          <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', marginBottom: 20 }}>
+            <div style={{ width: predMacronT2 + '%', background: MC }} />
+            <div style={{ width: predLP + '%', background: LP }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 16 }}>
+            {[['Emmanuel Macron', predMacronT2, MC], ['Marine Le Pen', predLP, LP]].map(([n, v, c]) => (
+              <div key={n} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, color: c, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{n}</span>
+                <span className="tnum" style={{ fontSize: 36, fontWeight: 700, color: c, lineHeight: 1 }}>{v.toFixed(1)}<span style={{ fontSize: 18 }}>%</span></span>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-            Gradient entre Paris intra-muros (85%) et la grande couronne (57–62%).
-            77 et 95 sont les deux seuls départements où Le Pen dépasse 40%.
+          <div style={{ fontSize: 11.5, color: 'var(--ink-4)', lineHeight: 1.6 }}>
+            Entraîné sur features socio-économiques INSEE + résultats T1 2022 · modèle Gradient Boosting (post-T1).
           </div>
+        </div>
+      ) : (
+        <div className="panel" style={{ color: 'var(--ink-4)', fontSize: 13 }}>
+          Prédictions non disponibles — lancez <code>run_all.py</code> pour générer les artéfacts ML.
+        </div>
+      )}
+      {/* Dept breakdown T2 prédit */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd"><h3>T2 prédit par département IDF</h3></div>
+        {depts.length > 0 ? (
+          <div className="bar-list">
+            {[...depts].sort((a, b) => b.macronPred - a.macronPred).map((d) => (
+              <div key={d.code} className="bar-row">
+                <div className="rank" style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{d.code}</div>
+                <div className="nm">{d.nom}<small>{d.communes} communes</small></div>
+                <div className="br"><i style={{ width: d.macronPred + '%', background: 'var(--d-1)' }} /></div>
+                <div className="pc tnum">{d.macronPred.toFixed(1)}<small>%</small></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: '16px 0', color: 'var(--ink-4)', fontSize: 13 }}>
+            Lancez <code>run_all.py</code> pour charger les prédictions par département.
+          </div>
+        )}
+        <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+          {predDepts && predDepts.length
+            ? 'Moyennes des prédictions ML par département · score prédit Macron T2.'
+            : 'Prédictions par département non disponibles — relancez le pipeline pour charger les données.'}
         </div>
       </div>
     </section>
@@ -168,17 +217,14 @@ function ElectoratProfiles() {
         <div style={{ display: 'grid', gridTemplateColumns: '160px repeat(4, 1fr)', gap: '0 12px' }}>
           <div />
           {profiles.map(p => (
-            <div key={p.label} style={{ textAlign: 'center', paddingBottom: 14,
-              borderBottom: '2px solid ' + p.color }}>
+            <div key={p.label} style={{ textAlign: 'center', paddingBottom: 14, borderBottom: '2px solid ' + p.color }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color }}>{p.label}</div>
             </div>
           ))}
           {indicators.map(ind => (
             <React.Fragment key={ind.key}>
               <div style={{ fontSize: 12, color: 'var(--ink-4)', padding: '9px 12px 9px 0',
-                borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>
-                {ind.label}
-              </div>
+                borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap' }}>{ind.label}</div>
               {profiles.map(p => {
                 const val = p[ind.key];
                 const fmt = ind.fmt ? ind.fmt(val) : val;
@@ -189,8 +235,7 @@ function ElectoratProfiles() {
                       {ind.unit === '€' && <span style={{ fontSize: 11, color: 'var(--ink-4)' }}> €</span>}
                     </div>
                     <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-3)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: Math.min(100, (val / ind.max) * 100) + '%',
-                        background: p.color }} />
+                      <div style={{ height: '100%', width: Math.min(100, (val / ind.max) * 100) + '%', background: p.color }} />
                     </div>
                   </div>
                 );
@@ -305,74 +350,84 @@ function Heatmap() {
   );
 }
 
-function CommuneTable() {
-  const [dept, setDept] = useState('Tous');
-  const depts = ['Tous', '75', '77', '78', '91', '92', '93', '94', '95'];
-  const filtered = dept === 'Tous' ? MOCK.communes : MOCK.communes.filter(c => c.dept === dept);
-  const colorMap = { Macron: 'var(--d-1)', Melenchon: 'var(--d-3)', LePen: 'var(--d-2)' };
-  return (
-    <section className="section">
-      <div className="section-head">
-        <div>
-          <span className="eyebrow">Communes emblématiques</span>
-          <h2>Résultats T1 par commune</h2>
-        </div>
-        <div className="tabs">
-          {depts.map(d => (
-            <button key={d} className={dept === d ? 'active' : ''} onClick={() => setDept(d)}>{d}</button>
-          ))}
-        </div>
-      </div>
-      <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Code INSEE</th><th>Commune</th><th>Dept.</th>
-              <th className="num">Inscrits</th>
-              <th className="num">Participation</th>
-              <th>Leader T1</th>
-              <th className="num">Score T1 (%)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(c => {
-              const col = colorMap[c.top] || 'var(--ink)';
-              return (
-                <tr key={c.code}>
-                  <td className="mono" style={{ color: 'var(--ink-4)' }}>{c.code}</td>
-                  <td style={{ fontWeight: 500 }}>{c.nom}</td>
-                  <td className="mono">{c.dept}</td>
-                  <td className="num tnum">{c.inscrits.toLocaleString('fr-FR')}</td>
-                  <td className="num tnum">{c.participation.toFixed(1)}%</td>
-                  <td>
-                    <span className="chip" style={{ color: col, borderColor: 'transparent',
-                      background: 'color-mix(in srgb, ' + col + ' 10%, transparent)' }}>
-                      <span className="dot" style={{ background: col }} />{c.top}
-                    </span>
-                  </td>
-                  <td className="num tnum">{c.pct.toFixed(1)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
+const DEPT_INFO = {
+  '75': { nom: 'Paris',             communes: 20  },
+  '92': { nom: 'Hauts-de-Seine',    communes: 36  },
+  '78': { nom: 'Yvelines',          communes: 262 },
+  '91': { nom: 'Essonne',           communes: 196 },
+  '94': { nom: 'Val-de-Marne',      communes: 47  },
+  '93': { nom: 'Seine-Saint-Denis', communes: 40  },
+  '77': { nom: 'Seine-et-Marne',    communes: 514 },
+  '95': { nom: "Val-d'Oise",        communes: 153 },
+};
 
 function App() {
+  const [predMacronT2,  setPredMacronT2]  = useState(null);
+  const [predDepts,     setPredDepts]     = useState([]);
+  const [t1Candidates,  setT1Candidates]  = useState(null);
+
+  useEffect(() => {
+    Promise.all([loadArtifacts(), loadPredictions()]).then(([, preds]) => {
+      const best = preds?.gb_post_t1 ?? preds?.gb_pre_vote ?? preds?.rf_post_t1;
+      if (!best?.rows?.length) return;
+
+      const rows = best.rows;
+      const validRows = rows.filter(r => r.score_macron_predit != null && !isNaN(r.score_macron_predit));
+
+      // IDF moyenne T2 prédite
+      if (validRows.length) {
+        const avg = validRows.reduce((s, r) => s + r.score_macron_predit, 0) / validRows.length;
+        setPredMacronT2(avg);
+      }
+
+      // T1 — moyennes par commune depuis le CSV pipeline
+      const validT1 = rows.filter(r => r.t1_macron != null && r.t1_macron > 0);
+      if (validT1.length) {
+        const cands = T1_META.map(c => ({
+          ...c,
+          value: validT1.reduce((s, r) => s + (r[c.key] || 0), 0) / validT1.length,
+        })).filter(c => c.value > 0.05).sort((a, b) => b.value - a.value);
+        if (cands.length >= 3) {
+          setT1Candidates(cands);
+        } else {
+          setT1Candidates(MOCK.candidatesT1);
+        }
+      } else {
+        setT1Candidates(MOCK.candidatesT1);
+      }
+
+      // T2 — agrégation par département
+      const deptAcc = {};
+      validRows.forEach(r => {
+        const code = r.code_departement;
+        if (!code) return;
+        if (!deptAcc[code]) deptAcc[code] = { sum: 0, count: 0 };
+        deptAcc[code].sum   += r.score_macron_predit;
+        deptAcc[code].count += 1;
+      });
+      const depts = Object.entries(deptAcc)
+        .filter(([code]) => DEPT_INFO[code])
+        .map(([code, { sum, count }]) => ({
+          code,
+          nom:        DEPT_INFO[code].nom,
+          communes:   DEPT_INFO[code].communes,
+          macronPred: sum / count,
+        }));
+      if (depts.length) setPredDepts(depts);
+    });
+  }, []);
+
   return (
     <>
       <Topbar active="overview" />
       <main className="shell">
         <Header />
-        <KPIs />
-        <T1T2Results />
+        <KPIs predMacronT2={predMacronT2} />
+        <T1Results t1Candidates={t1Candidates} />
+        <T2Results predMacronT2={predMacronT2} predDepts={predDepts} />
         <ElectoratProfiles />
         <Participation />
         <Heatmap />
-        <CommuneTable />
       </main>
       <Footer />
     </>

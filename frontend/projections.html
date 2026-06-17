@@ -477,61 +477,6 @@ function CommuneProjection({ communes }) {
   );
 }
 
-// ── Méthodologie ──────────────────────────────────────────────────────────────
-function Methodology({ meta }) {
-  return (
-    <section className="section">
-      <div className="section-head">
-        <div><span className="eyebrow">Méthodologie</span><h2>Comment sont générées ces projections ?</h2></div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div className="panel">
-          <div className="panel-hd"><h3>Modèle utilisé</h3></div>
-          <div style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--ink-3)' }}>
-            <p style={{ margin: '0 0 10px' }}>
-              <strong>Gradient Boosting pré-vote</strong> — le seul modèle du projet
-              qui n'utilise pas les résultats du T1 2022. Il est donc applicable
-              à une élection future dont on ne connaît pas encore le premier tour.
-            </p>
-            <p style={{ margin: '0 0 10px' }}>
-              <strong>Features</strong> : {meta.n_features || 69} variables socio-économiques
-              + historique électoral 2012 et 2017.
-            </p>
-            <div style={{ padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 'var(--r-sm)',
-              fontSize: 12, color: 'var(--ink-4)' }}>
-              {meta.methodology || 'Extrapolation linéaire des tendances observées.'}
-            </div>
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-hd"><h3>Features projetées</h3></div>
-          <div style={{ fontSize: 13, lineHeight: 1.8 }}>
-            {[
-              { feat: 'Taux de chômage', src: 'Tendance 2009→2022 par commune (13 ans)', col: 'var(--status-ok)' },
-              { feat: 'Revenu médian', src: 'Tendance 2017→2021 par commune (4 ans)', col: 'var(--status-ok)' },
-              { feat: 'Démographie (âge)', src: 'Tendances INSEE IDF 2020-2050', col: 'var(--status-ok)' },
-              { feat: 'Autres features socio', src: 'Maintenues constantes (2022)', col: 'var(--ink-4)' },
-              { feat: 'Historique 2012/2017', src: 'Inchangé — stabilité géographie électorale', col: 'var(--ink-4)' },
-            ].map(({ feat, src, col }) => (
-              <div key={feat} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, marginTop: 4, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontWeight: 600 }}>{feat}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>{src}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 16, padding: '10px 14px', background: 'color-mix(in srgb,var(--status-warn) 10%,transparent)',
-            borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--ink-3)', border: '1px solid color-mix(in srgb,var(--status-warn) 30%,transparent)' }}>
-            <strong>Limites :</strong> {meta.limitations || 'Projection linéaire — incertitude croissante avec l\'horizon.'}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // ── App ───────────────────────────────────────────────────────────────────────
 function App() {
   const [data,         setData]        = useState(null);
@@ -606,7 +551,6 @@ function App() {
               <HistoProbas communes={data.communes} selectedYear={year} onYearSelect={sy} />
             </section>
             <CommuneProjection communes={data.communes} />
-            <Methodology meta={data.meta} />
           </>
         )}
       </main>

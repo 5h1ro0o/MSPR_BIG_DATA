@@ -19,12 +19,12 @@ def setup_logger(log_level: str = "INFO", log_dir: Path = Path("logs")) -> None:
         sys.stderr,
         level=log_level,
         format=(
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+            "<green>{time:HH:mm:ss}</green> | "
             "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> — "
+            "<cyan>{name}</cyan> | "
             "<level>{message}</level>"
         ),
-        colorize=True,
+        colorize=False,
     )
 
     logger.add(

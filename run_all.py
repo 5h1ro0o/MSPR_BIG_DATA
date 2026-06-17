@@ -15,6 +15,8 @@ Usage :
 """
 
 import argparse
+import datetime
+import json
 import logging
 import sys
 import time
@@ -41,17 +43,17 @@ def step_fetch(data_root: Path) -> bool:
         from etl.extract.datagouv import fetch_all_datasets
 
         results = fetch_all_datasets(data_root)
-        ok_count = sum(v for v in results.values())
+        ok_count = sum(results.values())
         log.info(
             f"Fetch terminé en {time.time()-t0:.1f}s — {ok_count}/{len(results)} datasets OK"
         )
         return True
     except Exception as e:
-        log.error(f"Fetch ERREUR : {e}", exc_info=True)
+        log.exception(f"Fetch ERREUR : {e}")
         return False
 
 
-def step_etl() -> bool:
+def step_etl() -> tuple[bool, dict]:
     log.info("━━━ ÉTAPE 2/4 : ETL (Extract → Transform → Load) ━━━")
     t0 = time.time()
     try:
@@ -62,13 +64,13 @@ def step_etl() -> bool:
             f"ETL terminé en {time.time()-t0:.1f}s — "
             f"total={result.get('total_duration_s', 0):.1f}s"
         )
-        return True
+        return True, result
     except Exception as e:
-        log.error(f"ETL ERREUR : {e}", exc_info=True)
-        return False
+        log.exception(f"ETL ERREUR : {e}")
+        return False, {}
 
 
-def step_datamart() -> bool:
+def step_datamart() -> None:
     log.info("━━━ ÉTAPE 3/4 : DATAMART (schéma en étoile) ━━━")
     t0 = time.time()
     try:
@@ -82,10 +84,49 @@ def step_datamart() -> bool:
             log.warning(
                 "Datamart non alimenté (CSV ou DB indisponible) — pipeline continue"
             )
-        return True  # non-bloquant : le frontend fonctionne sans le datamart
     except Exception as e:
         log.warning(f"Datamart ERREUR (non-bloquant) : {e}")
+
+
+def step_populate_db() -> bool:
+    """
+    Étape 5 — population définitive de gold.model_predictions et gold.model_metrics
+    depuis les artefacts CSV/JSON générés par l'entraînement.
+
+    Pourquoi cette étape existe :
+      _store_to_db() dans trainer.py écrit depuis la mémoire (DataFrame pandas) pendant
+      l'entraînement. Des problèmes de types (float64 vs varchar) ou de connexion peuvent
+      faire rater l'insert silencieusement.
+      Cette étape lit les CSV déjà sur disque — toujours propres — et est la source
+      de vérité pour Grafana. Elle est non-bloquante : si elle échoue le pipeline continue.
+    """
+    log.info("━━━ ÉTAPE 5/5 : POPULATION DB depuis artefacts CSV/JSON ━━━")
+    t0 = time.time()
+    try:
+        import datetime as _dt
+
+        from sqlalchemy import create_engine
+
+        from db.populate_from_artifacts import (
+            get_db_url,
+            populate_model_metrics,
+            populate_model_predictions,
+        )
+
+        db_url = get_db_url()
+        engine = create_engine(db_url, pool_pre_ping=True)
+        run_id = (
+            _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%S") + "_pipeline"
+        )
+
+        populate_model_predictions(engine, run_id)
+        populate_model_metrics(engine, run_id)
+
+        log.info(f"Population DB terminée en {time.time()-t0:.1f}s")
         return True
+    except Exception as e:
+        log.warning(f"Population DB ERREUR (non-bloquant) : {e}")
+        return False
 
 
 def step_train() -> bool:
@@ -103,50 +144,48 @@ def step_train() -> bool:
 
         results: dict = {}
 
+        # Régression sur le % Macron T2 — en IDF 2022, Macron a gagné dans TOUTES les
+        # communes (vote majoritaire), donc cible_t2_vainqueur = toujours 0 (1 seule classe).
+        # La classification est impossible sur ce dataset IDF.
+        # La régression prédit la marge de Macron (~50-90% selon les communes),
+        # ce qui donne des métriques R²/MAE/RMSE significatives et réelles.
+        TARGET = "regression_macron"
+
         for fset in ("pre_vote", "post_t1"):
-            log.info(f"  Random Forest — feature_set={fset}")
             try:
                 m = train_random_forest(
                     feature_set=fset,
-                    target="classification_t2",
+                    target=TARGET,
                     fast_search=True,
-                    n_iter=30,  # 30 itérations (vs 20) pour une meilleure couverture
+                    n_iter=15,
                 )
                 results[f"rf_{fset}"] = m
             except Exception as e:
                 log.warning(f"  RF {fset} ERREUR: {e}")
 
-            log.info(f"  Gradient Boosting — feature_set={fset}")
             try:
                 m = train_gradient_boosting(
-                    feature_set=fset, target="classification_t2", use_search=False
+                    feature_set=fset, target=TARGET, use_search=False
                 )
                 results[f"gb_{fset}"] = m
             except Exception as e:
                 log.warning(f"  GB {fset} ERREUR: {e}")
 
         try:
-            log.info("  LSTM …")
-            m = train_lstm(target="classification_t2")
+            m = train_lstm(target=TARGET)
             if m:
                 results["lstm"] = m
         except ImportError:
-            log.info("  TensorFlow absent — LSTM ignoré")
+            pass
 
-        log.info("  Decision Tree — feature_set=pre_vote")
         try:
-            m = train_decision_tree(feature_set="pre_vote", target="classification_t2")
+            m = train_decision_tree(feature_set="pre_vote", target=TARGET)
             results["decision_tree"] = m
         except Exception as e:
             log.warning(f"  DT ERREUR: {e}")
 
-        log.info("  MLP — feature_set=pre_vote (avec recherche d'hyperparamètres)")
         try:
-            m = train_mlp(
-                feature_set="pre_vote",
-                target="classification_t2",
-                use_grid_search=True,  # recherche architecture + régularisation optimale
-            )
+            m = train_mlp(feature_set="pre_vote", target=TARGET, use_grid_search=False)
             results["mlp"] = m
         except Exception as e:
             log.warning(f"  MLP ERREUR: {e}")
@@ -170,6 +209,35 @@ def step_train() -> bool:
     except Exception as e:
         log.error(f"Entraînement ERREUR : {e}", exc_info=True)
         return False
+
+
+def _write_run_artifact(
+    t_start: float, elapsed: float, success: bool, etl_meta: dict
+) -> None:
+    """Écrit ml/artifacts/pipeline_run.json pour le frontend."""
+    try:
+        start_dt = datetime.datetime.fromtimestamp(t_start, datetime.timezone.utc)
+        run_id = (
+            etl_meta.get("run_id") or start_dt.strftime("%Y%m%dT%H%M%S") + "_000000"
+        )
+        artifact = {
+            "id": run_id,
+            "start": start_dt.strftime("%d/%m %H:%M"),
+            "dur": f"{int(elapsed // 60)}m {int(elapsed % 60)}s",
+            "status": "SUCCESS" if success else "PARTIAL",
+            "communes": etl_meta.get("n_communes", 0),
+            "qc": "OK" if etl_meta.get("qc_passed", False) else "KO",
+            "nulls": etl_meta.get("n_nulls", 0),
+        }
+        artifacts_dir = PROJECT_ROOT / "ml" / "artifacts"
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        out = artifacts_dir / "pipeline_run.json"
+        out.write_text(
+            json.dumps(artifact, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        log.info(f"Artifact run écrit : {out}")
+    except Exception as e:
+        log.warning(f"Impossible d'écrire pipeline_run.json : {e}")
 
 
 def main():
@@ -205,8 +273,9 @@ def main():
         if not ok:
             log.warning("Fetch partiel — l'ETL peut échouer si des fichiers manquent")
 
+    etl_meta: dict = {}
     if not args.skip_etl:
-        ok = step_etl()
+        ok, etl_meta = step_etl()
         if not ok:
             log.error("ETL échoué — arrêt du pipeline")
             sys.exit(1)
@@ -215,10 +284,21 @@ def main():
     if not args.skip_train:
         ok = step_train()
         success = success and ok
+        step_populate_db()
 
     elapsed = time.time() - t_total
     status = "SUCCESS" if success else "PARTIAL"
     log.info(f"━━━ PIPELINE {status} | {elapsed:.0f}s total ━━━")
+
+    _write_run_artifact(t_total, elapsed, success, etl_meta)
+
+    log.info("")
+    log.info("┌─────────────────────────────────────────────────────────────┐")
+    log.info("│                        ✓  READY                            │")
+    log.info("│   Frontend  →  http://localhost:3000                        │")
+    log.info("│   Grafana   →  http://localhost:3001                        │")
+    log.info("└─────────────────────────────────────────────────────────────┘")
+    log.info("")
 
     if not success:
         sys.exit(1)
