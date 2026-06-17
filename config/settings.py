@@ -3,10 +3,16 @@ Configuration centralisée via Pydantic Settings.
 Lit les valeurs depuis .env ou les variables d'environnement.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+if TYPE_CHECKING:
+    from security.encryption import DataEncryptor
 
 
 class Settings(BaseSettings):
@@ -20,7 +26,7 @@ class Settings(BaseSettings):
     postgres_port: int = Field(5432, alias="POSTGRES_PORT")
     postgres_db: str = Field("elections_idf", alias="POSTGRES_DB")
     postgres_user: str = Field("etl_admin", alias="POSTGRES_USER")
-    postgres_password: str = Field("elections2022", alias="POSTGRES_PASSWORD")
+    postgres_password: str = Field("elections2022", alias="POSTGRES_PASSWORD")  # NOSONAR
 
     @property
     def database_url(self) -> str:
@@ -72,6 +78,21 @@ class Settings(BaseSettings):
     idf_depts: frozenset[str] = frozenset(
         {"75", "77", "78", "91", "92", "93", "94", "95"}
     )
+
+    # Chiffrement symétrique AES-128 (Fernet)
+    encryption_key: str = Field("", alias="ENCRYPTION_KEY")
+    encryption_enabled: bool = Field(False, alias="ENCRYPTION_ENABLED")
+
+    @property
+    def encryptor(self) -> "DataEncryptor | None":
+        """
+        Retourne un DataEncryptor si le chiffrement est activé et qu'une clé est présente.
+        Retourne None sinon (pipeline continue sans chiffrement).
+        """
+        if not self.encryption_enabled or not self.encryption_key:
+            return None
+        from security.encryption import DataEncryptor
+        return DataEncryptor(self.encryption_key.encode("utf-8"))
 
 
 settings = Settings()

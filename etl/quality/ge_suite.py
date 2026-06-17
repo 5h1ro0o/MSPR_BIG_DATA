@@ -166,12 +166,12 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
 
         suffix = f" — {failed} ÉCHEC(S)" if failed else " ✓"
         log.info(f"Great Expectations : {passed}/{total} expectations passées{suffix}")
-        for r in result.results:
-            if not r.success:
-                col = getattr(r.expectation_config, "kwargs", {}).get("column", "table")
-                log.warning(
-                    f"  GE FAIL | {r.expectation_config.type} | col={col} | {r.result}"
-                )
+        if failed:
+            fails = [
+                f"{r.expectation_config.type}(col={getattr(r.expectation_config, 'kwargs', {}).get('column', 'table')})"
+                for r in result.results if not r.success
+            ]
+            log.warning(f"  GE FAIL : {' · '.join(fails)}")
 
         return {
             "success": result.success,

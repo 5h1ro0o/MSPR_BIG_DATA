@@ -7,7 +7,7 @@ sérialisable en JSON pour archivage ou envoi à Prometheus/Grafana.
 import json
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -48,7 +48,7 @@ class PipelineMetrics:
 
     def __init__(self, run_id: str):
         self.run_id = run_id
-        self.started_at = datetime.utcnow().isoformat()
+        self.started_at = datetime.now(timezone.utc).isoformat()
         self.steps: list[StepMetric] = []
 
     def start_step(self, step: str) -> StepMetric:

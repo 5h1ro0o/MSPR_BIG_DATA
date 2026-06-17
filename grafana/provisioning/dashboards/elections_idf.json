@@ -96,15 +96,15 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "R² Score — GB post-T1 (set de test)",
-      "description": "R² du modèle GB post-T1 sur le set de test (régression % Macron T2, affiché ×100).",
+      "title": "CV R² — GB post-T1 (OOF 5 folds)",
+      "description": "R² cross-validation OOF 5 folds du modèle GB post-T1 (régression % Macron T2, affiché ×100).",
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "datasource": { "type": "postgres", "uid": "elections-postgres" },
       "targets": [
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT ROUND(metric_value::numeric * 100, 1) AS \"R² (×100)\" FROM gold.latest_model_metrics WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND metric_name = 'test_r2' LIMIT 1",
+          "rawSql": "SELECT ROUND(metric_value::numeric * 100, 1) AS \"R² (×100)\" FROM gold.latest_model_metrics WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND metric_name = 'cv_r2' LIMIT 1",
           "refId": "A"
         }
       ],
@@ -199,56 +199,17 @@
     },
 
     {
-      "id": 6,
-      "type": "table",
-      "title": "Top 20 communes — probabilité Le Pen la plus élevée",
-      "description": "Communes où le modèle prédit Le Pen avec la plus forte probabilité. Source : gold.model_predictions",
-      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 14 },
-      "datasource": { "type": "postgres", "uid": "elections-postgres" },
-      "targets": [
-        {
-          "editorMode": "code",
-          "format": "table",
-          "rawSql": "SELECT libelle_commune AS \"Commune\", code_departement AS \"Dept\", ROUND((100 - ground_truth::numeric), 1) AS \"Le Pen réel (%)\", ROUND(ground_truth::numeric, 1) AS \"Macron réel (%)\", CASE WHEN correct THEN '✓' ELSE '✗' END AS \"Prédit correct ?\" FROM gold.model_predictions WHERE model_name = 'gradient_boosting' AND feature_set = 'post_t1' AND target = 'regression_macron' AND prediction::integer = 1 ORDER BY ground_truth::numeric ASC NULLS LAST LIMIT 20",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "Le Pen réel (%)" }]
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
-          "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 50 }] }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Le Pen réel (%)" },
-            "properties": [
-              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "color-background" } },
-              { "id": "color", "value": { "mode": "continuous-RdYlGn" } }
-            ]
-          }
-        ]
-      }
-    },
-
-    {
       "id": 7,
       "type": "table",
       "title": "Métriques comparatives des modèles ML",
       "description": "R², MAE, RMSE pour tous les modèles entraînés (régression % Macron T2). Source : gold.latest_model_metrics",
-      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 14 },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 14 },
       "datasource": { "type": "postgres", "uid": "elections-postgres" },
       "targets": [
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT model_name AS \"Modèle\", feature_set AS \"Feature set\", metric_name AS \"Métrique\", ROUND(metric_value::numeric, 4) AS \"Valeur\" FROM gold.latest_model_metrics WHERE target = 'regression_macron' AND metric_name IN ('test_r2', 'test_mae', 'test_rmse') ORDER BY model_name, feature_set, metric_name",
+          "rawSql": "SELECT model_name AS \"Modèle\", feature_set AS \"Feature set\", metric_name AS \"Métrique\", ROUND(metric_value::numeric, 4) AS \"Valeur\" FROM gold.latest_model_metrics WHERE target = 'regression_macron' AND metric_name IN ('cv_r2', 'cv_mae', 'cv_rmse', 'cv_balanced_accuracy') ORDER BY model_name, feature_set, metric_name",
           "refId": "A"
         }
       ],
@@ -287,7 +248,7 @@
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT code_departement AS \"Département\", ROUND(AVG(COALESCE(revenu_median_2021, revenu_median_2017))::numeric, 0) AS \"Revenu médian (€)\", ROUND(AVG(taux_chomage_rp2022)::numeric, 1) AS \"Taux chômage (%)\" FROM gold.ml_features WHERE code_departement IS NOT NULL GROUP BY code_departement ORDER BY code_departement",
+          "rawSql": "SELECT code_departement AS \"Département\", ROUND(AVG(revenu_median_2017::numeric)::numeric, 0) AS \"Revenu médian (€)\", ROUND(AVG(taux_chomage_rp2022)::numeric, 1) AS \"Taux chômage (%)\" FROM gold.ml_features WHERE code_departement IS NOT NULL AND revenu_median_2017 IS NOT NULL AND revenu_median_2017 != '' GROUP BY code_departement ORDER BY code_departement",
           "refId": "A"
         }
       ],
@@ -402,7 +363,7 @@
         {
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT CONCAT(model_name, ' / ', feature_set) AS \"Modèle\", ROUND(metric_value::numeric * 100, 1) AS \"R² (×100)\" FROM gold.latest_model_metrics WHERE target = 'regression_macron' AND metric_name = 'test_r2' ORDER BY metric_value DESC",
+          "rawSql": "SELECT CONCAT(model_name, ' / ', feature_set) AS \"Modèle\", ROUND(metric_value::numeric * 100, 1) AS \"CV R² (×100)\" FROM gold.latest_model_metrics WHERE target = 'regression_macron' AND metric_name = 'cv_r2' ORDER BY metric_value DESC",
           "refId": "A"
         }
       ],

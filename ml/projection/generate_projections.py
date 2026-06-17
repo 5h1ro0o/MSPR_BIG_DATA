@@ -14,6 +14,7 @@ Méthode :
 from __future__ import annotations
 
 import json
+import logging
 import os
 import warnings
 from pathlib import Path
@@ -23,6 +24,8 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
+
+log = logging.getLogger(__name__)
 
 ML_DIR = Path(__file__).parent.parent
 ARTIFACTS = ML_DIR / "artifacts"
@@ -100,9 +103,7 @@ def compute_per_commune_trends(df: pd.DataFrame) -> dict[str, pd.Series]:
         n_years = yr_current - yr_old
         delta = (df[feat_current] - df[feat_old]) / n_years
         deltas[feat_current] = delta
-        print(
-            f"  Tendance {feat_current}: delta/an = {delta.mean():.3f} (mediane {delta.median():.3f})"
-        )
+        log.debug(f"  Tendance {feat_current}: delta/an={delta.mean():.3f} (med {delta.median():.3f})")
     return deltas
 
 
@@ -191,11 +192,10 @@ def _load_best_model() -> tuple:
         model_path = ARTIFACTS / f"{stem}.joblib"
         meta_path = ARTIFACTS / f"{stem}_meta.json"
         if model_path.exists() and meta_path.exists():
-            print(f"  Chargement modèle : {model_path.name}")
             pipeline = joblib.load(model_path)
             meta = json.loads(meta_path.read_text())
             feature_names = meta.get("feature_names", [])
-            print(f"  Features : {len(feature_names)} colonnes | task : {task}")
+            log.info(f"  Modèle chargé : {model_path.name} ({len(feature_names)} features, {task})")
             return pipeline, feature_names, task
 
     raise FileNotFoundError(
@@ -216,7 +216,6 @@ def load_model_and_data() -> tuple:
     else:
         data_path = DATA_PATH
 
-    print(f"  Dataset  : {data_path.name}")
     df = pd.read_csv(data_path, low_memory=False)
 
     return pipeline, feature_names, task, df
@@ -224,9 +223,7 @@ def load_model_and_data() -> tuple:
 
 def generate():
     """Génère les 3 CSVs de projections (T+1, T+2, T+3) et le CSV de synthèse."""
-    print("\n" + "=" * 60)
-    print("  PROJECTIONS TEMPORELLES — T+1, T+2, T+3")
-    print("=" * 60)
+    log.info("Projections temporelles T+1/T+2/T+3...")
 
     pipeline, feature_names, task, df = load_model_and_data()
 
@@ -235,20 +232,17 @@ def generate():
 
     missing = [f for f in feature_names if f not in df.columns]
     if missing:
-        print(f"  [WARN] {len(missing)} features absentes du dataset : {missing[:5]}...")
+        log.warning(f"  {len(missing)} features absentes du dataset : {missing[:5]}...")
     available = [f for f in feature_names if f in df.columns]
 
     if not available:
-        print("  [ERREUR] Aucune feature du modèle n'est disponible dans le dataset — projections ignorées")
+        log.error("  Aucune feature disponible dans le dataset — projections ignorées")
         return
 
     mask = df[available].notna().all(axis=1)
     X_base = df.loc[mask, available].copy().reset_index(drop=True)
     id_base = id_df.loc[mask].reset_index(drop=True)
 
-    print(f"  Communes avec données complètes : {len(X_base):,}")
-
-    print("\n  Calcul des tendances socio-économiques...")
     deltas = compute_per_commune_trends(df.loc[mask].reset_index(drop=True))
 
     # Prédictions de base (2022)
@@ -262,7 +256,6 @@ def generate():
     all_horizons = []
 
     for horizon, annee in HORIZONS.items():
-        print(f"\n  Projection {annee} (T+{horizon})...")
 
         X_proj = project_features(X_base, deltas, horizon)
 
@@ -306,14 +299,11 @@ def generate():
 
         out_path = ARTIFACTS / f"projections_{annee}_t{horizon}.csv"
         result.to_csv(out_path, index=False)
-        print(f"  Sauvegardé : {out_path.name}")
-        print(f"    Macron prédit : {n_macron} communes ({n_macron/len(X_base)*100:.1f}%)")
-        print(f"    Le Pen prédit : {n_lepen} communes ({n_lepen/len(X_base)*100:.1f}%)")
+        log.info(f"  T+{horizon} ({annee}) — Macron {n_macron} communes ({n_macron/len(X_base)*100:.1f}%) · Le Pen {n_lepen} ({n_lepen/len(X_base)*100:.1f}%)")
 
         all_horizons.append(result)
 
     # CSV de synthèse par département
-    print("\n  Génération synthèse par département...")
     dept_rows = []
     for horizon_df in all_horizons:
         horizon = int(horizon_df["horizon_years"].iloc[0])
@@ -362,7 +352,6 @@ def generate():
     summary_df = pd.DataFrame(dept_rows).sort_values(["code_departement", "annee_cible"])
     summary_path = ARTIFACTS / "projections_synthese_depts.csv"
     summary_df.to_csv(summary_path, index=False)
-    print(f"  Synthèse : {summary_path.name} ({len(summary_df)} lignes)")
 
     meta_out = {
         "model_task": task,
@@ -373,8 +362,7 @@ def generate():
     }
     meta_path_out = ARTIFACTS / "projections_meta.json"
     meta_path_out.write_text(json.dumps(meta_out, indent=2, ensure_ascii=False))
-    print(f"  Méta     : {meta_path_out.name}")
-    print("\n  Projections terminées.")
+    log.info(f"  Projections terminées — synthèse {len(summary_df)} lignes · {len(X_base)} communes")
 
 
 if __name__ == "__main__":

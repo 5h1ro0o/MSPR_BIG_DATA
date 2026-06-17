@@ -43,13 +43,13 @@ def step_fetch(data_root: Path) -> bool:
         from etl.extract.datagouv import fetch_all_datasets
 
         results = fetch_all_datasets(data_root)
-        ok_count = sum(v for v in results.values())
+        ok_count = sum(results.values())
         log.info(
             f"Fetch terminé en {time.time()-t0:.1f}s — {ok_count}/{len(results)} datasets OK"
         )
         return True
     except Exception as e:
-        log.error(f"Fetch ERREUR : {e}", exc_info=True)
+        log.exception(f"Fetch ERREUR : {e}")
         return False
 
 
@@ -66,11 +66,11 @@ def step_etl() -> tuple[bool, dict]:
         )
         return True, result
     except Exception as e:
-        log.error(f"ETL ERREUR : {e}", exc_info=True)
+        log.exception(f"ETL ERREUR : {e}")
         return False, {}
 
 
-def step_datamart() -> bool:
+def step_datamart() -> None:
     log.info("━━━ ÉTAPE 3/4 : DATAMART (schéma en étoile) ━━━")
     t0 = time.time()
     try:
@@ -81,13 +81,48 @@ def step_datamart() -> bool:
         if ok:
             log.info(f"Datamart alimenté en {elapsed:.1f}s")
         else:
-            log.warning(
-                "Datamart non alimenté (CSV ou DB indisponible) — pipeline continue"
-            )
-        return True  # non-bloquant : le frontend fonctionne sans le datamart
+            log.warning("Datamart non alimenté (CSV ou DB indisponible) — pipeline continue")
     except Exception as e:
         log.warning(f"Datamart ERREUR (non-bloquant) : {e}")
+
+
+def step_populate_db() -> bool:
+    """
+    Étape 5 — population définitive de gold.model_predictions et gold.model_metrics
+    depuis les artefacts CSV/JSON générés par l'entraînement.
+
+    Pourquoi cette étape existe :
+      _store_to_db() dans trainer.py écrit depuis la mémoire (DataFrame pandas) pendant
+      l'entraînement. Des problèmes de types (float64 vs varchar) ou de connexion peuvent
+      faire rater l'insert silencieusement.
+      Cette étape lit les CSV déjà sur disque — toujours propres — et est la source
+      de vérité pour Grafana. Elle est non-bloquante : si elle échoue le pipeline continue.
+    """
+    log.info("━━━ ÉTAPE 5/5 : POPULATION DB depuis artefacts CSV/JSON ━━━")
+    t0 = time.time()
+    try:
+        import datetime as _dt
+
+        from sqlalchemy import create_engine
+
+        from db.populate_from_artifacts import (
+            get_db_url,
+            populate_model_metrics,
+            populate_model_predictions,
+        )
+
+        db_url = get_db_url()
+        engine = create_engine(db_url, pool_pre_ping=True)
+        run_id = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%S") + "_pipeline"
+
+        populate_model_predictions(engine, run_id)
+        populate_model_metrics(engine, run_id)
+
+        log.info(f"Population DB terminée en {time.time()-t0:.1f}s")
         return True
+    except Exception as e:
+        log.warning(f"Population DB ERREUR (non-bloquant) : {e}")
+        return False
 
 
 def step_train() -> bool:
@@ -113,19 +148,17 @@ def step_train() -> bool:
         TARGET = "regression_macron"
 
         for fset in ("pre_vote", "post_t1"):
-            log.info(f"  Random Forest — feature_set={fset}")
             try:
                 m = train_random_forest(
                     feature_set=fset,
                     target=TARGET,
                     fast_search=True,
-                    n_iter=15,   # réduit pour éviter OOM Docker (150 fits × RF vs 300)
+                    n_iter=15,
                 )
                 results[f"rf_{fset}"] = m
             except Exception as e:
                 log.warning(f"  RF {fset} ERREUR: {e}")
 
-            log.info(f"  Gradient Boosting — feature_set={fset}")
             try:
                 m = train_gradient_boosting(
                     feature_set=fset, target=TARGET, use_search=False
@@ -135,27 +168,20 @@ def step_train() -> bool:
                 log.warning(f"  GB {fset} ERREUR: {e}")
 
         try:
-            log.info("  LSTM …")
             m = train_lstm(target=TARGET)
             if m:
                 results["lstm"] = m
         except ImportError:
-            log.info("  TensorFlow absent — LSTM ignoré")
+            pass
 
-        log.info("  Decision Tree — feature_set=pre_vote")
         try:
             m = train_decision_tree(feature_set="pre_vote", target=TARGET)
             results["decision_tree"] = m
         except Exception as e:
             log.warning(f"  DT ERREUR: {e}")
 
-        log.info("  MLP — feature_set=pre_vote")
         try:
-            m = train_mlp(
-                feature_set="pre_vote",
-                target=TARGET,
-                use_grid_search=False,
-            )
+            m = train_mlp(feature_set="pre_vote", target=TARGET, use_grid_search=False)
             results["mlp"] = m
         except Exception as e:
             log.warning(f"  MLP ERREUR: {e}")
@@ -184,7 +210,7 @@ def step_train() -> bool:
 def _write_run_artifact(t_start: float, elapsed: float, success: bool, etl_meta: dict) -> None:
     """Écrit ml/artifacts/pipeline_run.json pour le frontend."""
     try:
-        start_dt = datetime.datetime.utcfromtimestamp(t_start)
+        start_dt = datetime.datetime.fromtimestamp(t_start, datetime.timezone.utc)
         run_id = etl_meta.get("run_id") or start_dt.strftime("%Y%m%dT%H%M%S") + "_000000"
         artifact = {
             "id":       run_id,
@@ -248,6 +274,7 @@ def main():
     if not args.skip_train:
         ok = step_train()
         success = success and ok
+        step_populate_db()
 
     elapsed = time.time() - t_total
     status = "SUCCESS" if success else "PARTIAL"

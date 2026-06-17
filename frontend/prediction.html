@@ -43,7 +43,121 @@ function Header({ loaded }) {
 
 const REAL_IDF_T2 = 64.18;
 
+const KNOWN_PARAMS = {
+  'gradient_boosting|post_t1': {
+    n_estimators: 400, max_depth: 5, learning_rate: 0.03,
+    subsample: 0.7, max_features: 'sqrt',
+    min_samples_split: 8, min_samples_leaf: 4,
+  },
+  'gradient_boosting|pre_vote': {
+    n_estimators: 400, max_depth: 5, learning_rate: 0.03,
+    subsample: 0.7, max_features: 'sqrt',
+    min_samples_split: 8, min_samples_leaf: 4,
+  },
+  'random_forest|post_t1': {
+    n_estimators: 150, max_depth: 20, max_features: 'sqrt',
+    min_samples_split: 2, min_samples_leaf: 1,
+  },
+  'random_forest|pre_vote': {
+    n_estimators: 150, max_depth: 20, max_features: 'sqrt',
+    min_samples_split: 2, min_samples_leaf: 1,
+  },
+  'decision_tree|pre_vote': {
+    max_depth: 5, min_samples_split: 5, min_samples_leaf: 10, ccp_alpha: 0.0,
+  },
+  'mlp|pre_vote': {
+    hidden_layer_sizes: '(64, 32)', activation: 'relu', solver: 'adam',
+    alpha: 0.01, learning_rate_init: 0.001, max_iter: 600,
+    early_stopping: 'true', validation_fraction: 0.15, n_iter_no_change: 25,
+  },
+  'lstm|lstm': {
+    architecture: 'LSTM(32) + Dense(17)', optimizer: 'adam', loss: 'mse',
+    early_stopping: 'true (patience=15)', batch_size: 32,
+    lstm_units: 32, dense_units: 16, dropout: 0.2,
+  },
+};
+
+function ModelParamsModal({ model, onClose }) {
+  if (!model) return null;
+  const lookup = (model.key || '') + '|' + (model.fset || '');
+  const params = (model.hyperparams && Object.keys(model.hyperparams).length > 0)
+    ? model.hyperparams
+    : (KNOWN_PARAMS[lookup] || {});
+  const entries = Object.entries(params);
+  const fmtVal = v => (typeof v === 'boolean' ? String(v) : v === true ? 'true' : v === false ? 'false' : String(v));
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 24,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--surface-solid, #fff)',
+        border: '1px solid var(--line)',
+        borderRadius: 12,
+        padding: '28px 32px',
+        minWidth: 360,
+        maxWidth: 520,
+        width: '100%',
+        boxShadow: '0 12px 48px rgba(0,0,0,0.22)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 4 }}>Hyperparamètres</div>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>{model.name}</h3>
+            {model.feat && (
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 4, fontFamily: 'var(--mono)' }}>
+                {model.feat} features · {model.time || '—'}{model.epochs ? ' · ' + model.epochs + ' epochs' : ''}
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{
+            border: 'none', background: 'var(--bg-2)', cursor: 'pointer',
+            color: 'var(--ink-3)', fontSize: 14, fontWeight: 600,
+            borderRadius: 6, padding: '4px 10px', lineHeight: 1.4,
+          }}>✕</button>
+        </div>
+
+        {entries.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {entries.map(([k, v]) => (
+              <div key={k} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '8px 12px', borderRadius: 6,
+                background: 'var(--bg-2)',
+              }}>
+                <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{k}</span>
+                <span style={{
+                  fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--mono)',
+                  color: 'var(--ink)', background: 'var(--bg-3)',
+                  padding: '2px 8px', borderRadius: 4,
+                }}>
+                  {fmtVal(v)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: 'var(--ink-4)', padding: '12px 0' }}>
+            Hyperparamètres non disponibles pour ce modèle.
+          </div>
+        )}
+
+        <div style={{ marginTop: 16, fontSize: 11, color: 'var(--ink-5)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+          CV R² : <strong>{model.cv_r2 != null ? (model.cv_r2 * 100).toFixed(1) + '%' : '—'}</strong>
+          {model.cv_r2_std != null && <span> ±{(model.cv_r2_std * 100).toFixed(1)}%</span>}
+          {' · '}MAE OOF : <strong>{model.mae != null ? model.mae.toFixed(2) + ' pp' : '—'}</strong>
+          {' · '}Cliquez en dehors pour fermer
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ModelTable({ models, predMeans }) {
+  const [paramModel, setParamModel] = useState(null);
   const best = models.reduce((b, m) => (!b || (m.cv_r2 ?? m.r2 ?? -Infinity) > (b.cv_r2 ?? b.r2 ?? -Infinity)) ? m : b, null);
   return (
     <section className="section">
@@ -86,7 +200,14 @@ function ModelTable({ models, predMeans }) {
                   <td style={{ fontWeight: isBest ? 600 : 400 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {isBest && <span className="chip ok" style={{ padding: '2px 7px', fontSize: 10 }}><span className="dot" />retenu</span>}
-                      {m.name}
+                      <button onClick={() => setParamModel(m)} style={{
+                        background: 'none', border: 'none', padding: 0,
+                        cursor: 'pointer', fontWeight: isBest ? 600 : 400,
+                        fontSize: 'inherit', fontFamily: 'inherit',
+                        color: 'var(--ink)', textDecoration: 'underline',
+                        textDecorationStyle: 'dotted', textUnderlineOffset: 3,
+                        textDecorationColor: 'var(--ink-4)',
+                      }}>{m.name}</button>
                     </div>
                   </td>
                   <td className="num tnum" style={{ fontWeight: isBest ? 600 : 400, fontSize: 11 }}>
@@ -131,7 +252,9 @@ function ModelTable({ models, predMeans }) {
         La <strong>Bal. Acc. OOF</strong> reflète le % de communes dont le vainqueur est correctement prédit sur données hors-fold :
         les modèles post-T1 (MAE OOF ~2 pp) atteignent 92–93%, les modèles pré-vote (MAE OOF 3–5 pp) sont à 82–87%.
         Le <strong>Biais IDF</strong> mesure l'écart entre la prédiction moyenne et le résultat réel IDF (64,18%).
+        {' '}<span style={{ color: 'var(--ink-4)' }}>· Cliquez sur un nom de modèle pour voir ses hyperparamètres.</span>
       </div>
+      {paramModel && <ModelParamsModal model={paramModel} onClose={() => setParamModel(null)} />}
     </section>
   );
 }

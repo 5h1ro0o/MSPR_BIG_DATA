@@ -6,6 +6,7 @@ Définit l'interface commune : fit, predict, evaluate, save, load.
 from __future__ import annotations
 
 import json
+import logging
 import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -13,6 +14,8 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
+
+log = logging.getLogger(__name__)
 
 
 class BaseModel(ABC):
@@ -68,7 +71,7 @@ class BaseModel(ABC):
             "is_trained": self.is_trained,
         }
         meta_path.write_text(json.dumps(meta, indent=2, default=str))
-        print(f"  Modèle sauvegardé : {model_path}")
+        log.info(f"  Modèle sauvegardé : {model_path}")
         return model_path
 
     def load(self, tag: str = "") -> "BaseModel":
@@ -89,7 +92,7 @@ class BaseModel(ABC):
             self.metrics = meta.get("metrics", {})
             self.is_trained = meta.get("is_trained", True)
 
-        print(f"  Modèle chargé : {model_path}")
+        log.info(f"  Modèle chargé : {model_path}")
         return self
 
     def summary(self) -> str:

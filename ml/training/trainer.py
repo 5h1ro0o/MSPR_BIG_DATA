@@ -11,12 +11,16 @@ import os
 import numpy as np
 import pandas as pd
 
+import logging
+
 from ml.config import ARTIFACTS, RANDOM_STATE
 from ml.preprocessing import (
     build_X_y,
     get_commune_info,
     load_dataset,
 )
+
+log = logging.getLogger(__name__)
 
 # Colonnes de contexte électorales ajoutées au CSV de prédictions
 _CONTEXT_T1 = [
@@ -136,7 +140,7 @@ def train_random_forest(
         model.save(tag=tag)
     _save_metrics(model.metrics, "random_forest", tag)
     _store_to_db(pred_df, model.metrics, "random_forest", feature_set, target, tag)
-    print(f"\n  Artefacts RF sauvegardés dans : {ARTIFACTS}")
+    log.info(f"  RF {tag} — CV R²={model.metrics.get('cv_r2', '?')} MAE={model.metrics.get('cv_mae', '?')}")
     return model.metrics
 
 
@@ -220,7 +224,7 @@ def train_gradient_boosting(
         model.save(tag=tag)
     _save_metrics(model.metrics, "gradient_boosting", tag)
     _store_to_db(pred_df, model.metrics, "gradient_boosting", feature_set, target, tag)
-    print(f"\n  Artefacts GB sauvegardés dans : {ARTIFACTS}")
+    log.info(f"  GB {tag} — CV R²={model.metrics.get('cv_r2', '?')} MAE={model.metrics.get('cv_mae', '?')}")
     return model.metrics
 
 
@@ -236,7 +240,7 @@ def train_lstm(
     from sklearn.model_selection import train_test_split
 
     if not TF_AVAILABLE:
-        print("  [SKIP] TensorFlow non disponible. Installez : pip install tensorflow")
+        log.info("  [SKIP] TensorFlow non disponible — LSTM ignoré")
         return {}
 
     task = "regression" if "regression" in target else "classification"
@@ -260,11 +264,9 @@ def train_lstm(
     y_test  = pd.Series(y_arr[idx_te])
 
     if task == "regression":
-        print(f"\n  Score Macron — moy : {y_arr.mean():.2f}%  std : {y_arr.std():.2f}%")
+        log.debug(f"  LSTM — Score Macron moy={y_arr.mean():.2f}% std={y_arr.std():.2f}%")
     else:
-        print("\n  Distribution cible :")
-        print(f"  Macron gagne  : {(y_arr == 0).sum()} communes ({(y_arr == 0).mean() * 100:.1f}%)")
-        print(f"  Le Pen gagne  : {(y_arr == 1).sum()} communes ({(y_arr == 1).mean() * 100:.1f}%)")
+        log.debug(f"  LSTM — Macron {(y_arr == 0).sum()} communes / Le Pen {(y_arr == 1).sum()} communes")
 
     model = LSTMModel(artifact_dir=ARTIFACTS, task=task)
     model.train(X_train, y_train, X_val=X_test, y_val=y_test)
@@ -318,7 +320,7 @@ def train_lstm(
         model.save(tag=tag)
     _save_metrics(model.metrics, "lstm", tag)
     _store_to_db(pred_df, model.metrics, "lstm", "lstm", target, tag)
-    print(f"\n  Artefacts LSTM sauvegardés dans : {ARTIFACTS}")
+    log.info(f"  LSTM {tag} — CV R²={model.metrics.get('cv_r2', '?')} epochs={model.metrics.get('epochs_trained', '?')}")
     return model.metrics
 
 
@@ -396,7 +398,7 @@ def train_decision_tree(
         model.save(tag=tag)
     _save_metrics(model.metrics, "decision_tree", tag)
     _store_to_db(pred_df, model.metrics, "decision_tree", feature_set, target, tag)
-    print(f"\n  Artefacts DT sauvegardés dans : {ARTIFACTS}")
+    log.info(f"  DT {tag} — CV R²={model.metrics.get('cv_r2', '?')} MAE={model.metrics.get('cv_mae', '?')}")
     return model.metrics
 
 
@@ -474,7 +476,7 @@ def train_mlp(
         model.save(tag=tag)
     _save_metrics(model.metrics, "mlp", tag)
     _store_to_db(pred_df, model.metrics, "mlp", feature_set, target, tag)
-    print(f"\n  Artefacts MLP sauvegardés dans : {ARTIFACTS}")
+    log.info(f"  MLP {tag} — CV R²={model.metrics.get('cv_r2', '?')} MAE={model.metrics.get('cv_mae', '?')}")
     return model.metrics
 
 
@@ -538,23 +540,15 @@ def _store_to_db(
     target: str,
     tag: str,
 ) -> None:
-    """Stocke prédictions + métriques dans PostgreSQL si DATABASE_URL est défini."""
-    db_url = os.environ.get("DATABASE_URL") or os.environ.get("DB_URL")
-    if not db_url:
-        host = os.environ.get("POSTGRES_HOST", "localhost")
-        port = os.environ.get("POSTGRES_PORT", "5432")
-        db = os.environ.get("POSTGRES_DB", "elections_idf")
-        user = os.environ.get("POSTGRES_USER", "etl_admin")
-        pwd = os.environ.get("POSTGRES_PASSWORD", "")
-        if not pwd:
-            return
-        db_url = f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
+    """Stocke prédictions + métriques dans PostgreSQL."""
+    from config.settings import settings
+    db_url = os.environ.get("DATABASE_URL") or os.environ.get("DB_URL") or settings.database_url
 
     import datetime
 
     from ml.training.db_store import store_metrics, store_predictions
 
-    run_id = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S") + f"_{model_name}"
+    run_id = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S") + f"_{model_name}"
 
     store_predictions(pred_df, model_name, feature_set, target, run_id, db_url)
     store_metrics(metrics, model_name, feature_set, target, run_id, db_url)

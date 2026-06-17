@@ -1053,7 +1053,7 @@ def _try_download_resource(
             fmt = expected_fmt
 
         title = resource.get("title", "?")
-        log.info(f"    Téléchargement : {title!r} ({fmt}) …")
+        log.debug(f"    Téléchargement : {title!r} ({fmt}) …")
 
         try:
             r = _get_with_retry(url, timeout=300)

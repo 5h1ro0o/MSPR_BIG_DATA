@@ -77,6 +77,14 @@ def store_predictions(
         df["correct"] = df["correct"].astype(bool)
 
     try:
+        from config.settings import settings
+        from security.encryption import SENSITIVE_DB_COLUMNS
+
+        encryptor = settings.encryptor
+        if encryptor is not None:
+            df = encryptor.encrypt_dataframe(df, SENSITIVE_DB_COLUMNS)
+            log.info(f"  [db_store] Chiffrement activé pour {model_name} — {SENSITIVE_DB_COLUMNS}")
+
         engine = _get_engine(database_url)
         with engine.begin() as conn:
             conn.execute(text("CREATE SCHEMA IF NOT EXISTS gold"))

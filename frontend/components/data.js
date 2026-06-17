@@ -206,6 +206,31 @@ window.loadArtifacts = async function () {
     'mlp|pre_vote':               'MLP pré-vote',
     'lstm|lstm':                  'LSTM (dual-input)',
   };
+
+  // Hyperparamètres statiques pour modèles sans best_params dans le JSON
+  const STATIC_HYPERPARAMS = {
+    'mlp|pre_vote': {
+      hidden_layer_sizes: '(64, 32)',
+      activation: 'relu',
+      solver: 'adam',
+      alpha: 0.01,
+      learning_rate_init: 0.001,
+      max_iter: 600,
+      early_stopping: 'true',
+      validation_fraction: 0.15,
+      n_iter_no_change: 25,
+    },
+    'lstm|lstm': {
+      architecture: 'LSTM(32) + Dense(17)',
+      optimizer: 'adam',
+      loss: 'mse',
+      early_stopping: 'true (patience=15)',
+      batch_size: 32,
+      lstm_units: 32,
+      dense_units: 16,
+      dropout: 0.2,
+    },
+  };
   const results = [];
   let anyLoaded = false;
 
@@ -231,6 +256,8 @@ window.loadArtifacts = async function () {
         best:              (key === 'gradient_boosting' && fset === 'post_t1'),
         mae_is_oof:        m.cv_mae  != null,
         rmse_is_oof:       m.cv_rmse != null,
+        hyperparams:       m.best_params || STATIC_HYPERPARAMS[key + '|' + fset] || null,
+        epochs:            m.epochs_trained                                    || null,
       });
     } catch (_) {}
   }));

@@ -3,7 +3,7 @@ Chargement Gold — export CSV.
 Écriture idempotente avec backup de l'ancienne version.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -26,7 +26,7 @@ def write_gold_csv(df: pd.DataFrame, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if output_path.exists():
-        ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
         archive = output_path.with_name(f"{output_path.stem}_{ts}.csv")
         output_path.rename(archive)
         log.info(f"Ancienne version archivée : {archive.name}")

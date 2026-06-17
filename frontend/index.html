@@ -50,13 +50,13 @@ function HeroVisual() {
 
   useEffect(() => {
     loadArtifacts().then(() => {
-      const best = (MOCK.models || []).reduce((b, m) => (!b || (m.r2 ?? -Infinity) > (b.r2 ?? -Infinity)) ? m : b, null);
+      const best = (MOCK.models || []).reduce((b, m) => (!b || (m.cv_r2 ?? m.r2 ?? -Infinity) > (b.cv_r2 ?? b.r2 ?? -Infinity)) ? m : b, null);
       if (best) {
         setMlStats({
-          r2:   best.r2,
+          r2:   best.cv_r2 ?? best.r2,
           mae:  best.mae,
           cv:   best.cv_r2 != null
-            ? (best.cv_r2 * 100).toFixed(1) + (best.cv_r2_std != null ? '±' + (best.cv_r2_std * 100).toFixed(1) : '') + '%'
+            ? (best.cv_r2 * 100).toFixed(1) + (best.cv_r2_std != null ? ' ±' + (best.cv_r2_std * 100).toFixed(1) : '') + '%'
             : null,
           name: best.name || 'GB post-T1',
         });
@@ -99,7 +99,7 @@ function HeroVisual() {
           <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 4 }}>Marge : +28,4 pts en IDF</div>
         </div>
         <div style={{ padding: '18px 20px', background: 'var(--bg-2)', borderRadius: 'var(--r)', border: '1px solid var(--line)' }}>
-          <div className="label">Meilleur modèle — R²</div>
+          <div className="label">Meilleur modèle — CV R²</div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 6 }}>
             <span className="metric" style={{ fontSize: 28 }}>
               {r2Fmt}<span style={{ fontSize: 14, color: 'var(--ink-4)' }}>%</span>
@@ -108,8 +108,8 @@ function HeroVisual() {
           </div>
           <Sparkline data={sparkMl} color="var(--d-4)" height={28} />
           <div style={{ fontSize: 11, color: 'var(--ink-5)', marginTop: 4 }}>
-            MAE : {mlStats.mae != null ? mlStats.mae.toFixed(2) + ' pp' : '—'}
-            {' · '}CV R² : {mlStats.cv ?? '—'}
+            MAE OOF : {mlStats.mae != null ? mlStats.mae.toFixed(2) + ' pp' : '—'}
+            {mlStats.cv != null && <span> · CV R² {mlStats.cv}</span>}
           </div>
         </div>
       </div>

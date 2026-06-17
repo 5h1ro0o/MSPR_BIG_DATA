@@ -33,3 +33,5 @@ seaborn>=0.12.0
 
 great-expectations>=0.18.0   # Data Quality Management (DQM) — outil reconnu
 
+cryptography>=42.0.0         # Chiffrement symétrique AES-128-CBC (Fernet) — colonnes sensibles en DB
+
