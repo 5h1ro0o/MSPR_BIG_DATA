@@ -19,11 +19,10 @@ import re
 import secrets
 from pathlib import Path
 
+import pandas as pd
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
-import pandas as pd
 
 # 480 000 itérations — recommandation OWASP 2024 pour PBKDF2-HMAC-SHA256
 _PBKDF2_ITERATIONS = 480_000

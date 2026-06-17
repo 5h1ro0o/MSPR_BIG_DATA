@@ -338,7 +338,8 @@ class LSTMModel(BaseModel):
         y_raw_tr = self.keras_model.predict([X_seq_tr, X_soc_tr], verbose=0).flatten()
 
         if self.task == "regression":
-            from sklearn.metrics import mean_absolute_error as _mae, r2_score as _r2
+            from sklearn.metrics import mean_absolute_error as _mae
+            from sklearn.metrics import r2_score as _r2
 
             self.metrics = {
                 "train_mae": round(float(_mae(y_tr, y_raw_tr)), 4),
@@ -428,12 +429,10 @@ class LSTMModel(BaseModel):
         raw = self.keras_model.predict([X_seq, X_soc], verbose=0).flatten()
 
         if self.task == "regression":
-            from sklearn.metrics import (
-                mean_absolute_error as _mae,
-                mean_squared_error as _mse,
-                r2_score as _r2,
-                balanced_accuracy_score as _balacc,
-            )
+            from sklearn.metrics import balanced_accuracy_score as _balacc
+            from sklearn.metrics import mean_absolute_error as _mae
+            from sklearn.metrics import mean_squared_error as _mse
+            from sklearn.metrics import r2_score as _r2
 
             y_true_bin = (y_test.values < 50).astype(int)
             y_pred_bin = (raw < 50).astype(int)

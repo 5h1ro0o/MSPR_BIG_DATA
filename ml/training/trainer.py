@@ -6,12 +6,11 @@ Chaque fonction `train_XXX()` est autonome et produit artefacts + métriques.
 from __future__ import annotations
 
 import json
+import logging
 import os
 
 import numpy as np
 import pandas as pd
-
-import logging
 
 from ml.config import ARTIFACTS, RANDOM_STATE
 from ml.preprocessing import (
@@ -253,8 +252,9 @@ def train_lstm(
     Entraîne le LSTM dual-input (classification ou régression selon `target`).
     feature_set forcé à "lstm".
     """
-    from ml.models.lstm import TF_AVAILABLE, LSTMModel
     from sklearn.model_selection import train_test_split
+
+    from ml.models.lstm import TF_AVAILABLE, LSTMModel
 
     if not TF_AVAILABLE:
         log.info("  [SKIP] TensorFlow non disponible — LSTM ignoré")

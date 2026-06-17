@@ -12,7 +12,7 @@ Utilisation rapide :
     original = enc.decrypt(token)
 """
 
-from security.encryption import DataEncryptor, SENSITIVE_DB_COLUMNS
+from security.encryption import SENSITIVE_DB_COLUMNS, DataEncryptor
 from security.key_manager import KeyManager
 
 __all__ = ["DataEncryptor", "KeyManager", "SENSITIVE_DB_COLUMNS"]
