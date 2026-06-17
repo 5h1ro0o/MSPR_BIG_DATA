@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pandas.api.types as pat
 
 from etl.transform.assembler import assemble_dataset
 
@@ -38,15 +39,15 @@ def _empty():
 
 
 def _assemble(**kwargs):
-    defaults = dict(
-        participation=_participation(),
-        demographique=_empty(),
-        pauvrete=_empty(),
-        chomage=_empty(),
-        emploi=_empty(),
-        historique=_empty(),
-        cibles=_cibles(),
-    )
+    defaults = {
+        "participation": _participation(),
+        "demographique": _empty(),
+        "pauvrete": _empty(),
+        "chomage": _empty(),
+        "emploi": _empty(),
+        "historique": _empty(),
+        "cibles": _cibles(),
+    }
     defaults.update(kwargs)
     return assemble_dataset(**defaults)
 
@@ -151,7 +152,7 @@ class TestAssembleDeptNormalization:
 
     def test_dept_code_is_string(self):
         result = _assemble()
-        assert result["code_departement"].dtype == object
+        assert pat.is_string_dtype(result["code_departement"])
 
 
 class TestAssembleIqrFactor:

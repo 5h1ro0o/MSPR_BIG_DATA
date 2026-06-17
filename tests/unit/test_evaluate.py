@@ -28,11 +28,11 @@ class TestWilsonCI:
     def test_perfect_accuracy(self):
         lo, hi = wilson_ci(100, 100)
         assert lo <= 1.0
-        assert hi == 1.0
+        assert hi == pytest.approx(1.0)
 
     def test_zero_accuracy(self):
-        lo, hi = wilson_ci(0, 100)
-        assert lo == 0.0
+        lo, _ = wilson_ci(0, 100)
+        assert lo == pytest.approx(0.0)
 
     def test_confidence_wider_at_99(self):
         lo95, hi95 = wilson_ci(50, 100, confidence=0.95)
@@ -56,11 +56,12 @@ class TestBootstrapCI:
     def test_stable_with_fixed_seed(self):
         y_true = np.array([0, 1, 0, 1])
         y_score = np.array([0.2, 0.8, 0.3, 0.7])
+        metric = lambda yt, ys: float(np.mean(ys))  # noqa: E731
         lo1, hi1 = bootstrap_ci(
-            y_true, y_score, np.mean, n_bootstrap=100, random_state=42
+            y_true, y_score, metric, n_bootstrap=100, random_state=42
         )
         lo2, hi2 = bootstrap_ci(
-            y_true, y_score, np.mean, n_bootstrap=100, random_state=42
+            y_true, y_score, metric, n_bootstrap=100, random_state=42
         )
         assert lo1 == lo2
         assert hi1 == hi2
@@ -90,7 +91,7 @@ class TestBaselineMetrics:
     def test_all_same_class(self):
         y = np.array([1, 1, 1, 1])
         m = baseline_metrics(y)
-        assert m["baseline_accuracy"] == 1.0
+        assert m["baseline_accuracy"] == pytest.approx(1.0)
 
 
 # ── Métriques de régression ──────────────────────────────────────────────────

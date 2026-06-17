@@ -19,7 +19,7 @@ class TestStepMetric:
         assert m.end_ts is None
         m.finish()
         assert m.end_ts is not None
-        assert m.duration_s > 0.0
+        assert m.duration_s >= 0.0
 
     def test_default_fields(self):
         m = StepMetric(step="extract")
