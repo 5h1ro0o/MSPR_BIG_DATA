@@ -24,7 +24,9 @@ def extract_chomage_historique(chomage_hist_file: Path) -> pd.DataFrame:
         DataFrame brut avec toutes les colonnes du fichier source.
     """
     if not chomage_hist_file.exists():
-        log.warning(f"Fichier chômage absent : {chomage_hist_file} — chômage historique = NaN")
+        log.warning(
+            f"Fichier chômage absent : {chomage_hist_file} — chômage historique = NaN"
+        )
         return pd.DataFrame(columns=["code_commune"])
 
     df = pd.read_csv(chomage_hist_file, sep=";", encoding="utf-8")

@@ -136,8 +136,14 @@ class GradientBoostingModel(BaseModel):
         print(f"\n{'='*60}")
         print(f"  Gradient Boosting — {self.task.upper()}")
         print(f"  Features : {len(clean_features)} (après anti-leakage)")
-        vf = GB_BEST_PARAMS.get("validation_fraction", 0) if self.task == "classification" else 0
-        es_note = f"  (early stopping interne sur {int(len(X_tr)*vf*100):.0f}%)" if vf else ""
+        vf = (
+            GB_BEST_PARAMS.get("validation_fraction", 0)
+            if self.task == "classification"
+            else 0
+        )
+        es_note = (
+            f"  (early stopping interne sur {int(len(X_tr)*vf*100):.0f}%)" if vf else ""
+        )
         print(f"  Train : {len(X_tr):,} communes{es_note}")
         print(f"{'='*60}")
 
@@ -215,7 +221,9 @@ class GradientBoostingModel(BaseModel):
     def _run_search(self, X_tr, y_train, n_iter: int) -> Pipeline:
         """RandomizedSearchCV — grille adaptée à la tâche (régression vs classification)."""
         base = self.build()
-        param_grid = GB_PARAM_GRID_REGRESSION if self.task == "regression" else GB_PARAM_GRID
+        param_grid = (
+            GB_PARAM_GRID_REGRESSION if self.task == "regression" else GB_PARAM_GRID
+        )
         grid = {f"gb__{k}": v for k, v in param_grid.items()}
         cv = (
             StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
@@ -376,7 +384,9 @@ class GradientBoostingModel(BaseModel):
         proba_test_2d = self.pipeline.predict_proba(X_clean_test)
         n_classes = proba_test_2d.shape[1] if proba_test_2d.ndim > 1 else 1
         if n_classes < 2:
-            raise ValueError("plot_results requiert ≥ 2 classes (modèle entraîné avec 1 classe)")
+            raise ValueError(
+                "plot_results requiert ≥ 2 classes (modèle entraîné avec 1 classe)"
+            )
         y_proba_all = proba_all_2d[:, 1]
         y_proba = proba_test_2d[:, 1]
 
@@ -503,16 +513,20 @@ class GradientBoostingModel(BaseModel):
 
         if self.task == "regression":
             # raw_pred = % Macron T2 (continu, ex. 67.3)
-            result["prediction"] = np.where(raw_pred >= 50, 0, 1)   # 0=Macron, 1=LePen
+            result["prediction"] = np.where(raw_pred >= 50, 0, 1)  # 0=Macron, 1=LePen
             result["vainqueur_predit"] = np.where(raw_pred >= 50, "Macron", "Le Pen")
             result["proba_macron"] = np.round(raw_pred / 100, 4)
             result["proba_lepen"] = np.round(1 - raw_pred / 100, 4)
-            result["probability"] = result["proba_lepen"]            # colonne compatibilité Grafana
+            result["probability"] = result[
+                "proba_lepen"
+            ]  # colonne compatibilité Grafana
             result["score_macron_predit"] = np.round(raw_pred, 2)
         else:
             y_proba = self.predict_proba(X)
             result["prediction"] = raw_pred
-            result["vainqueur_predit"] = pd.Series(raw_pred).map({0: "Macron", 1: "Le Pen"})
+            result["vainqueur_predit"] = pd.Series(raw_pred).map(
+                {0: "Macron", 1: "Le Pen"}
+            )
             if y_proba is not None:
                 result["proba_macron"] = y_proba[:, 0].round(4)
                 if y_proba.ndim > 1 and y_proba.shape[1] >= 2:

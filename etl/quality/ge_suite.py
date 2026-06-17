@@ -54,7 +54,9 @@ def build_suite(context) -> "gx.ExpectationSuite":
     suite.add_expectation(
         gx.expectations.ExpectTableRowCountToBeBetween(min_value=1_200, max_value=1_400)
     )
-    suite.add_expectation(gx.expectations.ExpectTableColumnCountToBeBetween(min_value=50, max_value=130))
+    suite.add_expectation(
+        gx.expectations.ExpectTableColumnCountToBeBetween(min_value=50, max_value=130)
+    )
 
     # ── Colonne clé : code_commune ────────────────────────────────────────────
     suite.add_expectation(gx.expectations.ExpectColumnToExist(column="code_commune"))
@@ -169,7 +171,8 @@ def run_ge_suite(df: pd.DataFrame) -> dict:
         if failed:
             fails = [
                 f"{r.expectation_config.type}(col={getattr(r.expectation_config, 'kwargs', {}).get('column', 'table')})"
-                for r in result.results if not r.success
+                for r in result.results
+                if not r.success
             ]
             log.warning(f"  GE FAIL : {' · '.join(fails)}")
 

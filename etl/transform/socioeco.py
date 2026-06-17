@@ -23,7 +23,9 @@ def transform_demographique(df_raw: pd.DataFrame) -> pd.DataFrame:
     Supprime ensuite les colonnes d'effectifs intermédiaires.
     """
     if df_raw.empty or "pop_totale" not in df_raw.columns:
-        log.warning("Démographique absent — transform ignoré (features CSP/diplômes = NaN)")
+        log.warning(
+            "Démographique absent — transform ignoré (features CSP/diplômes = NaN)"
+        )
         return pd.DataFrame(columns=["code_commune"])
     df = df_raw.copy()
     pop = df["pop_totale"].replace(0, np.nan)
@@ -228,12 +230,16 @@ def transform_emploi_2022(df_raw: pd.DataFrame) -> pd.DataFrame:
     # ── Format base-cc INSEE (une ligne par commune) ──────────────────────────
     if "CODGEO" in df.columns:
         df["CODGEO"] = df["CODGEO"].astype(str).str.strip().str.zfill(5)
-        df = df[(df["CODGEO"].str.len() == 5) & (df["CODGEO"].str[:2].isin(IDF_DEPTS))].copy()
+        df = df[
+            (df["CODGEO"].str.len() == 5) & (df["CODGEO"].str[:2].isin(IDF_DEPTS))
+        ].copy()
         df.rename(columns={"CODGEO": "code_commune"}, inplace=True)
 
         result = df[["code_commune"]].copy()
         act_col = next((c for c in ("P22_ACT1564", "ACT1564") if c in df.columns), None)
-        chom_col = next((c for c in ("P22_CHOM1564", "CHOM1564") if c in df.columns), None)
+        chom_col = next(
+            (c for c in ("P22_CHOM1564", "CHOM1564") if c in df.columns), None
+        )
         if act_col and chom_col:
             act = pd.to_numeric(df[act_col], errors="coerce")
             chom = pd.to_numeric(df[chom_col], errors="coerce")
@@ -262,10 +268,19 @@ def transform_emploi_2022(df_raw: pd.DataFrame) -> pd.DataFrame:
         index="GEO", columns="EMPSTA_ENQ", values="OBS_VALUE", aggfunc="sum"
     ).reset_index()
     pivot.columns.name = None
-    pivot.rename(columns={"GEO": "code_commune", "2": "ds_chomeurs_2022", "1T2": "ds_actifs_totaux_2022"}, inplace=True)
+    pivot.rename(
+        columns={
+            "GEO": "code_commune",
+            "2": "ds_chomeurs_2022",
+            "1T2": "ds_actifs_totaux_2022",
+        },
+        inplace=True,
+    )
 
     if {"ds_chomeurs_2022", "ds_actifs_totaux_2022"}.issubset(pivot.columns):
-        pivot["ds_taux_chomage_2022"] = pct(pivot["ds_chomeurs_2022"], pivot["ds_actifs_totaux_2022"])
+        pivot["ds_taux_chomage_2022"] = pct(
+            pivot["ds_chomeurs_2022"], pivot["ds_actifs_totaux_2022"]
+        )
 
     keep = ["code_commune", "ds_taux_chomage_2022"]
     result = pivot[[c for c in keep if c in pivot.columns]]

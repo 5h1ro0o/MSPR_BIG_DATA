@@ -81,7 +81,9 @@ def step_datamart() -> None:
         if ok:
             log.info(f"Datamart alimenté en {elapsed:.1f}s")
         else:
-            log.warning("Datamart non alimenté (CSV ou DB indisponible) — pipeline continue")
+            log.warning(
+                "Datamart non alimenté (CSV ou DB indisponible) — pipeline continue"
+            )
     except Exception as e:
         log.warning(f"Datamart ERREUR (non-bloquant) : {e}")
 
@@ -113,7 +115,9 @@ def step_populate_db() -> bool:
 
         db_url = get_db_url()
         engine = create_engine(db_url, pool_pre_ping=True)
-        run_id = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%S") + "_pipeline"
+        run_id = (
+            _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%S") + "_pipeline"
+        )
 
         populate_model_predictions(engine, run_id)
         populate_model_metrics(engine, run_id)
@@ -207,24 +211,30 @@ def step_train() -> bool:
         return False
 
 
-def _write_run_artifact(t_start: float, elapsed: float, success: bool, etl_meta: dict) -> None:
+def _write_run_artifact(
+    t_start: float, elapsed: float, success: bool, etl_meta: dict
+) -> None:
     """Écrit ml/artifacts/pipeline_run.json pour le frontend."""
     try:
         start_dt = datetime.datetime.fromtimestamp(t_start, datetime.timezone.utc)
-        run_id = etl_meta.get("run_id") or start_dt.strftime("%Y%m%dT%H%M%S") + "_000000"
+        run_id = (
+            etl_meta.get("run_id") or start_dt.strftime("%Y%m%dT%H%M%S") + "_000000"
+        )
         artifact = {
-            "id":       run_id,
-            "start":    start_dt.strftime("%d/%m %H:%M"),
-            "dur":      f"{int(elapsed // 60)}m {int(elapsed % 60)}s",
-            "status":   "SUCCESS" if success else "PARTIAL",
+            "id": run_id,
+            "start": start_dt.strftime("%d/%m %H:%M"),
+            "dur": f"{int(elapsed // 60)}m {int(elapsed % 60)}s",
+            "status": "SUCCESS" if success else "PARTIAL",
             "communes": etl_meta.get("n_communes", 0),
-            "qc":       "OK" if etl_meta.get("qc_passed", False) else "KO",
-            "nulls":    etl_meta.get("n_nulls", 0),
+            "qc": "OK" if etl_meta.get("qc_passed", False) else "KO",
+            "nulls": etl_meta.get("n_nulls", 0),
         }
         artifacts_dir = PROJECT_ROOT / "ml" / "artifacts"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
         out = artifacts_dir / "pipeline_run.json"
-        out.write_text(json.dumps(artifact, ensure_ascii=False, indent=2), encoding="utf-8")
+        out.write_text(
+            json.dumps(artifact, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         log.info(f"Artifact run écrit : {out}")
     except Exception as e:
         log.warning(f"Impossible d'écrire pipeline_run.json : {e}")

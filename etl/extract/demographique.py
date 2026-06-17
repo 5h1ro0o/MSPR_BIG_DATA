@@ -71,7 +71,9 @@ def extract_demographique(demographique_file: Path) -> pd.DataFrame:
         DataFrame brut (bronze) filtré IDF, colonnes renommées.
     """
     if not demographique_file.exists():
-        log.warning(f"Fichier démographique absent : {demographique_file} — CSP/diplômes = NaN")
+        log.warning(
+            f"Fichier démographique absent : {demographique_file} — CSP/diplômes = NaN"
+        )
         return pd.DataFrame(columns=["code_commune"])
 
     df = pd.read_csv(

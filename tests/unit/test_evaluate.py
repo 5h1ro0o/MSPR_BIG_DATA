@@ -15,7 +15,6 @@ from ml.training.evaluate import (
     wilson_ci,
 )
 
-
 # ── Intervalles de confiance ──────────────────────────────────────────────────
 
 
@@ -57,8 +56,12 @@ class TestBootstrapCI:
     def test_stable_with_fixed_seed(self):
         y_true = np.array([0, 1, 0, 1])
         y_score = np.array([0.2, 0.8, 0.3, 0.7])
-        lo1, hi1 = bootstrap_ci(y_true, y_score, np.mean, n_bootstrap=100, random_state=42)
-        lo2, hi2 = bootstrap_ci(y_true, y_score, np.mean, n_bootstrap=100, random_state=42)
+        lo1, hi1 = bootstrap_ci(
+            y_true, y_score, np.mean, n_bootstrap=100, random_state=42
+        )
+        lo2, hi2 = bootstrap_ci(
+            y_true, y_score, np.mean, n_bootstrap=100, random_state=42
+        )
         assert lo1 == lo2
         assert hi1 == hi2
 
@@ -188,9 +191,12 @@ class TestPlotFunctions:
     @patch("matplotlib.pyplot.close")
     def test_plot_confusion_matrix(self, mock_close, mock_savefig, tmp_path):
         from ml.training.evaluate import plot_confusion_matrix
+
         y_true = np.array([0, 1, 0, 1, 0])
         y_pred = np.array([0, 1, 1, 0, 0])
-        path = plot_confusion_matrix(y_true, y_pred, ["macron", "lepen"], "test_model", tmp_path)
+        path = plot_confusion_matrix(
+            y_true, y_pred, ["macron", "lepen"], "test_model", tmp_path
+        )
         assert mock_savefig.called
         assert "test_model" in str(path)
 
@@ -198,6 +204,7 @@ class TestPlotFunctions:
     @patch("matplotlib.pyplot.close")
     def test_plot_roc_curve(self, mock_close, mock_savefig, tmp_path):
         from ml.training.evaluate import plot_roc_curve
+
         y_true = np.array([0, 1, 0, 1])
         y_proba = np.array([[0.9, 0.1], [0.1, 0.9], [0.8, 0.2], [0.2, 0.8]])
         plot_roc_curve(y_true, y_proba, "model", tmp_path)
@@ -205,6 +212,7 @@ class TestPlotFunctions:
 
     def test_plot_roc_curve_raises_on_single_class(self, tmp_path):
         from ml.training.evaluate import plot_roc_curve
+
         y_true = np.array([0, 0, 0])
         y_proba = np.array([[1.0, 0.0], [0.9, 0.1], [0.8, 0.2]])
         with pytest.raises(ValueError):
@@ -214,6 +222,7 @@ class TestPlotFunctions:
     @patch("matplotlib.pyplot.close")
     def test_plot_predictions_vs_actual(self, mock_close, mock_savefig, tmp_path):
         from ml.training.evaluate import plot_predictions_vs_actual
+
         y_true = np.array([60.0, 70.0, 80.0])
         y_pred = np.array([62.0, 68.0, 81.0])
         plot_predictions_vs_actual(y_true, y_pred, "gb", tmp_path)
@@ -223,6 +232,7 @@ class TestPlotFunctions:
     @patch("matplotlib.pyplot.close")
     def test_plot_feature_importance(self, mock_close, mock_savefig, tmp_path):
         from ml.training.evaluate import plot_feature_importance
+
         df = pd.DataFrame({"feature": ["a", "b", "c"], "importance": [0.5, 0.3, 0.2]})
         plot_feature_importance(df, "rf", tmp_path, top_n=3)
         assert mock_savefig.called
@@ -231,12 +241,14 @@ class TestPlotFunctions:
     @patch("matplotlib.pyplot.close")
     def test_plot_model_comparison(self, mock_close, mock_savefig, tmp_path):
         from ml.training.evaluate import plot_model_comparison
+
         results = {"rf": {"r2": 0.9}, "gb": {"r2": 0.85}}
         plot_model_comparison(results, "r2", tmp_path)
         assert mock_savefig.called
 
     def test_plot_model_comparison_all_zero_skips_plot(self, tmp_path):
         from ml.training.evaluate import plot_model_comparison
+
         results = {"rf": {"r2": None}, "gb": {"r2": None}}
         path = plot_model_comparison(results, "r2", tmp_path)
         assert path is not None

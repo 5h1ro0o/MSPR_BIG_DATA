@@ -120,7 +120,14 @@ OTHER_DATASETS = [
             "bases-de-donnees-communales-du-recensement-de-la-population-2022",
             "dossier-complet-recensement-2022",
         ],
-        "resource_hints": ["dossier_complet", "dossier complet", "synthese", "commune", "2022", "csv"],
+        "resource_hints": [
+            "dossier_complet",
+            "dossier complet",
+            "synthese",
+            "commune",
+            "2022",
+            "csv",
+        ],
         "formats": ["csv", "zip"],
         "target": "demographique +csp/dossier_complet.csv",
         "required": True,
@@ -142,7 +149,14 @@ OTHER_DATASETS = [
             "revenus-localises-sociaux-et-fiscaux-filosofi-2017",
             "filosofi-2017-commune",
         ],
-        "resource_hints": ["filosofi", "base-cc", "cc-filosofi", "2017", "commune", "revenus"],
+        "resource_hints": [
+            "filosofi",
+            "base-cc",
+            "cc-filosofi",
+            "2017",
+            "commune",
+            "revenus",
+        ],
         "formats": ["csv", "xlsx", "xls", "zip"],
         "target": "pauvreté/base-cc-filosofi-2017.csv",
         "required": True,
@@ -210,7 +224,7 @@ OTHER_DATASETS = [
         "formats": ["csv", "zip"],
         "target": "associations/rna_associations_idf.csv",
         "required": False,
-        "prefer_largest": True,   # évite de prendre l'import mensuel (3.9 Mo)
+        "prefer_largest": True,  # évite de prendre l'import mensuel (3.9 Mo)
     },
     {
         "key": "entreprises",
@@ -236,13 +250,13 @@ _ELECTION_LABELS = {
     "2012_pres_t2": "Élections 2012 T2",
 }
 _DATASET_LABELS = {
-    "demographics":  "Démographie RP 2022",
-    "filosofi":      "Filosofi 2017",
-    "emploi_2022":   "Emploi 2022",
-    "chomage_idf":   "Chômage IDF",
-    "securite":      "Sécurité",
-    "associations":  "Associations RNA",
-    "entreprises":   "Entreprises",
+    "demographics": "Démographie RP 2022",
+    "filosofi": "Filosofi 2017",
+    "emploi_2022": "Emploi 2022",
+    "chomage_idf": "Chômage IDF",
+    "securite": "Sécurité",
+    "associations": "Associations RNA",
+    "entreprises": "Entreprises",
 }
 
 
@@ -291,9 +305,12 @@ def _fetch_elections(data_root: Path) -> bool:
                 df_ck = pd.read_csv(
                     elections_dir / f"elections_{dept}.csv", dtype=str, low_memory=False
                 )
-                if "id_election" in df_ck.columns and df_ck["id_election"].isin(
-                    {"2022_pres_t1", "2022_pres_t2"}
-                ).any():
+                if (
+                    "id_election" in df_ck.columns
+                    and df_ck["id_election"]
+                    .isin({"2022_pres_t1", "2022_pres_t2"})
+                    .any()
+                ):
                     has_2022 = True
                     break
             except Exception:
@@ -301,7 +318,9 @@ def _fetch_elections(data_root: Path) -> bool:
         if has_2022:
             log.info(f"  ✓  {'Élections (× 6)':<22} déjà présentes — skip")
             return True
-        log.info("  Élections cache invalide (données 2022 absentes) — re-téléchargement…")
+        log.info(
+            "  Élections cache invalide (données 2022 absentes) — re-téléchargement…"
+        )
 
     all_participation: list[pd.DataFrame] = []
     all_candidats: list[pd.DataFrame] = []
@@ -365,7 +384,9 @@ def _download_election_csv(
             tour_hints_c = ELECTION_TOUR_HINT.get(id_election, [])
             ranked_c = _pick_election_resources_ranked(resources_c, tour_hints_c)
             if ranked_c:
-                log.debug(f"    [{id_election}] dataset trouvé via recherche : {dataset.get('slug')}")
+                log.debug(
+                    f"    [{id_election}] dataset trouvé via recherche : {dataset.get('slug')}"
+                )
                 break
             dataset = None
         else:
@@ -401,7 +422,9 @@ def _download_election_csv(
         # Reject immediately if no commune column present
         norm_cols = {_normalize_col(c) for c in df.columns}
         if not (norm_cols & _COMMUNE_NORM):
-            log.debug(f"    [{id_election}] pas de colonne commune dans {title!r} — essai suivant…")
+            log.debug(
+                f"    [{id_election}] pas de colonne commune dans {title!r} — essai suivant…"
+            )
             continue
 
         # Reject per-candidate files (one candidate only).
@@ -409,9 +432,13 @@ def _download_election_csv(
         #   - Numbered Nom columns: "Nom.1", "Nom 1" etc.  (dot/space-numbered)
         #   - "Unnamed: N" columns alongside a "Nom" column (NaN headers in XLSX, 2022 format)
         # Both are exempt. Only apply the candidate-count check for plain long-format files.
-        _nom_numbered = [c for c in df.columns if re.match(r"^nom[.\s]\d+$", c, re.IGNORECASE)]
+        _nom_numbered = [
+            c for c in df.columns if re.match(r"^nom[.\s]\d+$", c, re.IGNORECASE)
+        ]
         _has_unnamed = any(str(c).startswith("Unnamed:") for c in df.columns)
-        _nom_col_raw = next((c for c in df.columns if re.match(r"^nom$", c, re.IGNORECASE)), None)
+        _nom_col_raw = next(
+            (c for c in df.columns if re.match(r"^nom$", c, re.IGNORECASE)), None
+        )
         _is_wide = bool(_nom_numbered) or (_has_unnamed and _nom_col_raw is not None)
         if not _is_wide:
             _min_cands = 5 if id_election.endswith("_t1") else 2
@@ -446,24 +473,50 @@ def _pick_election_resources_ranked(
                        PAR COMMUNE pour toute la France. Ne pas pénaliser ce terme.
     """
     COMMUNE_LEVEL = [
-        "-com-", "niveau-com", "par-commune", "par commune",
-        "communes", "commune", "niveau com", "par com",
+        "-com-",
+        "niveau-com",
+        "par-commune",
+        "par commune",
+        "communes",
+        "commune",
+        "niveau com",
+        "par com",
         # data.gouv.fr 2022 : "subcom" = niveau commune (sous-division du département)
-        "subcom", "niveau-subcom", "sous-com",
+        "subcom",
+        "niveau-subcom",
+        "sous-com",
     ]
     BV_LEVEL = [
-        "burvot", "bureau de vote", "bureaux de vote", "bv-t",
+        "burvot",
+        "bureau de vote",
+        "bureaux de vote",
+        "bv-t",
         # "subcom" RETIRÉ — c'est le niveau commune sur data.gouv.fr 2022
-        "niveau-burvot", "niveau-bv", "scrutin",
-        "cirlg", "circo", "circonscription",
+        "niveau-burvot",
+        "niveau-bv",
+        "scrutin",
+        "cirlg",
+        "circo",
+        "circonscription",
         # Département level
-        "dpt", "niveau-dpt", "niveau dpt",
-        "niveau-dep", "niveau dep", "dep-t",
+        "dpt",
+        "niveau-dpt",
+        "niveau dpt",
+        "niveau-dep",
+        "niveau dep",
+        "dep-t",
         # Région level
-        "-reg-", "niveau-reg", "niveau reg", "reg-t",
+        "-reg-",
+        "niveau-reg",
+        "niveau reg",
+        "reg-t",
         # Agrégat national (1 seule ligne) — PAS "france-entiere" qui est le périmètre
-        "-fra-", "niveau-fra", "niveau fra", "fra-t",
-        "-nat-", "national",
+        "-fra-",
+        "niveau-fra",
+        "niveau fra",
+        "fra-t",
+        "-nat-",
+        "national",
         # NOTE : "france-entiere" RETIRÉ de BV_LEVEL — c'est le périmètre géo (scope),
         # pas le niveau d'agrégation. "resultats-par-niveau-subcom-t1-france-entiere"
         # contient bien des données COMMUNES pour toute la France.
@@ -550,13 +603,30 @@ def _download_and_parse(url: str, fmt: str) -> Optional[pd.DataFrame]:
             # making most columns "Unnamed:". Try increasing header rows, but only
             # accept a row that actually looks like a header (contains known column
             # name fragments rather than numeric data values).
-            HEADER_FRAGMENTS = {"code", "lib", "inscrit", "votant", "exprim", "nom", "prenom", "voix", "departement", "commune", "tour", "resultat"}
-            unnamed_count = sum(1 for c in df_xl.columns if str(c).startswith("Unnamed:"))
+            HEADER_FRAGMENTS = {
+                "code",
+                "lib",
+                "inscrit",
+                "votant",
+                "exprim",
+                "nom",
+                "prenom",
+                "voix",
+                "departement",
+                "commune",
+                "tour",
+                "resultat",
+            }
+            unnamed_count = sum(
+                1 for c in df_xl.columns if str(c).startswith("Unnamed:")
+            )
             if unnamed_count > len(df_xl.columns) // 2:
                 for skip in range(1, 6):
                     try:
                         df2 = pd.read_excel(io.BytesIO(content), header=skip, dtype=str)
-                        uc2 = sum(1 for c in df2.columns if str(c).startswith("Unnamed:"))
+                        uc2 = sum(
+                            1 for c in df2.columns if str(c).startswith("Unnamed:")
+                        )
                         # Accept only if fewer unnamed AND at least one recognizable column header
                         col_names_lower = {str(c).lower() for c in df2.columns}
                         has_real_header = any(
@@ -681,7 +751,7 @@ def _melt_wide_candidats(
         if voix_idx is None:
             return None
         # Offsets within each per-candidate block (relative to Nom column)
-        voix_off = voix_idx - nom_idx      # typically 2 (Nom, Prénom, Voix)
+        voix_off = voix_idx - nom_idx  # typically 2 (Nom, Prénom, Voix)
         prenom_off = (prenom_idx - nom_idx) if prenom_idx is not None else None
 
         # Detect stride: find the first Unnamed column with a candidate name
@@ -700,16 +770,25 @@ def _melt_wide_candidats(
         def _append_candidate(nom_c, voix_c, prenom_c):
             fr = df_idf[id_cols + [nom_c]].copy()
             fr.rename(columns={nom_c: "nom"}, inplace=True)
-            fr = fr[fr["nom"].notna() & (fr["nom"].astype(str).str.strip() != "")].copy()
+            fr = fr[
+                fr["nom"].notna() & (fr["nom"].astype(str).str.strip() != "")
+            ].copy()
             if fr.empty:
                 return
             fr["voix"] = (
-                pd.to_numeric(df_idf.loc[fr.index, voix_c], errors="coerce")
-                .fillna(0).astype(int)
-            ) if voix_c else 0
+                (
+                    pd.to_numeric(df_idf.loc[fr.index, voix_c], errors="coerce")
+                    .fillna(0)
+                    .astype(int)
+                )
+                if voix_c
+                else 0
+            )
             fr["prenom"] = (
-                df_idf.loc[fr.index, prenom_c].fillna("").astype(str).str.strip()
-            ) if prenom_c else ""
+                (df_idf.loc[fr.index, prenom_c].fillna("").astype(str).str.strip())
+                if prenom_c
+                else ""
+            )
             frames.append(fr)
 
         # Candidate 1 uses named columns
@@ -724,7 +803,9 @@ def _melt_wide_candidats(
                 v_idx = cur + voix_off
                 p_idx = (cur + prenom_off) if prenom_off is not None else None
                 voix_c = cols[v_idx] if v_idx < len(cols) else None
-                prenom_c = cols[p_idx] if p_idx is not None and p_idx < len(cols) else None
+                prenom_c = (
+                    cols[p_idx] if p_idx is not None and p_idx < len(cols) else None
+                )
                 _append_candidate(cols[cur], voix_c, prenom_c)
                 cur += stride
 
@@ -732,7 +813,14 @@ def _melt_wide_candidats(
             return None
         result = pd.concat(frames, ignore_index=True)
         result["id_election"] = id_election
-        out_cols = ["id_election", "code_departement", "code_commune", "voix", "nom", "prenom"]
+        out_cols = [
+            "id_election",
+            "code_departement",
+            "code_commune",
+            "voix",
+            "nom",
+            "prenom",
+        ]
         return result[[c for c in out_cols if c in result.columns]]
 
     # — Format "Nom.N" / "Nom N" (dot- or space-numbered columns) —
@@ -742,10 +830,11 @@ def _melt_wide_candidats(
         def _key(c):
             m = re.search(r"[.\s](\d+)$", c)
             return int(m.group(1)) if m else -1
+
         return sorted(matched, key=_key)
 
-    nom_cols   = _sorted_cols(r"^nom(?:[.\s]\d+)?$")
-    voix_cols  = _sorted_cols(r"^voix(?:[.\s]\d+)?$")
+    nom_cols = _sorted_cols(r"^nom(?:[.\s]\d+)?$")
+    voix_cols = _sorted_cols(r"^voix(?:[.\s]\d+)?$")
     prenom_cols = _sorted_cols(r"^pr[eé]nom(?:[.\s]\d+)?$")
 
     if not nom_cols or not voix_cols:
@@ -790,7 +879,14 @@ def _melt_wide_candidats(
 
     result = pd.concat(frames, ignore_index=True)
     result["id_election"] = id_election
-    out_cols = ["id_election", "code_departement", "code_commune", "voix", "nom", "prenom"]
+    out_cols = [
+        "id_election",
+        "code_departement",
+        "code_commune",
+        "voix",
+        "nom",
+        "prenom",
+    ]
     return result[[c for c in out_cols if c in result.columns]]
 
 
@@ -842,7 +938,9 @@ def _parse_election_csv(
     if max_commune_len is not None and int(max_commune_len) <= 3:
         # Within-dept code → needs code_departement to build full INSEE code
         if "code_departement" not in df.columns:
-            log.warning(f"    {id_election}: commune 3 chiffres mais dept absent — skip")
+            log.warning(
+                f"    {id_election}: commune 3 chiffres mais dept absent — skip"
+            )
             return None, None
         df["code_commune"] = df["code_departement"] + raw_commune.str.zfill(3)
     else:
@@ -949,7 +1047,9 @@ def _parse_election_csv(
     # Wide format detection:
     # (a) "Nom.N" or "Nom N" numbered columns (dot/space — pandas dedup or pre-named)
     # (b) "Unnamed: N" columns alongside a "nom" column (2022 XLSX: NaN headers for cands 2+)
-    nom_extra = [c for c in df_idf.columns if re.match(r"^nom(?:[.\s]\d+)?$", c, re.IGNORECASE)]
+    nom_extra = [
+        c for c in df_idf.columns if re.match(r"^nom(?:[.\s]\d+)?$", c, re.IGNORECASE)
+    ]
     _nom_numbered = [c for c in nom_extra if re.search(r"[.\s]\d+$", c)]
     _unnamed_wide = "nom" in df_idf.columns and any(
         str(c).startswith("Unnamed:") for c in df_idf.columns
@@ -969,7 +1069,14 @@ def _parse_election_csv(
         cand["id_election"] = id_election
         if "prenom" not in cand.columns:
             cand["prenom"] = ""
-        keep = ["id_election", "code_departement", "code_commune", "voix", "nom", "prenom"]
+        keep = [
+            "id_election",
+            "code_departement",
+            "code_commune",
+            "voix",
+            "nom",
+            "prenom",
+        ]
         candidats = cand[[c for c in keep if c in cand.columns]]
 
     return participation, candidats
@@ -1066,13 +1173,17 @@ def _try_download_resource(
                 try:
                     with zipfile.ZipFile(io.BytesIO(content)) as zf:
                         candidates = [
-                            n for n in zf.namelist()
-                            if Path(n).suffix.lower() == target_ext and not n.startswith("__")
+                            n
+                            for n in zf.namelist()
+                            if Path(n).suffix.lower() == target_ext
+                            and not n.startswith("__")
                         ]
                         if not candidates:
                             candidates = [
-                                n for n in zf.namelist()
-                                if Path(n).suffix.lower() in ext_map and not n.startswith("__")
+                                n
+                                for n in zf.namelist()
+                                if Path(n).suffix.lower() in ext_map
+                                and not n.startswith("__")
                             ]
                         if candidates:
                             name = candidates[0]
@@ -1083,7 +1194,9 @@ def _try_download_resource(
 
             if _is_valid_data_content(content, fmt):
                 return content
-            log.debug(f"    Contenu invalide ({len(content):,} bytes, fmt={fmt}) — essai suivant…")
+            log.debug(
+                f"    Contenu invalide ({len(content):,} bytes, fmt={fmt}) — essai suivant…"
+            )
 
         except Exception as e:
             log.debug(f"    Erreur téléchargement ({title!r}) : {e} — essai suivant…")
@@ -1122,26 +1235,36 @@ def _fetch_other_dataset(cfg: dict, data_root: Path) -> bool:
                         target_ext = f".{expected_fmt}"
                         # Priorité 1 : même extension que la cible
                         candidates = [
-                            n for n in names
-                            if Path(n).suffix.lower() == target_ext and not n.startswith("__")
+                            n
+                            for n in names
+                            if Path(n).suffix.lower() == target_ext
+                            and not n.startswith("__")
                         ]
                         # Priorité 2 : n'importe quel fichier de données
                         if not candidates:
                             candidates = [
-                                n for n in names
-                                if Path(n).suffix.lower() in ext_set and not n.startswith("__")
+                                n
+                                for n in names
+                                if Path(n).suffix.lower() in ext_set
+                                and not n.startswith("__")
                             ]
                         if candidates:
                             hint = cfg.get("zip_file_hint", "")
                             if hint:
-                                hinted = [n for n in candidates if hint.lower() in Path(n).name.lower()]
+                                hinted = [
+                                    n
+                                    for n in candidates
+                                    if hint.lower() in Path(n).name.lower()
+                                ]
                                 if hinted:
                                     candidates = hinted
                             # Sélectionner le plus gros fichier non-meta (fichier de données)
-                            candidates.sort(key=lambda n: (
-                                "meta" in Path(n).name.lower(),
-                                -zf.getinfo(n).file_size,  # plus gros en premier
-                            ))
+                            candidates.sort(
+                                key=lambda n: (
+                                    "meta" in Path(n).name.lower(),
+                                    -zf.getinfo(n).file_size,  # plus gros en premier
+                                )
+                            )
                             best = candidates[0]
                             content = zf.read(best)
                             dl_fmt = Path(best).suffix.lower().lstrip(".")
@@ -1163,7 +1286,9 @@ def _fetch_other_dataset(cfg: dict, data_root: Path) -> bool:
                     source = "URL directe"
                 log.info(f"  ✓  {label:<22} {size_mo:.1f} Mo [{source}]")
                 return True
-            log.debug(f"  [{key}] contenu direct invalide ({len(content):,} bytes) — essai slugs…")
+            log.debug(
+                f"  [{key}] contenu direct invalide ({len(content):,} bytes) — essai slugs…"
+            )
         except Exception as e:
             log.debug(f"  [{key}] URL directe échouée : {e} — essai slugs…")
 
@@ -1301,7 +1426,9 @@ def _get_all_dataset_resources(dataset: dict) -> list[dict]:
             if len(page_data) < 50:
                 break
         if all_res:
-            log.debug(f"    Ressources paginées : {len(all_res)} (embedded={len(embedded)})")
+            log.debug(
+                f"    Ressources paginées : {len(all_res)} (embedded={len(embedded)})"
+            )
             return all_res
     except Exception as exc:
         log.debug(f"    Pagination ressources échouée : {exc}")
@@ -1396,6 +1523,8 @@ def _log_summary(results: dict[str, bool]) -> None:
     level(f"━━━ FETCH terminé | {' · '.join(parts)} ━━━")
 
     for k in nok_required:
-        log.warning(f"  ✗  {all_labels.get(k, k):<22} requis — placez le fichier dans DATA_ROOT si disponible")
+        log.warning(
+            f"  ✗  {all_labels.get(k, k):<22} requis — placez le fichier dans DATA_ROOT si disponible"
+        )
     for k in nok_optional:
         log.debug(f"  –  {all_labels.get(k, k):<22} optionnel non chargé")

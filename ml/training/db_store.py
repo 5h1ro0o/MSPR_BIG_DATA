@@ -83,7 +83,9 @@ def store_predictions(
         encryptor = settings.encryptor
         if encryptor is not None:
             df = encryptor.encrypt_dataframe(df, SENSITIVE_DB_COLUMNS)
-            log.info(f"  [db_store] Chiffrement activé pour {model_name} — {SENSITIVE_DB_COLUMNS}")
+            log.info(
+                f"  [db_store] Chiffrement activé pour {model_name} — {SENSITIVE_DB_COLUMNS}"
+            )
 
         engine = _get_engine(database_url)
         with engine.begin() as conn:

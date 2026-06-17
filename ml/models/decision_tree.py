@@ -26,7 +26,12 @@ from sklearn.metrics import (
     r2_score,
     roc_auc_score,
 )
-from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold, cross_val_score
+from sklearn.model_selection import (
+    GridSearchCV,
+    KFold,
+    StratifiedKFold,
+    cross_val_score,
+)
 from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor, export_text
 
@@ -161,12 +166,16 @@ class DecisionTreeModel(BaseModel):
         if self.task == "regression":
             y_true = np.asarray(y_test, dtype=float)
             y_hat = np.asarray(y_pred, dtype=float)
-            self.metrics.update({
-                "train_n_samples": len(X_test),
-                "train_r2": round(float(r2_score(y_true, y_hat)), 4),
-                "train_mae": round(float(mean_absolute_error(y_true, y_hat)), 4),
-                "train_rmse": round(float(np.sqrt(mean_squared_error(y_true, y_hat))), 4),
-            })
+            self.metrics.update(
+                {
+                    "train_n_samples": len(X_test),
+                    "train_r2": round(float(r2_score(y_true, y_hat)), 4),
+                    "train_mae": round(float(mean_absolute_error(y_true, y_hat)), 4),
+                    "train_rmse": round(
+                        float(np.sqrt(mean_squared_error(y_true, y_hat))), 4
+                    ),
+                }
+            )
             print(
                 f"  DT Régression — R²={self.metrics['train_r2']:.4f} "
                 f"MAE={self.metrics['train_mae']:.4f} "
@@ -177,29 +186,48 @@ class DecisionTreeModel(BaseModel):
             baseline = float(pd.Series(y_test).value_counts(normalize=True).max())
             test_acc = accuracy_score(y_test, y_pred)
             try:
-                if y_proba is not None and y_proba.ndim > 1 and y_proba.shape[1] >= 2 and len(np.unique(y_test)) >= 2:
+                if (
+                    y_proba is not None
+                    and y_proba.ndim > 1
+                    and y_proba.shape[1] >= 2
+                    and len(np.unique(y_test)) >= 2
+                ):
                     test_auc = roc_auc_score(y_test, y_proba[:, 1])
                 else:
                     test_auc = None
             except Exception:
                 test_auc = None
 
-            self.metrics.update({
-                "test_n_samples": len(X_test),
-                "test_n_correct": int((y_pred == y_test.values).sum()),
-                "test_accuracy": round(test_acc, 4),
-                "test_balanced_accuracy": round(float(balanced_accuracy_score(y_test, y_pred)), 4),
-                "test_f1_weighted": round(float(f1_score(y_test, y_pred, average="weighted")), 4),
-                "test_f1_macro": round(float(f1_score(y_test, y_pred, average="macro")), 4),
-                "test_cohen_kappa": round(float(cohen_kappa_score(y_test, y_pred)), 4),
-                "test_roc_auc": round(test_auc, 4) if test_auc is not None else None,
-                "baseline_accuracy": round(baseline, 4),
-                "improvement_over_baseline": round(test_acc - baseline, 4),
-                "class_distribution": {
-                    str(k): round(v, 4)
-                    for k, v in pd.Series(y_test).value_counts(normalize=True).items()
-                },
-            })
+            self.metrics.update(
+                {
+                    "test_n_samples": len(X_test),
+                    "test_n_correct": int((y_pred == y_test.values).sum()),
+                    "test_accuracy": round(test_acc, 4),
+                    "test_balanced_accuracy": round(
+                        float(balanced_accuracy_score(y_test, y_pred)), 4
+                    ),
+                    "test_f1_weighted": round(
+                        float(f1_score(y_test, y_pred, average="weighted")), 4
+                    ),
+                    "test_f1_macro": round(
+                        float(f1_score(y_test, y_pred, average="macro")), 4
+                    ),
+                    "test_cohen_kappa": round(
+                        float(cohen_kappa_score(y_test, y_pred)), 4
+                    ),
+                    "test_roc_auc": (
+                        round(test_auc, 4) if test_auc is not None else None
+                    ),
+                    "baseline_accuracy": round(baseline, 4),
+                    "improvement_over_baseline": round(test_acc - baseline, 4),
+                    "class_distribution": {
+                        str(k): round(v, 4)
+                        for k, v in pd.Series(y_test)
+                        .value_counts(normalize=True)
+                        .items()
+                    },
+                }
+            )
         return self.metrics
 
     def get_feature_importance(self, top_n: int = 25) -> pd.DataFrame:

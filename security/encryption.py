@@ -86,7 +86,7 @@ class DataEncryptor:
         if not isinstance(value, str) or not value.startswith(ENC_PREFIX):
             return value
         try:
-            raw = self._fernet.decrypt(value[len(ENC_PREFIX):].encode("utf-8"))
+            raw = self._fernet.decrypt(value[len(ENC_PREFIX) :].encode("utf-8"))
             return raw.decode("utf-8")
         except InvalidToken:
             log.warning("Déchiffrement impossible — token invalide ou clé incorrecte.")
@@ -97,9 +97,7 @@ class DataEncryptor:
 
     # ── Chiffrement / déchiffrement DataFrame ─────────────────────────────────
 
-    def encrypt_dataframe(
-        self, df: pd.DataFrame, columns: list[str]
-    ) -> pd.DataFrame:
+    def encrypt_dataframe(self, df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
         """
         Chiffre les colonnes spécifiées. Retourne une copie du DataFrame.
         Les colonnes absentes ou déjà chiffrées sont ignorées.
@@ -108,9 +106,11 @@ class DataEncryptor:
         for col in columns:
             if col not in df.columns:
                 continue
-            already = df[col].apply(
-                lambda v: isinstance(v, str) and v.startswith(ENC_PREFIX)
-            ).all()
+            already = (
+                df[col]
+                .apply(lambda v: isinstance(v, str) and v.startswith(ENC_PREFIX))
+                .all()
+            )
             if already:
                 continue
             df[col] = df[col].apply(
@@ -119,9 +119,7 @@ class DataEncryptor:
             log.info(f"  [enc] Colonne '{col}' chiffrée — {len(df):,} lignes")
         return df
 
-    def decrypt_dataframe(
-        self, df: pd.DataFrame, columns: list[str]
-    ) -> pd.DataFrame:
+    def decrypt_dataframe(self, df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
         """Déchiffre les colonnes spécifiées. Retourne une copie."""
         df = df.copy()
         for col in columns:

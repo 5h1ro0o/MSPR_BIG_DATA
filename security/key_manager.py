@@ -159,14 +159,16 @@ class KeyManager:
             if col not in df.columns:
                 continue
             df[col] = df[col].apply(
-                lambda v: new_enc.encrypt(old_encryptor.decrypt(str(v)))
-                if pd.notna(v) else v
+                lambda v: (
+                    new_enc.encrypt(old_encryptor.decrypt(str(v))) if pd.notna(v) else v
+                )
             )
             print(f"  [rotate] Colonne '{col}' — {len(df):,} valeurs rechiffrées")
         return df
 
 
 # ── Entrée CLI ────────────────────────────────────────────────────────────────
+
 
 def _cli() -> None:
     import argparse

@@ -69,11 +69,13 @@ class TestWriteGoldCsv:
 class TestCheckDbConnection:
     def test_returns_false_on_invalid_url(self):
         from etl.load.db_loader import check_db_connection
+
         result = check_db_connection("postgresql+psycopg2://bad:bad@localhost:1/bad")
         assert result is False
 
     def test_returns_true_on_mock_connection(self):
         from etl.load.db_loader import check_db_connection
+
         mock_conn = MagicMock()
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
@@ -86,6 +88,9 @@ class TestCheckDbConnection:
 
     def test_returns_false_on_exception(self):
         from etl.load.db_loader import check_db_connection
-        with patch("etl.load.db_loader.create_engine", side_effect=Exception("conn error")):
+
+        with patch(
+            "etl.load.db_loader.create_engine", side_effect=Exception("conn error")
+        ):
             result = check_db_connection("postgresql+psycopg2://u:p@host/db")
         assert result is False

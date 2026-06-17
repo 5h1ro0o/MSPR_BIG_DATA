@@ -92,7 +92,9 @@ def assemble_dataset(
     for col in feature_num:
         if dataset[col].isna().any():
             fallback = dataset[col].median()
-            dataset[col] = dataset[col].fillna(fallback if not pd.isna(fallback) else 0.0)
+            dataset[col] = dataset[col].fillna(
+                fallback if not pd.isna(fallback) else 0.0
+            )
 
     # Colonnes texte avec NaN (libelle_commune, etc.) → chaîne vide
     str_cols = dataset.select_dtypes(include=["object"]).columns

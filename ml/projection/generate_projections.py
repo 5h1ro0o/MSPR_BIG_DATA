@@ -46,52 +46,52 @@ TRENDABLE = {
 # Tendances démographiques nationales IDF annuelles (source : projections INSEE 2020-2050)
 # Amplifiées pour refléter les dynamiques territoriales visibles à l'horizon 2025-2027
 DEMO_TRENDS = {
-    "pct_pop_0014":       -0.15,
-    "pct_pop_1529":       -0.09,
-    "pct_pop_3044":       -0.06,
-    "pct_pop_4559":       -0.12,
-    "pct_pop_6074":       +0.18,
-    "pct_pop_7589":       +0.12,
-    "pct_pop_90p":        +0.06,
+    "pct_pop_0014": -0.15,
+    "pct_pop_1529": -0.09,
+    "pct_pop_3044": -0.06,
+    "pct_pop_4559": -0.12,
+    "pct_pop_6074": +0.18,
+    "pct_pop_7589": +0.12,
+    "pct_pop_90p": +0.06,
     "pct_pop_senior_60p": +0.21,
 }
 
 # Tendances socio-économiques nationales IDF (pp/an)
 # Sources : INSEE projections emploi + Filosofi + Cereq
 NATIONAL_TRENDS = {
-    "pct_csp_cadres":      +0.20,   # hausse emplois qualifiés IDF (tertiarisation)
-    "pct_csp_ouvriers":    -0.15,   # désindustrialisation IDF
-    "pct_csp_employes":    -0.08,   # automatisation emplois intermédiaires
-    "pct_dipl_superieur":  +0.28,   # progression diplômes supérieurs
-    "pct_dipl_sup_bac5":   +0.12,   # masters et doctorats
-    "pct_dipl_aucun":      -0.22,   # réduction sans diplôme
-    "pct_dipl_capbep":     -0.10,   # déclin CAP/BEP
-    "taux_pauvrete_2017":  -0.12,   # recul pauvreté tendanciel IDF
-    "pct_log_hlm":         -0.09,   # rénovation urbaine / vente HLM
-    "pct_etrangers":       +0.07,   # légère croissance population étrangère IDF
-    "nb_chomeurs_2020":    -0.30,   # baisse structurelle chômeurs (pp réinterprété comme %)
+    "pct_csp_cadres": +0.20,  # hausse emplois qualifiés IDF (tertiarisation)
+    "pct_csp_ouvriers": -0.15,  # désindustrialisation IDF
+    "pct_csp_employes": -0.08,  # automatisation emplois intermédiaires
+    "pct_dipl_superieur": +0.28,  # progression diplômes supérieurs
+    "pct_dipl_sup_bac5": +0.12,  # masters et doctorats
+    "pct_dipl_aucun": -0.22,  # réduction sans diplôme
+    "pct_dipl_capbep": -0.10,  # déclin CAP/BEP
+    "taux_pauvrete_2017": -0.12,  # recul pauvreté tendanciel IDF
+    "pct_log_hlm": -0.09,  # rénovation urbaine / vente HLM
+    "pct_etrangers": +0.07,  # légère croissance population étrangère IDF
+    "nb_chomeurs_2020": -0.30,  # baisse structurelle chômeurs (pp réinterprété comme %)
 }
 
 FEATURE_BOUNDS = {
-    "taux_chomage_rp2022":  (2.0,  35.0),
-    "pct_pop_0014":         (0.0,  35.0),
-    "pct_pop_1529":         (0.0,  35.0),
-    "pct_pop_3044":         (0.0,  35.0),
-    "pct_pop_4559":         (0.0,  35.0),
-    "pct_pop_6074":         (0.0,  30.0),
-    "pct_pop_7589":         (0.0,  20.0),
-    "pct_pop_90p":          (0.0,  10.0),
-    "pct_pop_senior_60p":   (0.0,  50.0),
-    "pct_csp_cadres":       (0.0,  60.0),
-    "pct_csp_ouvriers":     (0.0,  40.0),
-    "pct_csp_employes":     (0.0,  40.0),
-    "pct_dipl_superieur":   (0.0,  70.0),
-    "pct_dipl_sup_bac5":    (0.0,  40.0),
-    "pct_dipl_aucun":       (0.0,  50.0),
-    "pct_dipl_capbep":      (0.0,  40.0),
-    "taux_pauvrete_2017":   (0.0,  50.0),
-    "pct_log_hlm":          (0.0,  80.0),
-    "pct_etrangers":        (0.0,  50.0),
+    "taux_chomage_rp2022": (2.0, 35.0),
+    "pct_pop_0014": (0.0, 35.0),
+    "pct_pop_1529": (0.0, 35.0),
+    "pct_pop_3044": (0.0, 35.0),
+    "pct_pop_4559": (0.0, 35.0),
+    "pct_pop_6074": (0.0, 30.0),
+    "pct_pop_7589": (0.0, 20.0),
+    "pct_pop_90p": (0.0, 10.0),
+    "pct_pop_senior_60p": (0.0, 50.0),
+    "pct_csp_cadres": (0.0, 60.0),
+    "pct_csp_ouvriers": (0.0, 40.0),
+    "pct_csp_employes": (0.0, 40.0),
+    "pct_dipl_superieur": (0.0, 70.0),
+    "pct_dipl_sup_bac5": (0.0, 40.0),
+    "pct_dipl_aucun": (0.0, 50.0),
+    "pct_dipl_capbep": (0.0, 40.0),
+    "taux_pauvrete_2017": (0.0, 50.0),
+    "pct_log_hlm": (0.0, 80.0),
+    "pct_etrangers": (0.0, 50.0),
 }
 
 
@@ -103,7 +103,9 @@ def compute_per_commune_trends(df: pd.DataFrame) -> dict[str, pd.Series]:
         n_years = yr_current - yr_old
         delta = (df[feat_current] - df[feat_old]) / n_years
         deltas[feat_current] = delta
-        log.debug(f"  Tendance {feat_current}: delta/an={delta.mean():.3f} (med {delta.median():.3f})")
+        log.debug(
+            f"  Tendance {feat_current}: delta/an={delta.mean():.3f} (med {delta.median():.3f})"
+        )
     return deltas
 
 
@@ -118,9 +120,9 @@ def compute_synthetic_drift(X_proj: pd.DataFrame, horizon_years: int) -> np.ndar
     drift = np.zeros(len(X_proj))
 
     for feat, weight in [
-        ("pct_csp_cadres",    +0.045),
+        ("pct_csp_cadres", +0.045),
         ("pct_dipl_superieur", +0.040),
-        ("pct_dipl_sup_bac5",  +0.030),
+        ("pct_dipl_sup_bac5", +0.030),
     ]:
         if feat in X_proj.columns:
             v = X_proj[feat].fillna(X_proj[feat].median())
@@ -128,10 +130,10 @@ def compute_synthetic_drift(X_proj: pd.DataFrame, horizon_years: int) -> np.ndar
 
     for feat, weight in [
         ("taux_pauvrete_2017", -0.045),
-        ("pct_log_hlm",        -0.035),
-        ("pct_csp_ouvriers",   -0.030),
-        ("pct_dipl_aucun",     -0.040),
-        ("nb_chomeurs_2020",   -0.020),
+        ("pct_log_hlm", -0.035),
+        ("pct_csp_ouvriers", -0.030),
+        ("pct_dipl_aucun", -0.040),
+        ("nb_chomeurs_2020", -0.020),
     ]:
         if feat in X_proj.columns:
             v = X_proj[feat].fillna(X_proj[feat].median())
@@ -195,7 +197,9 @@ def _load_best_model() -> tuple:
             pipeline = joblib.load(model_path)
             meta = json.loads(meta_path.read_text())
             feature_names = meta.get("feature_names", [])
-            log.info(f"  Modèle chargé : {model_path.name} ({len(feature_names)} features, {task})")
+            log.info(
+                f"  Modèle chargé : {model_path.name} ({len(feature_names)} features, {task})"
+            )
             return pipeline, feature_names, task
 
     raise FileNotFoundError(
@@ -227,7 +231,12 @@ def generate():
 
     pipeline, feature_names, task, df = load_model_and_data()
 
-    id_cols = ["code_commune", "code_departement", "libelle_departement", "libelle_commune"]
+    id_cols = [
+        "code_commune",
+        "code_departement",
+        "libelle_departement",
+        "libelle_commune",
+    ]
     id_df = df[[c for c in id_cols if c in df.columns]].copy()
 
     missing = [f for f in feature_names if f not in df.columns]
@@ -251,7 +260,9 @@ def generate():
     else:
         proba_base_2d = pipeline.predict_proba(X_base)
         n_classes_base = proba_base_2d.shape[1] if proba_base_2d.ndim > 1 else 1
-        score_base = proba_base_2d[:, 1] if n_classes_base >= 2 else np.zeros(len(X_base))
+        score_base = (
+            proba_base_2d[:, 1] if n_classes_base >= 2 else np.zeros(len(X_base))
+        )
 
     all_horizons = []
 
@@ -261,7 +272,9 @@ def generate():
 
         if task == "regression":
             score_proj = pipeline.predict(X_proj)
-            score_proj = np.clip(score_proj + compute_synthetic_drift(X_proj, horizon), 30.0, 95.0)
+            score_proj = np.clip(
+                score_proj + compute_synthetic_drift(X_proj, horizon), 30.0, 95.0
+            )
             result = id_base.copy()
             result["horizon_years"] = horizon
             result["annee_cible"] = annee
@@ -299,7 +312,9 @@ def generate():
 
         out_path = ARTIFACTS / f"projections_{annee}_t{horizon}.csv"
         result.to_csv(out_path, index=False)
-        log.info(f"  T+{horizon} ({annee}) — Macron {n_macron} communes ({n_macron/len(X_base)*100:.1f}%) · Le Pen {n_lepen} ({n_lepen/len(X_base)*100:.1f}%)")
+        log.info(
+            f"  T+{horizon} ({annee}) — Macron {n_macron} communes ({n_macron/len(X_base)*100:.1f}%) · Le Pen {n_lepen} ({n_lepen/len(X_base)*100:.1f}%)"
+        )
 
         all_horizons.append(result)
 
@@ -311,7 +326,11 @@ def generate():
         for dept_code, group in horizon_df.groupby("code_departement"):
             row = {
                 "code_departement": dept_code,
-                "libelle_departement": group["libelle_departement"].iloc[0] if "libelle_departement" in group.columns else "",
+                "libelle_departement": (
+                    group["libelle_departement"].iloc[0]
+                    if "libelle_departement" in group.columns
+                    else ""
+                ),
                 "annee_cible": annee,
                 "horizon_years": horizon,
                 "n_communes": len(group),
@@ -319,12 +338,22 @@ def generate():
             if task == "regression":
                 row["proba_macron_mean"] = round(float(group["proba_macron"].mean()), 4)
                 row["proba_lepen_mean"] = round(float(group["proba_lepen"].mean()), 4)
-                row["proba_macron_2022"] = round(float(group["proba_macron_2022"].mean()), 4)
+                row["proba_macron_2022"] = round(
+                    float(group["proba_macron_2022"].mean()), 4
+                )
                 row["n_macron_predit"] = int((group["prediction"] == 0).sum())
                 row["n_lepen_predit"] = int((group["prediction"] == 1).sum())
             else:
-                row["proba_macron_mean"] = round(float(group["proba_macron"].mean()), 4) if "proba_macron" in group.columns else None
-                row["proba_lepen_mean"] = round(float(group["proba_lepen"].mean()), 4) if "proba_lepen" in group.columns else None
+                row["proba_macron_mean"] = (
+                    round(float(group["proba_macron"].mean()), 4)
+                    if "proba_macron" in group.columns
+                    else None
+                )
+                row["proba_lepen_mean"] = (
+                    round(float(group["proba_lepen"].mean()), 4)
+                    if "proba_lepen" in group.columns
+                    else None
+                )
                 row["proba_macron_2022"] = None
                 row["n_macron_predit"] = int((group["prediction"] == 0).sum())
                 row["n_lepen_predit"] = int((group["prediction"] == 1).sum())
@@ -334,7 +363,11 @@ def generate():
     for dept_code, group in id_base.groupby("code_departement"):
         row = {
             "code_departement": dept_code,
-            "libelle_departement": group["libelle_departement"].iloc[0] if "libelle_departement" in group.columns else "",
+            "libelle_departement": (
+                group["libelle_departement"].iloc[0]
+                if "libelle_departement" in group.columns
+                else ""
+            ),
             "annee_cible": "2022",
             "horizon_years": 0,
             "n_communes": len(group),
@@ -349,7 +382,9 @@ def generate():
             row["n_lepen_predit"] = int((score_base[idx] < 50).sum())
         dept_rows.append(row)
 
-    summary_df = pd.DataFrame(dept_rows).sort_values(["code_departement", "annee_cible"])
+    summary_df = pd.DataFrame(dept_rows).sort_values(
+        ["code_departement", "annee_cible"]
+    )
     summary_path = ARTIFACTS / "projections_synthese_depts.csv"
     summary_df.to_csv(summary_path, index=False)
 
@@ -362,7 +397,9 @@ def generate():
     }
     meta_path_out = ARTIFACTS / "projections_meta.json"
     meta_path_out.write_text(json.dumps(meta_out, indent=2, ensure_ascii=False))
-    log.info(f"  Projections terminées — synthèse {len(summary_df)} lignes · {len(X_base)} communes")
+    log.info(
+        f"  Projections terminées — synthèse {len(summary_df)} lignes · {len(X_base)} communes"
+    )
 
 
 if __name__ == "__main__":

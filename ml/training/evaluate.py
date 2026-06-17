@@ -429,7 +429,11 @@ def plot_model_comparison(
     raw_values = [results[n].get(metric) for n in names]
     # Guard against None and NaN values (1-class models, failed metrics, etc.)
     values = [
-        float(v) if (v is not None and not (isinstance(v, float) and np.isnan(v))) else 0.0
+        (
+            float(v)
+            if (v is not None and not (isinstance(v, float) and np.isnan(v)))
+            else 0.0
+        )
         for v in raw_values
     ]
     if not values or max(values) == 0.0:

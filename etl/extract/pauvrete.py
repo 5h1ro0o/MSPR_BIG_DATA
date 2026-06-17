@@ -47,7 +47,9 @@ def extract_pauvrete(pauvrete_file: Path) -> pd.DataFrame:
         else:
             df = _read_filosofi_csv(pauvrete_file)
     except Exception as e:
-        log.warning(f"Fichier Filosofi invalide ({e}) — pauvrete ignorée (revenus = NaN)")
+        log.warning(
+            f"Fichier Filosofi invalide ({e}) — pauvrete ignorée (revenus = NaN)"
+        )
         return pd.DataFrame(columns=["code_commune"])
 
     if df is None or "CODGEO" not in df.columns:
@@ -56,7 +58,9 @@ def extract_pauvrete(pauvrete_file: Path) -> pd.DataFrame:
 
     df["CODGEO"] = norm_code(df["CODGEO"].astype(str))
     # Garder uniquement les communes IDF (code 5 chars, dept en IDF)
-    df = df[(df["CODGEO"].str.len() == 5) & (df["CODGEO"].str[:2].isin(IDF_DEPTS))].copy()
+    df = df[
+        (df["CODGEO"].str.len() == 5) & (df["CODGEO"].str[:2].isin(IDF_DEPTS))
+    ].copy()
 
     log.info(f"Pauvrete brut : {len(df):,} lignes")
     return df
@@ -72,21 +76,27 @@ def _read_filosofi_xlsx(path: Path) -> pd.DataFrame:
                     return df
             except Exception:
                 continue
-    raise ValueError(f"Aucune combinaison feuille/header n'a trouvé la colonne CODGEO dans {path.name}")
+    raise ValueError(
+        f"Aucune combinaison feuille/header n'a trouvé la colonne CODGEO dans {path.name}"
+    )
 
 
 def _read_filosofi_csv(path: Path) -> pd.DataFrame:
     """Lit le fichier CSV Filosofi (INSEE direct, séparateur ';')."""
     for sep in (";", ",", "\t"):
         try:
-            df = pd.read_csv(path, sep=sep, dtype=str, low_memory=False, encoding="utf-8")
+            df = pd.read_csv(
+                path, sep=sep, dtype=str, low_memory=False, encoding="utf-8"
+            )
             if "CODGEO" in df.columns and len(df.columns) > 5:
                 return df
         except Exception:
             continue
     for sep in (";", ",", "\t"):
         try:
-            df = pd.read_csv(path, sep=sep, dtype=str, low_memory=False, encoding="latin-1")
+            df = pd.read_csv(
+                path, sep=sep, dtype=str, low_memory=False, encoding="latin-1"
+            )
             if "CODGEO" in df.columns and len(df.columns) > 5:
                 return df
         except Exception:

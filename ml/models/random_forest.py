@@ -216,7 +216,9 @@ class RandomForestModel(BaseModel):
 
         # n_jobs limité à 4 pour éviter OOM Docker avec RF × 15 iter × 5 folds
         safe_jobs = min(self.n_jobs if self.n_jobs > 0 else 4, 4)
-        print(f"  RandomizedSearchCV : {n_iter} itérations × {CV_FOLDS} folds (n_jobs={safe_jobs})...")
+        print(
+            f"  RandomizedSearchCV : {n_iter} itérations × {CV_FOLDS} folds (n_jobs={safe_jobs})..."
+        )
         search = RandomizedSearchCV(
             base_pipeline,
             param_distributions=pipeline_grid,
@@ -236,7 +238,9 @@ class RandomForestModel(BaseModel):
         best_idx = search.best_index_
         self.cv_results_ = {
             "best_score": round(search.best_score_, 4),
-            "best_score_std": round(float(search.cv_results_["std_test_score"][best_idx]), 4),
+            "best_score_std": round(
+                float(search.cv_results_["std_test_score"][best_idx]), 4
+            ),
             "best_params": self.best_params_,
         }
         print(f"  Meilleur score CV ({scoring}) : {search.best_score_:.4f}")
@@ -453,7 +457,9 @@ class RandomForestModel(BaseModel):
             if y_prob is not None:
                 for i, cls in enumerate(self.pipeline.named_steps["rf"].classes_):
                     result[f"proba_{cls}"] = y_prob[:, i].round(3)
-                result["vainqueur_predit"] = pd.Series(raw_pred).map({0: "Macron", 1: "Le Pen"})
+                result["vainqueur_predit"] = pd.Series(raw_pred).map(
+                    {0: "Macron", 1: "Le Pen"}
+                )
                 if y_prob.shape[1] >= 2:
                     result["proba_macron"] = y_prob[:, 0].round(4)
                     result["proba_lepen"] = y_prob[:, 1].round(4)

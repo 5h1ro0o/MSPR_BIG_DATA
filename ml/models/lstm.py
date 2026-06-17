@@ -289,14 +289,16 @@ class LSTMModel(BaseModel):
         else:
             n_total = len(y_tr)
             n_macron = int((y_tr == 0).sum())
-            n_lepen  = int((y_tr == 1).sum())
+            n_lepen = int((y_tr == 1).sum())
             fit_kwargs = {
                 "class_weight": {
                     0: n_total / (2 * max(n_macron, 1)),
                     1: n_total / (2 * max(n_lepen, 1)),
                 }
             }
-            print(f"  Macron : {n_macron} | Le Pen : {n_lepen} | Poids : {fit_kwargs['class_weight']}")
+            print(
+                f"  Macron : {n_macron} | Le Pen : {n_lepen} | Poids : {fit_kwargs['class_weight']}"
+            )
             monitor_metric = "val_auc" if validation_data else "auc"
             es_mode = "max"
 
@@ -315,7 +317,9 @@ class LSTMModel(BaseModel):
             ),
         ]
 
-        print(f"\n  Entraînement (max {cfg['epochs']} époques, patience={cfg['patience']})...")
+        print(
+            f"\n  Entraînement (max {cfg['epochs']} époques, patience={cfg['patience']})..."
+        )
         hist = self.keras_model.fit(
             [X_seq_tr, X_soc_tr],
             y_tr,
@@ -335,47 +339,64 @@ class LSTMModel(BaseModel):
 
         if self.task == "regression":
             from sklearn.metrics import mean_absolute_error as _mae, r2_score as _r2
+
             self.metrics = {
                 "train_mae": round(float(_mae(y_tr, y_raw_tr)), 4),
-                "train_r2":  round(float(_r2(y_tr, y_raw_tr)), 4),
+                "train_r2": round(float(_r2(y_tr, y_raw_tr)), 4),
                 "epochs_trained": len(hist.history["loss"]),
                 "training_time_s": elapsed,
             }
             if validation_data:
-                y_raw_v = self.keras_model.predict([X_seq_v, X_soc_v], verbose=0).flatten()
+                y_raw_v = self.keras_model.predict(
+                    [X_seq_v, X_soc_v], verbose=0
+                ).flatten()
                 from sklearn.metrics import mean_squared_error as _mse
-                self.metrics.update({
-                    "val_r2":   round(float(_r2(y_val.values, y_raw_v)), 4),
-                    "val_mae":  round(float(_mae(y_val.values, y_raw_v)), 4),
-                    "val_rmse": round(float(np.sqrt(_mse(y_val.values, y_raw_v))), 4),
-                })
+
+                self.metrics.update(
+                    {
+                        "val_r2": round(float(_r2(y_val.values, y_raw_v)), 4),
+                        "val_mae": round(float(_mae(y_val.values, y_raw_v)), 4),
+                        "val_rmse": round(
+                            float(np.sqrt(_mse(y_val.values, y_raw_v))), 4
+                        ),
+                    }
+                )
                 print(f"  Val R²  : {self.metrics['val_r2']:.4f}")
                 print(f"  Val MAE : {self.metrics['val_mae']:.4f}")
         else:
             y_pred_tr = (y_raw_tr > 0.5).astype(int)
-            best_val_auc = max(hist.history.get("val_auc", hist.history.get("auc", [0])))
+            best_val_auc = max(
+                hist.history.get("val_auc", hist.history.get("auc", [0]))
+            )
             self.metrics = {
                 "train_accuracy": round(accuracy_score(y_tr, y_pred_tr), 4),
-                "train_auc":      round(roc_auc_score(y_tr, y_raw_tr), 4),
-                "best_val_auc":   round(float(best_val_auc), 4),
+                "train_auc": round(roc_auc_score(y_tr, y_raw_tr), 4),
+                "best_val_auc": round(float(best_val_auc), 4),
                 "epochs_trained": len(hist.history["loss"]),
                 "training_time_s": elapsed,
             }
             if validation_data:
-                y_raw_v = self.keras_model.predict([X_seq_v, X_soc_v], verbose=0).flatten()
+                y_raw_v = self.keras_model.predict(
+                    [X_seq_v, X_soc_v], verbose=0
+                ).flatten()
                 y_pred_v = (y_raw_v > 0.5).astype(int)
-                self.metrics.update({
-                    "val_accuracy": round(accuracy_score(y_val, y_pred_v), 4),
-                    "val_auc":      round(roc_auc_score(y_val, y_raw_v), 4),
-                    "val_f1":       round(f1_score(y_val, y_pred_v, zero_division=0), 4),
-                })
+                self.metrics.update(
+                    {
+                        "val_accuracy": round(accuracy_score(y_val, y_pred_v), 4),
+                        "val_auc": round(roc_auc_score(y_val, y_raw_v), 4),
+                        "val_f1": round(f1_score(y_val, y_pred_v, zero_division=0), 4),
+                    }
+                )
                 print(f"  Val Accuracy : {self.metrics['val_accuracy']:.4f}")
                 print(f"  Val AUC      : {self.metrics['val_auc']:.4f}")
-                print(classification_report(
-                    y_val, y_pred_v,
-                    target_names=["Macron (0)", "Le Pen (1)"],
-                    zero_division=0,
-                ))
+                print(
+                    classification_report(
+                        y_val,
+                        y_pred_v,
+                        target_names=["Macron (0)", "Le Pen (1)"],
+                        zero_division=0,
+                    )
+                )
 
         self.feature_names = list(X_train.columns)
         self.model = self.keras_model
@@ -413,13 +434,16 @@ class LSTMModel(BaseModel):
                 r2_score as _r2,
                 balanced_accuracy_score as _balacc,
             )
+
             y_true_bin = (y_test.values < 50).astype(int)
             y_pred_bin = (raw < 50).astype(int)
             metrics = {
-                "test_r2":                round(float(_r2(y_test, raw)), 4),
-                "test_mae":               round(float(_mae(y_test, raw)), 4),
-                "test_rmse":              round(float(np.sqrt(_mse(y_test, raw))), 4),
-                "test_balanced_accuracy": round(float(_balacc(y_true_bin, y_pred_bin)), 4),
+                "test_r2": round(float(_r2(y_test, raw)), 4),
+                "test_mae": round(float(_mae(y_test, raw)), 4),
+                "test_rmse": round(float(np.sqrt(_mse(y_test, raw))), 4),
+                "test_balanced_accuracy": round(
+                    float(_balacc(y_true_bin, y_pred_bin)), 4
+                ),
             }
             self.metrics.update(metrics)
             print(f"\n  Test R²   : {metrics['test_r2']:.4f}")
@@ -616,12 +640,12 @@ class LSTMModel(BaseModel):
                 {0: "Macron", 1: "Le Pen"}
             )
             result["proba_macron"] = (raw / 100).clip(0, 1).round(4)
-            result["proba_lepen"]  = (1 - result["proba_macron"]).round(4)
+            result["proba_lepen"] = (1 - result["proba_macron"]).round(4)
         else:
             y_proba = self.predict_proba(X)
             result["prediction"] = raw
             result["vainqueur_predit"] = pd.Series(raw).map({0: "Macron", 1: "Le Pen"})
             if y_proba is not None and y_proba.ndim == 2:
                 result["proba_macron"] = y_proba[:, 0].round(4)
-                result["proba_lepen"]  = y_proba[:, 1].round(4)
+                result["proba_lepen"] = y_proba[:, 1].round(4)
         return result

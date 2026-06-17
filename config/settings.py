@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     postgres_port: int = Field(5432, alias="POSTGRES_PORT")
     postgres_db: str = Field("elections_idf", alias="POSTGRES_DB")
     postgres_user: str = Field("etl_admin", alias="POSTGRES_USER")
-    postgres_password: str = Field("elections2022", alias="POSTGRES_PASSWORD")  # NOSONAR
+    postgres_password: str = Field(
+        "elections2022", alias="POSTGRES_PASSWORD"
+    )  # NOSONAR
 
     @property
     def database_url(self) -> str:
@@ -92,6 +94,7 @@ class Settings(BaseSettings):
         if not self.encryption_enabled or not self.encryption_key:
             return None
         from security.encryption import DataEncryptor
+
         return DataEncryptor(self.encryption_key.encode("utf-8"))
 
 

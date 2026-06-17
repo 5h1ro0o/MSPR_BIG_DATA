@@ -7,26 +7,30 @@ from etl.transform.assembler import assemble_dataset
 
 
 def _participation():
-    return pd.DataFrame({
-        "code_commune": ["75056", "92007", "93001"],
-        "code_departement": ["75", "92", "93"],
-        "libelle_departement": ["Paris", "Hauts-de-Seine", "Seine-Saint-Denis"],
-        "libelle_commune": ["Paris", "Boulogne", "Bobigny"],
-        "taux_participation_t1": [75.0, 72.0, 68.0],
-        "taux_participation_t2": [78.0, 74.0, 70.0],
-        "delta_participation_t2_t1": [3.0, 2.0, 2.0],
-    })
+    return pd.DataFrame(
+        {
+            "code_commune": ["75056", "92007", "93001"],
+            "code_departement": ["75", "92", "93"],
+            "libelle_departement": ["Paris", "Hauts-de-Seine", "Seine-Saint-Denis"],
+            "libelle_commune": ["Paris", "Boulogne", "Bobigny"],
+            "taux_participation_t1": [75.0, 72.0, 68.0],
+            "taux_participation_t2": [78.0, 74.0, 70.0],
+            "delta_participation_t2_t1": [3.0, 2.0, 2.0],
+        }
+    )
 
 
 def _cibles():
-    return pd.DataFrame({
-        "code_commune": ["75056", "92007", "93001"],
-        "cible_t2_pct_macron": [80.0, 65.0, 55.0],
-        "cible_t2_pct_lepen": [20.0, 35.0, 45.0],
-        "cible_t2_vainqueur": [0, 0, 0],
-        "cible_t2_marge": [60.0, 30.0, 10.0],
-        "cible_t1_premier": ["macron", "macron", "melenchon"],
-    })
+    return pd.DataFrame(
+        {
+            "code_commune": ["75056", "92007", "93001"],
+            "cible_t2_pct_macron": [80.0, 65.0, 55.0],
+            "cible_t2_pct_lepen": [20.0, 35.0, 45.0],
+            "cible_t2_vainqueur": [0, 0, 0],
+            "cible_t2_marge": [60.0, 30.0, 10.0],
+            "cible_t1_premier": ["macron", "macron", "melenchon"],
+        }
+    )
 
 
 def _empty():
@@ -100,15 +104,17 @@ class TestAssembleNullHandling:
 
     def test_drops_rows_without_cibles(self):
         part = _participation().copy()
-        extra = pd.DataFrame({
-            "code_commune": ["99999"],
-            "code_departement": ["99"],
-            "libelle_departement": ["Inconnue"],
-            "libelle_commune": ["Inconnue"],
-            "taux_participation_t1": [50.0],
-            "taux_participation_t2": [55.0],
-            "delta_participation_t2_t1": [5.0],
-        })
+        extra = pd.DataFrame(
+            {
+                "code_commune": ["99999"],
+                "code_departement": ["99"],
+                "libelle_departement": ["Inconnue"],
+                "libelle_commune": ["Inconnue"],
+                "taux_participation_t1": [50.0],
+                "taux_participation_t2": [55.0],
+                "delta_participation_t2_t1": [5.0],
+            }
+        )
         result = _assemble(participation=pd.concat([part, extra], ignore_index=True))
         assert "99999" not in result["code_commune"].values
 

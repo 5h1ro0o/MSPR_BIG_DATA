@@ -9,63 +9,70 @@ from etl.transform.socioeco import (
     transform_pauvrete,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
 def _demo_raw():
-    return pd.DataFrame({
-        "code_commune": ["75056", "92007"],
-        "pop_totale": [1000, 800],
-        "pop_0014": [150, 120],
-        "pop_1529": [200, 160],
-        "pop_3044": [250, 200],
-        "pop_4559": [200, 160],
-        "pop_6074": [100, 80],
-        "pop_7589": [80, 64],
-        "pop_90p": [20, 16],
-        "pop_hommes": [480, 384],
-        "pop_femmes": [520, 416],
-        "pop_15p": [850, 680],
-        "csp_cadres": [200, 160],
-        "csp_prof_intermediaires": [150, 120],
-        "csp_employes": [180, 144],
-        "csp_ouvriers": [100, 80],
-        "csp_retraites": [120, 96],
-        "csp_autres_inactifs": [100, 80],
-    })
+    return pd.DataFrame(
+        {
+            "code_commune": ["75056", "92007"],
+            "pop_totale": [1000, 800],
+            "pop_0014": [150, 120],
+            "pop_1529": [200, 160],
+            "pop_3044": [250, 200],
+            "pop_4559": [200, 160],
+            "pop_6074": [100, 80],
+            "pop_7589": [80, 64],
+            "pop_90p": [20, 16],
+            "pop_hommes": [480, 384],
+            "pop_femmes": [520, 416],
+            "pop_15p": [850, 680],
+            "csp_cadres": [200, 160],
+            "csp_prof_intermediaires": [150, 120],
+            "csp_employes": [180, 144],
+            "csp_ouvriers": [100, 80],
+            "csp_retraites": [120, 96],
+            "csp_autres_inactifs": [100, 80],
+        }
+    )
 
 
 def _chomage_raw():
-    return pd.DataFrame({
-        "code_commune": ["75056", "92007", "93001"],
-        "chom2020": [100, 80, 200],
-        "chom2019": [95, 75, 190],
-        "chom2018": [90, 70, 180],
-        "txchom2011": [8.5, 7.2, 15.0],
-        "txchom2010": [8.0, 7.0, 14.5],
-        "txchom2009": [7.5, 6.5, 14.0],
-    })
+    return pd.DataFrame(
+        {
+            "code_commune": ["75056", "92007", "93001"],
+            "chom2020": [100, 80, 200],
+            "chom2019": [95, 75, 190],
+            "chom2018": [90, 70, 180],
+            "txchom2011": [8.5, 7.2, 15.0],
+            "txchom2010": [8.0, 7.0, 14.5],
+            "txchom2009": [7.5, 6.5, 14.0],
+        }
+    )
 
 
 def _emploi_baseccc():
-    return pd.DataFrame({
-        "CODGEO": ["75056", "92007", "78000"],
-        "P22_ACT1564": [500, 400, 300],
-        "P22_CHOM1564": [50, 30, 45],
-    })
+    return pd.DataFrame(
+        {
+            "CODGEO": ["75056", "92007", "78000"],
+            "P22_ACT1564": [500, 400, 300],
+            "P22_CHOM1564": [50, 30, 45],
+        }
+    )
 
 
 def _pauvrete_raw():
-    return pd.DataFrame({
-        "CODGEO": ["75056", "92007"],
-        "MED17": [30000, 35000],
-        "TP6017": [10.5, 8.2],
-        "D117": [15000, 18000],
-        "D917": [60000, 70000],
-        "RD17": [4.0, 3.9],
-        "PIMP17": [65.0, 70.0],
-    })
+    return pd.DataFrame(
+        {
+            "CODGEO": ["75056", "92007"],
+            "MED17": [30000, 35000],
+            "TP6017": [10.5, 8.2],
+            "D117": [15000, 18000],
+            "D917": [60000, 70000],
+            "RD17": [4.0, 3.9],
+            "PIMP17": [65.0, 70.0],
+        }
+    )
 
 
 # ── transform_demographique ───────────────────────────────────────────────────
@@ -155,10 +162,12 @@ class TestTransformChomageHist:
         assert paris["evol_chomage_2018_2020_pct"] > 0
 
     def test_missing_columns_graceful(self):
-        minimal = pd.DataFrame({
-            "code_commune": ["75056"],
-            "chom2020": [100],
-        })
+        minimal = pd.DataFrame(
+            {
+                "code_commune": ["75056"],
+                "chom2020": [100],
+            }
+        )
         result = transform_chomage_hist(minimal)
         assert "code_commune" in result.columns
 
@@ -241,26 +250,31 @@ class TestTransformHistorique:
         ]:
             for commune in ["75056", "92007"]:
                 for nom, voix in cands:
-                    rows.append({
-                        "id_election": election,
-                        "code_commune": commune,
-                        "nom_norm": nom,
-                        "voix": voix,
-                    })
+                    rows.append(
+                        {
+                            "id_election": election,
+                            "code_commune": commune,
+                            "nom_norm": nom,
+                            "voix": voix,
+                        }
+                    )
         return pd.DataFrame(rows)
 
     def test_returns_dataframe(self):
         from etl.transform.candidats import transform_historique
+
         result = transform_historique(self._make_raw())
         assert isinstance(result, pd.DataFrame)
 
     def test_one_row_per_commune(self):
         from etl.transform.candidats import transform_historique
+
         result = transform_historique(self._make_raw())
         assert result["code_commune"].nunique() == len(result)
 
     def test_h17_columns_present(self):
         from etl.transform.candidats import transform_historique
+
         result = transform_historique(self._make_raw())
         assert "h17_t2_pct_macron" in result.columns
         assert "h17_t2_pct_lepen" in result.columns
@@ -275,26 +289,31 @@ class TestTransformCibles:
         ]:
             for commune in ["75056", "92007"]:
                 for nom, voix in cands:
-                    rows.append({
-                        "id_election": election,
-                        "code_commune": commune,
-                        "nom_norm": nom,
-                        "voix": voix,
-                    })
+                    rows.append(
+                        {
+                            "id_election": election,
+                            "code_commune": commune,
+                            "nom_norm": nom,
+                            "voix": voix,
+                        }
+                    )
         return pd.DataFrame(rows)
 
     def test_returns_dataframe(self):
         from etl.transform.candidats import transform_cibles
+
         result = transform_cibles(self._make_raw_2022())
         assert isinstance(result, pd.DataFrame)
 
     def test_t1_premier_column(self):
         from etl.transform.candidats import transform_cibles
+
         result = transform_cibles(self._make_raw_2022())
         assert "cible_t1_premier" in result.columns
 
     def test_t2_pct_columns(self):
         from etl.transform.candidats import transform_cibles
+
         result = transform_cibles(self._make_raw_2022())
         assert "cible_t2_pct_macron" in result.columns
         assert "cible_t2_pct_lepen" in result.columns

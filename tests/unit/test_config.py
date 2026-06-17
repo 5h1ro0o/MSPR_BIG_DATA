@@ -91,6 +91,7 @@ class TestSettingsEncryptor:
 
     def test_encryptor_returns_instance_when_enabled(self):
         from cryptography.fernet import Fernet
+
         key = Fernet.generate_key().decode("utf-8")
         s = Settings(ENCRYPTION_ENABLED=True, ENCRYPTION_KEY=key)
         enc = s.encryptor

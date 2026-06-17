@@ -101,29 +101,34 @@ class TestPipelineMetrics:
 class TestLogger:
     def test_get_logger_returns_bound_logger(self):
         from monitoring.logger import get_logger
+
         log = get_logger("test_module")
         assert log is not None
 
     def test_setup_logger_creates_log_dir(self, tmp_path):
         from monitoring.logger import setup_logger
+
         log_dir = tmp_path / "custom_logs"
         setup_logger(log_level="WARNING", log_dir=log_dir)
         assert log_dir.exists()
 
     def test_get_logger_does_not_raise(self):
         from monitoring.logger import get_logger
+
         log = get_logger("my.module")
         log.debug("test debug message")
         log.info("test info message")
 
     def test_setup_logger_warning_level(self, tmp_path):
         from monitoring.logger import setup_logger
+
         log_dir = tmp_path / "logs"
         setup_logger(log_level="WARNING", log_dir=log_dir)
         assert log_dir.exists()
 
     def test_setup_logger_info_level(self, tmp_path):
         from monitoring.logger import setup_logger
+
         log_dir = tmp_path / "logs_info"
         setup_logger(log_level="INFO", log_dir=log_dir)
         assert log_dir.exists()
