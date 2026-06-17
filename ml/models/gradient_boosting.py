@@ -94,9 +94,13 @@ class GradientBoostingModel(BaseModel):
             _STRIP = {"class_weight", "n_iter_no_change", "validation_fraction", "tol"}
             params = {k: v for k, v in GB_BEST_PARAMS.items() if k not in _STRIP}
             params.update(kwargs)
+            params.setdefault("learning_rate", 0.1)
+            params.setdefault("random_state", RANDOM_STATE)
             estimator = GradientBoostingRegressor(**params)
         else:
             params = {**GB_BEST_PARAMS, **kwargs}
+            params.setdefault("learning_rate", 0.1)
+            params.setdefault("random_state", RANDOM_STATE)
             estimator = GradientBoostingClassifier(**params)
 
         return Pipeline(

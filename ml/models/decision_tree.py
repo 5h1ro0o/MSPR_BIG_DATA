@@ -63,9 +63,11 @@ class DecisionTreeModel(BaseModel):
     def build(self, **kwargs) -> Pipeline:
         if self.task == "regression":
             params = {k: v for k, v in kwargs.items() if k != "class_weight"}
+            params.setdefault("ccp_alpha", 0.0)
             dt = DecisionTreeRegressor(random_state=RANDOM_STATE, **params)
         else:
             params = {"class_weight": "balanced", **kwargs}
+            params.setdefault("ccp_alpha", 0.0)
             dt = DecisionTreeClassifier(random_state=RANDOM_STATE, **params)
         return Pipeline(
             [

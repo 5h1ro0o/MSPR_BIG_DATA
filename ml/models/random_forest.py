@@ -91,6 +91,8 @@ class RandomForestModel(BaseModel):
 
     def build(self, **kwargs) -> Pipeline:
         """Construit le pipeline sklearn complet. OOB activé pour estimation gratuite."""
+        kwargs.setdefault("min_samples_leaf", 1)
+        kwargs.setdefault("max_features", "sqrt")
         if self.task == "classification":
             estimator = RandomForestClassifier(
                 random_state=RANDOM_STATE,

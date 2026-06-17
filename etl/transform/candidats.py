@@ -10,10 +10,12 @@ from monitoring.logger import get_logger
 
 log = get_logger(__name__)
 
+_LE_PEN = "LE PEN"
+
 CANDS_2012_T1 = {
     "HOLLANDE": "hollande",
     "SARKOZY": "sarkozy",
-    "LE PEN": "lepen",
+    _LE_PEN: "lepen",
     "MELENCHON": "melenchon",
     "BAYROU": "bayrou",
 }
@@ -23,20 +25,20 @@ CANDS_2017_T1 = {
     "MACRON": "macron",
     "FILLON": "fillon",
     "MELENCHON": "melenchon",
-    "LE PEN": "lepen",
+    _LE_PEN: "lepen",
     "HAMON": "hamon",
 }
-CANDS_2017_T2 = {"MACRON": "macron", "LE PEN": "lepen"}
+CANDS_2017_T2 = {"MACRON": "macron", _LE_PEN: "lepen"}
 
 CANDS_2022_T1 = {
     "MELENCHON": "melenchon",
     "MACRON": "macron",
-    "LE PEN": "lepen",
+    _LE_PEN: "lepen",
     "ZEMMOUR": "zemmour",
     "PECRESSE": "pecresse",
     "JADOT": "jadot",
 }
-CANDS_2022_T2 = {"MACRON": "macron", "LE PEN": "lepen"}
+CANDS_2022_T2 = {"MACRON": "macron", _LE_PEN: "lepen"}
 
 
 def pivot_candidats(

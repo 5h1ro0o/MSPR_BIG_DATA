@@ -12,7 +12,7 @@ Usage Prefect :
 import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -144,7 +144,7 @@ def _persist_quality_checks(
             )
 
         engine = create_engine(database_url, pool_pre_ping=True)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         t_start = started_at or now
         with engine.begin() as conn:
             # Upsert pipeline_runs first so quality_checks FK is satisfied
